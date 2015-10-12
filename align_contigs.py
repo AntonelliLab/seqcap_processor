@@ -64,12 +64,6 @@ def get_args():
         help="""The directory in which to store the resulting alignments."""
     )
     parser.add_argument(
-        "--taxa",
-        required=True,
-        type=int,
-        help="""Number of taxa expected in each alignment."""
-    )
-    parser.add_argument(
         "--aligner",
         choices=["dialign", "muscle", "mafft"],
         default="mafft",
@@ -260,7 +254,9 @@ if __name__ == '__main__':
     elif args.aligner == "dialign":
         from phyluce.dialign import Align
     main(args)
+    print "Just one moment ....."
     output_folder = args.output
     file_format = args.output_format
     cmd = "for file in $(ls %s/*.%s); do sed -i -e 's/>\w*_[0-9]*_[0-9]*_/>/g' $file; done" %(output_folder,file_format)
     os.system(cmd)
+    print "Done!!!"
