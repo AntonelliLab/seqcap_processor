@@ -124,7 +124,7 @@ def get_args():
     parser.add_argument(
         "--min-length",
         type=int,
-        default=100,
+        default=80,
         help="""The minimum length of alignments to keep."""
     )
     parser.add_argument(
