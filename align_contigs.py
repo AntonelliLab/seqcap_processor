@@ -1,7 +1,6 @@
 #!/usr/local/anaconda/bin/python
 # encoding: utf-8
 
-
 """
 Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
 Redistribution and use in source and binary forms, with or without
@@ -25,15 +24,12 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Usage:
-    python2.7 seqcap_align_2.py \
-        --fasta test.fasta \
-        --output alignment \
-        --taxa 41 \
-        --incomplete-matrix \
-        --output-format fasta
-
 """
+
+# Modified by Tobias Hofmann:
+# Modifications include: 	- Standardizing script for incomplete data 
+#							- Setting suitable alignment settings for standard palm contigs as default, to avoid discarding too many loci
+
 
 import os
 import sys
@@ -55,12 +51,11 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--fasta",
+        "--extracted-contigs",
         required=True,
         action=FullPaths,
         type=is_file,
-        help="""The file containing FASTA reads associated with targted loci from """ +
-        """get_fastas_from_match_counts.py"""
+        help="""The fasta file containing the extracted contigs that match the target loci"""
     )
     parser.add_argument(
         "--output",
@@ -101,13 +96,6 @@ def get_args():
         help="""The path to a directory to hold logs."""
     )
     parser.add_argument(
-        "--incomplete-matrix",
-        dest="notstrict",
-        action="store_true",
-        default=False,
-        help="""Allow alignments that do not contain all --taxa."""
-    )
-    parser.add_argument(
         "--no-trim",
         action="store_true",
         default=False,
@@ -116,26 +104,26 @@ def get_args():
     parser.add_argument(
         "--window",
         type=int,
-        default=20,
+        default=10,
         help="""Sliding window size for trimming."""
     )
     parser.add_argument(
         "--proportion",
         type=float,
-        default=0.65,
+        default=0.5,
         help="""The proportion of taxa required to have sequence at alignment ends."""
     )
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.65,
+        default=0.5,
         help="""The proportion of residues required across the window in """ +
         """proportion of taxa."""
     )
     parser.add_argument(
         "--max-divergence",
         type=float,
-        default=0.20,
+        default=0.40,
         help="""The max proportion of sequence divergence allowed between any row """ +
         """of the alignment and the alignment consensus."""
     )
@@ -216,7 +204,7 @@ def get_fasta_dict(log, args):
     else:
         log.info("Removing ALL sequences with ambiguous bases...")
     loci = defaultdict(list)
-    with open(args.fasta, "rU") as infile:
+    with open(args.extracted_contigs, "rU") as infile:
         for record in SeqIO.parse(infile, "fasta"):
             locus = record.description.split("|")[1]
             loci = build_locus_dict(log, loci, locus, record, args.ambiguous)
@@ -224,14 +212,9 @@ def get_fasta_dict(log, args):
     snapshot = copy.deepcopy(loci)
     # iterate over loci to check for all species at a locus
     for locus, data in snapshot.iteritems():
-        if args.notstrict:
-            if len(data) < 3:
-                del loci[locus]
-                log.warn("DROPPED locus {0}. Too few taxa (N < 3).".format(locus))
-        else:
-            if len(data) < args.taxa:
-                del loci[locus]
-                log.warn("DROPPED locus {0}. Alignment does not contain all {1} taxa.".format(locus, args.taxa))
+        if len(data) < 3:
+            del loci[locus]
+            log.warn("DROPPED locus {0}. Too few taxa (N < 3).".format(locus))
     return loci
 
 
