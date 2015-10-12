@@ -78,7 +78,7 @@ def get_args():
     parser.add_argument(
         "--output-format",
         choices=["fasta", "nexus", "phylip", "clustal", "emboss", "stockholm"],
-        default="nexus",
+        default="fasta",
         help="""The output alignment format.""",
     )
     parser.add_argument(
