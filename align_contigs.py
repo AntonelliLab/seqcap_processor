@@ -32,20 +32,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 import os
-import re
 import sys
-import glob
 import copy
 import argparse
 import tempfile
 import multiprocessing
 from Bio import SeqIO
-from Bio import AlignIO
-from Bio.Alphabet import generic_dna
-from Bio.Align import MultipleSeqAlignment
 from collections import defaultdict
 
-from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir, get_alignment_files
+from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
 from phyluce.log import setup_logging
 
 #import pdb
@@ -253,29 +248,6 @@ def main(args):
     # end
     text = " Completed {} ".format(my_name)
     log.info(text.center(65, "="))
-
-def addition():
-    files = glob.glob('%s/*.%s' %(args.output,args.output_format))
-    print files
-    new_align = MultipleSeqAlignment([], generic_dna)
-    for align in AlignIO.parse(files,args.output_format):
-        print align
-        for seq in list(align):
-            fname = os.path.splitext(os.path.basename(files))[0]
-            new_seq_name = re.sub("^(_R_)*{}_*".format(fname), "", seq.name)
-            all_taxa.append(new_seq_name)
-            seq.id = new_seq_name
-            seq.name = new_seq_name
-            new_align.append(seq)
-    outf = os.path.join(args.output, os.path.split(f)[1])
-    try:
-        with open(outf, 'w') as outfile:
-            AlignIO.write(new_align, outfile, 'nexus')
-        sys.stdout.write(".")
-        sys.stdout.flush()
-    except ValueError:
-        raise IOError("Cannot write output file.")
-
 
 
 if __name__ == '__main__':
