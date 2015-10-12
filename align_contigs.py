@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # Modified by Tobias Hofmann:
 # Modifications include: 	- Standardizing script for incomplete data 
 #							- Setting suitable alignment settings for standard palm contigs as default, to avoid discarding too many loci
-
+#							- Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
 
 import os
 import sys
