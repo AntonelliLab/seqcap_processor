@@ -32,15 +32,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 import os
+import re
 import sys
+import glob
 import copy
 import argparse
 import tempfile
 import multiprocessing
 from Bio import SeqIO
+from Bio import AlignIO
+from Bio.Alphabet import generic_dna
+from Bio.Align import MultipleSeqAlignment
 from collections import defaultdict
 
-from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
+from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir, get_alignment_files
 from phyluce.log import setup_logging
 
 #import pdb
@@ -218,6 +223,7 @@ def get_fasta_dict(log, args):
     return loci
 
 
+
 def main(args):
     # setup logging
     log, my_name = setup_logging(args)
@@ -248,6 +254,29 @@ def main(args):
     text = " Completed {} ".format(my_name)
     log.info(text.center(65, "="))
 
+def addition():
+    files = glob.glob('%s/*.%s' %(args.output,args.output_format))
+    print files
+    new_align = MultipleSeqAlignment([], generic_dna)
+    for align in AlignIO.parse(files,args.output_format):
+        print align
+        for seq in list(align):
+            fname = os.path.splitext(os.path.basename(files))[0]
+            new_seq_name = re.sub("^(_R_)*{}_*".format(fname), "", seq.name)
+            all_taxa.append(new_seq_name)
+            seq.id = new_seq_name
+            seq.name = new_seq_name
+            new_align.append(seq)
+    outf = os.path.join(args.output, os.path.split(f)[1])
+    try:
+        with open(outf, 'w') as outfile:
+            AlignIO.write(new_align, outfile, 'nexus')
+        sys.stdout.write(".")
+        sys.stdout.flush()
+    except ValueError:
+        raise IOError("Cannot write output file.")
+
+
 
 if __name__ == '__main__':
     args = get_args()
@@ -259,3 +288,8 @@ if __name__ == '__main__':
     elif args.aligner == "dialign":
         from phyluce.dialign import Align
     main(args)
+    output_folder = args.output
+    file_format = args.output_format
+    cmd = "for file in $(ls %s/*.%s); do sed -i -e 's/>\w*_[0-9]*_[0-9]*_/>/g' $file; done" %(output_folder,file_format)
+    print cmd
+    os.system(cmd)
