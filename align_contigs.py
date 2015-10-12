@@ -263,5 +263,4 @@ if __name__ == '__main__':
     output_folder = args.output
     file_format = args.output_format
     cmd = "for file in $(ls %s/*.%s); do sed -i -e 's/>\w*_[0-9]*_[0-9]*_/>/g' $file; done" %(output_folder,file_format)
-    print cmd
     os.system(cmd)
