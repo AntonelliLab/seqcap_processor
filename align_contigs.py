@@ -51,7 +51,7 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--extracted-contigs",
+        "--sequences",
         required=True,
         action=FullPaths,
         type=is_file,
@@ -198,7 +198,7 @@ def get_fasta_dict(log, args):
     else:
         log.info("Removing ALL sequences with ambiguous bases...")
     loci = defaultdict(list)
-    with open(args.extracted_contigs, "rU") as infile:
+    with open(args.sequences, "rU") as infile:
         for record in SeqIO.parse(infile, "fasta"):
             locus = record.description.split("|")[1]
             loci = build_locus_dict(log, loci, locus, record, args.ambiguous)

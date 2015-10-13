@@ -25,7 +25,7 @@ class CompletePath(argparse.Action):
 # Get arguments
 def get_args():
 	parser = argparse.ArgumentParser(
-		description="Clean and trim raw Illumina read files",
+		description="Join exon-alignment files belonging to the same gene",
 		formatter_class=argparse.ArgumentDefaultsHelpFormatter
 	)
 	parser.add_argument(
