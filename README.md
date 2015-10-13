@@ -9,13 +9,14 @@ Some scripts are inspired by, and others are modified versions of the scripts fr
 The scripts require the following programs to be installed. Just click on the name of the program to open the download link:  
 - [Trimmomatic] (http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-Src-0.33.zip)
 - [Trinity] (https://github.com/trinityrnaseq/trinityrnaseq/archive/1e099546fa81cc6bdf410a898527f9a1efc4c748.zip)
-- [Picard] (https://github.com/broadinstitute/picard/zipball/master)
 - [Sqlite3] (https://www.sqlite.org/2015/sqlite-shell-linux-x86-3081101.zip)
 
 For additional functions:
 - [CLC Genomics Workbench] (http://www.clcbio.com/products/download-trial/?productName=CLC+Genomics+Workbench&productVersion=8.5&productID=1637&rand=251767810)
-- [Samtools] (http://downloads.sourceforge.net/project/samtools/samtools/0.1.19/samtools-0.1.19.tar.bz2?r=&ts=1443908667&use_mirror=vorboss)
-
+- [Samtools] (http://downloads.sourceforge.net/project/samtools/samtools/0.1.19/samtools-0.1.19.tar.bz2?r=&ts=1443908667&use_mirror=vorboss)  
+- EMBOSS  
+- [Picard] (https://github.com/broadinstitute/picard/zipball/master)  
+- 
 ####References:
 **Heyduk, K., Trapnell, D. W., Barrett, C. F., & Leebens-Mack, J. (2015).** Phylogenomic analyses of species relationships in the genus Sabal (Arecaceae) using targeted sequence capture. Biological Journal of the Linnean Society  
 **Faircloth BC. 2015.** PHYLUCE is a software package for the analysis of conserved genomic loci. bioRxiv. doi: 10.1101/027904
