@@ -16,7 +16,7 @@ For additional functions:
 - [Samtools] (http://downloads.sourceforge.net/project/samtools/samtools/0.1.19/samtools-0.1.19.tar.bz2?r=&ts=1443908667&use_mirror=vorboss)  
 - EMBOSS  
 - [Picard] (https://github.com/broadinstitute/picard/zipball/master)  
-
+- [Seqtk] (https://github.com/lh3/seqtk/archive/master.zip)
 
 ####References:
 **Heyduk, K., Trapnell, D. W., Barrett, C. F., & Leebens-Mack, J. (2015).** Phylogenomic analyses of species relationships in the genus Sabal (Arecaceae) using targeted sequence capture. Biological Journal of the Linnean Society  
