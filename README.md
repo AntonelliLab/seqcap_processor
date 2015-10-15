@@ -10,10 +10,10 @@ The scripts require the following programs to be installed. Just click on the na
 - [Trimmomatic] (http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-Src-0.33.zip)
 - [Trinity] (https://github.com/trinityrnaseq/trinityrnaseq/archive/1e099546fa81cc6bdf410a898527f9a1efc4c748.zip)
 - [Sqlite3] (https://www.sqlite.org/2015/sqlite-shell-linux-x86-3081101.zip)
-
-For additional functions:
-- [CLC Genomics Workbench] (http://www.clcbio.com/products/download-trial/?productName=CLC+Genomics+Workbench&productVersion=8.5&productID=1637&rand=251767810)
 - [Samtools] (http://downloads.sourceforge.net/project/samtools/samtools/0.1.19/samtools-0.1.19.tar.bz2?r=&ts=1443908667&use_mirror=vorboss)  
+  
+For additional functions:
+- [CLC Genomics Workbench] (http://www.clcbio.com/products/download-trial/?productName=CLC+Genomics+Workbench&productVersion=8.5&productID=1637&rand=251767810)  
 - EMBOSS  
 - [Picard] (https://github.com/broadinstitute/picard/zipball/master)  
 - [Seqtk] (https://github.com/lh3/seqtk/archive/master.zip)
