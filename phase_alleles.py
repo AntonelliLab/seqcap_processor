@@ -58,7 +58,13 @@ def get_args():
 		'--no_duplicates',
 		action='store_true',
 		default=False,
-		help='Use this flag if you want to clean the mapped reads from all duplicates with Picard. No input after this flag required, simply type "--no_duplicates."'
+		help='Use this flag if you want to clean the mapped reads from all duplicates with Picard.'
+	)
+	parser.add_argument(
+		'--conservative',
+		action='store_true',
+		default=False,
+		help='Use this flag if you want to discard all base calls with limited certainty (covered by <3 reads). This will produce the ambiguity character "N" instead of that potential base call in the final sequence.'
 	)	
 	parser.add_argument(
 		'--cores',
@@ -281,9 +287,15 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	for file in output_files:
 		if file in ("%s.fasta" %bam_basename, "%s_0.fasta" %phasing_basename, "%s_1.fasta" %phasing_basename):
 			shutil.move(file,fasta_dir)
-	# Clean up the final fasta alignments and replace all uncertain base-calls (non-capitalized letters) with "N"
-	replace_uncertain_base_calls = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[actgn]=N=g' $fasta; done" %fasta_dir		
-	os.system(replace_uncertain_base_calls)
+
+	if args.conservative:
+		# Clean up the final fasta alignments and replace all uncertain base-calls (non-capitalized letters) with "N"
+		replace_uncertain_base_calls = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[actgn]=N=g' $fasta; done" %fasta_dir		
+		os.system(replace_uncertain_base_calls)
+	
+	# Standardize all the different ambiguity code-bases with N
+	standardize_all_ambiguities = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[YWRKSM]=N=g' $fasta; done" %fasta_dir
+	os.system(standardize_all_ambiguities)
 	# Remove the unnecessary .fq files
 	remove_fq_file = "rm %s/*.fq" %sample_output_folder
 	remove_fq_file_2 = "rm %s/*/*.fq" %sample_output_folder
