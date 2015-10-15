@@ -14,7 +14,7 @@ The scripts require the following programs to be installed. Just click on the na
   
 For additional functions:
 - [CLC Genomics Workbench] (http://www.clcbio.com/products/download-trial/?productName=CLC+Genomics+Workbench&productVersion=8.5&productID=1637&rand=251767810)  
-- EMBOSS (ftp://emboss.open-bio.org/pub/EMBOSS/old/6.3.1/EMBOSS-6.3.1.tar.gz)  
+- [Emboss] (ftp://emboss.open-bio.org/pub/EMBOSS/old/6.3.1/EMBOSS-6.3.1.tar.gz)  
 - [Picard] (https://github.com/broadinstitute/picard/zipball/master)  
 - [Seqtk] (https://github.com/lh3/seqtk/archive/master.zip)
 
