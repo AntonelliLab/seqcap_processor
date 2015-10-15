@@ -20,4 +20,5 @@ For additional functions:
 
 ####References:
 Heyduk, K., Trapnell, D. W., Barrett, C. F., & Leebens-Mack, J. (2015). Phylogenomic analyses of species relationships in the       genus Sabal (Arecaceae) using targeted sequence capture. Biological Journal of the Linnean Society.
+
 Faircloth BC. 2015. PHYLUCE is a software package for the analysis of conserved genomic loci. bioRxiv. doi: 10.1101/027904.
