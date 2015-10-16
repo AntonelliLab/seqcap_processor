@@ -10,6 +10,7 @@ import argparse
 import ConfigParser
 import commands
 import subprocess
+from Bio import SeqIO
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Input %%%
@@ -152,7 +153,7 @@ def create_reference_fasta():
 def mapping(forward,backward,reference,sample_id,sample_output_folder):
 	print "Mapping.........."
 	cas = "%s/%s.cas" %(sample_output_folder,sample_id)
-	command1 = "%s -o %s -d %s -q -p fb ss 100 1000 -i %s %s -l 0.6 -s 0.9 --cpus %d" %(clc_mapper,cas,reference,forward,backward,args.cores)
+	command1 = "%s -o %s -d %s -q -p fb ss 100 1000 -i %s %s -l 0.7 -s 0.9 --cpus %d" %(clc_mapper,cas,reference,forward,backward,args.cores)
 	os.system(command1)
 	
 	print "Converting to bam.........."
@@ -307,11 +308,11 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		
 		
 def edit_fasta_headers(allele_fastas,sample_id):
-	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_phased/g' %s/*allele_0.fasta" %(sample_id,allele_fastas)
+	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_het/g' %s/*allele_0.fasta" %(sample_id,allele_fastas)
 	os.system(cmd0)
-	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_phased/g' %s/*allele_1.fasta" %(sample_id,allele_fastas)
+	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_het/g' %s/*allele_1.fasta" %(sample_id,allele_fastas)
 	os.system(cmd1)
-	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_unphased |&/g' %s/*sorted.fasta" %(sample_id,allele_fastas)
+	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_hom |&/g' %s/*sorted.fasta" %(sample_id,allele_fastas)
 	os.system(cmd_unphased)	
 	cmd_final = "for allele in $(ls %s/*.fasta); do sed -i 's/|>/|/g' $allele; done" %allele_fastas
 	os.system(cmd_final)
@@ -320,6 +321,25 @@ def edit_fasta_headers(allele_fastas,sample_id):
 def join_allele_fastas():
 	final_merging = "for folder in $(find %s -type d -name '*_remapped'); do cat $folder/final_fasta_files/*allele*; done > %s/joined_allele_sequences_all_samples.fasta" %(out_dir,out_dir)
 	os.system(final_merging)
+	
+
+def manage_homzygous_samples(fasta_dir, sample_id):	
+	fasta_sequences = SeqIO.parse(open("%s/%s.sorted.fasta" %(fasta_dir,sample_id)),'fasta')
+	with open('%s/%s_joined_homozygous_alleles.fasta'%(fasta_dir,sample_id), 'w') as outfile:
+		for fasta in fasta_sequences:
+			name = re.split(" ", fasta.description)
+			name[0] += "_0"
+			fasta.description = " ".join(name)
+			fasta.id += "_0"
+			SeqIO.write(fasta, outfile, "fasta")
+			name = re.split(" ", fasta.description)
+			allele_1_name = re.sub("_0$", "_1", name[0])		
+			name[0] = allele_1_name
+			fasta.description = " ".join(name)
+			allele_1_id = re.sub("_0$", "_1", str(fasta.id))	
+			fasta.id = allele_1_id
+			SeqIO.write(fasta, outfile, "fasta")
+	outfile.close
 	
 	
 def assembly_clc(forward,backward):
@@ -359,6 +379,20 @@ for subfolder, dirs, files in os.walk(reads):
 					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
 				allele_fastas = phase_bam(sorted_bam,sample_output_folder)
 				edit_fasta_headers(allele_fastas,sample_id)
+				# The following is for the case that no two alleles could be assembled, i.e. the individual is homozygous for the respective locus
+				allele0 = ""
+				allele1 = ""
+				for file in os.listdir(allele_fastas):
+					if file.endswith(".fasta"):
+						if "allele_0" in file:
+							allele0 = file
+						if "allele_1" in file:
+							allele1 = file
+				if allele0 or allele1 == 0:
+					manage_homzygous_samples(allele_fastas,sample_id)
+					os.remove(os.path.join(allele_fastas,allele0))
+					os.remove(os.path.join(allele_fastas,allele1))
+				os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
 				print "\n", "#" * 50
 join_allele_fastas()
 
