@@ -137,10 +137,12 @@ def create_reference_fasta():
 		os.makedirs(reference_folder)
 	# Create a list of fasta files from the input directory
 	file_list = [fn for fn in os.listdir(alignments) if fn.endswith(".fasta")]				
+	reference_list = []
 	for fasta_alignment in file_list:
 		sequence_name = re.sub(".fasta","",fasta_alignment)
 		orig_aln = os.path.join(alignments,fasta_alignment)
 		sep_reference = "%s/%s" %(reference_folder,fasta_alignment)		
+		reference_list.append(sep_reference)
 		cons_cmd = "%s -sequence %s -outseq %s -name %s -plurality 0.1 -setcase 0.1" %(cons,orig_aln,sep_reference,sequence_name)
 		os.system(cons_cmd)
 	reference = os.path.join(reference_folder,"joined_fasta_library.fasta")
@@ -308,9 +310,9 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		
 		
 def edit_fasta_headers(allele_fastas,sample_id):
-	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_het/g' %s/*allele_0.fasta" %(sample_id,allele_fastas)
+	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_phased/g' %s/*allele_0.fasta" %(sample_id,allele_fastas)
 	os.system(cmd0)
-	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_het/g' %s/*allele_1.fasta" %(sample_id,allele_fastas)
+	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_phased/g' %s/*allele_1.fasta" %(sample_id,allele_fastas)
 	os.system(cmd1)
 	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_hom |&/g' %s/*sorted.fasta" %(sample_id,allele_fastas)
 	os.system(cmd_unphased)	
@@ -388,11 +390,11 @@ for subfolder, dirs, files in os.walk(reads):
 							allele0 = file
 						if "allele_1" in file:
 							allele1 = file
-				if allele0 or allele1 == 0:
+				if allele0 == 0 or allele1 == 0:
 					manage_homzygous_samples(allele_fastas,sample_id)
 					os.remove(os.path.join(allele_fastas,allele0))
 					os.remove(os.path.join(allele_fastas,allele1))
-				os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
+				#os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
 				print "\n", "#" * 50
 join_allele_fastas()
 
