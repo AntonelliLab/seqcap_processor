@@ -152,7 +152,7 @@ def create_reference_fasta():
 def mapping(forward,backward,reference,sample_id,sample_output_folder):
 	print "Mapping.........."
 	cas = "%s/%s.cas" %(sample_output_folder,sample_id)
-	command1 = "%s -o %s -d %s -q %s %s -p fb ss 100 1000 -s 0.7 --cpus %d" %(clc_mapper,cas,reference,forward,backward,args.cores)
+	command1 = "%s -o %s -d %s -q -p fb ss 100 1000 -i %s %s -l 0.6 -s 0.9 --cpus %d" %(clc_mapper,cas,reference,forward,backward,args.cores)
 	os.system(command1)
 	
 	print "Converting to bam.........."
