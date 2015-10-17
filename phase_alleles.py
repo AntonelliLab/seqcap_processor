@@ -323,6 +323,8 @@ def edit_fasta_headers(allele_fastas,sample_id):
 def join_allele_fastas():
 	final_merging = "for folder in $(find %s -type d -name '*_remapped'); do cat $folder/final_fasta_files/*allele*; done > %s/joined_allele_sequences_all_samples.fasta" %(out_dir,out_dir)
 	os.system(final_merging)
+	capitalize = "sed -i -e '/>/! s=[actgn]=\U&=g' %s/joined_allele_sequences_all_samples.fasta" %out_dir
+	os.system(capitalize)
 	
 
 def manage_homzygous_samples(fasta_dir, sample_id):	
@@ -380,20 +382,25 @@ for subfolder, dirs, files in os.walk(reads):
 				if args.no_duplicates:
 					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
 				allele_fastas = phase_bam(sorted_bam,sample_output_folder)
-				edit_fasta_headers(allele_fastas,sample_id)
-				# The following is for the case that no two alleles could be assembled, i.e. the individual is homozygous for the respective locus
+
+## THIS iS STILL NOT WORKING PROPERLY WHEN ONLY SINGLE FILE PRESENT:				
+				
+				# The following is for the case that no phased bam files were created, i.e. the individual is homozygous for all loci (happens when only looking at one locus or a very few)
 				allele0 = ""
 				allele1 = ""
+				# testing if phasing files were created
 				for file in os.listdir(allele_fastas):
 					if file.endswith(".fasta"):
 						if "allele_0" in file:
 							allele0 = file
 						if "allele_1" in file:
-							allele1 = file
-				if allele0 == 0 or allele1 == 0:
+							allele1 = file		
+				if allele0 == 0:
 					manage_homzygous_samples(allele_fastas,sample_id)
 					os.remove(os.path.join(allele_fastas,allele0))
 					os.remove(os.path.join(allele_fastas,allele1))
+				# Give fasta headers the correct format for phasing script
+				edit_fasta_headers(allele_fastas,sample_id)
 				#os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
 				print "\n", "#" * 50
 join_allele_fastas()
