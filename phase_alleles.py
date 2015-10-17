@@ -297,7 +297,7 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		os.system(replace_uncertain_base_calls)
 	
 	# Standardize all the different ambiguity code-bases with N
-	standardize_all_ambiguities = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[YWRKSM]=N=g' $fasta; done" %fasta_dir
+	standardize_all_ambiguities = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[ywrksmYWRKSM]=N=g' $fasta; done" %fasta_dir
 	os.system(standardize_all_ambiguities)
 	# Remove the unnecessary .fq files
 	remove_fq_file = "rm %s/*.fq" %sample_output_folder
