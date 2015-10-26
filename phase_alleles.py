@@ -46,7 +46,7 @@ def get_args():
 	parser.add_argument(
 		'--config',
 		required=True,
-		help='A configuration file containing the full paths to the following programs: samtools, clc-assembly-cell, bcftools, vcfutils, picard'
+		help='A configuration file containing the full paths to the following programs: samtools, clc-assembly-cell, bcftools, vcfutils, emboss, picard'
 	)
 	parser.add_argument(
 		'--output',
