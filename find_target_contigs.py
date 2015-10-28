@@ -69,7 +69,7 @@ def get_args():
 		required=True,
 		type=is_dir,
 		action=FullPaths,
-		help="The directory containing the assembled contigs, organized in sample-specific subfolders."
+		help="The directory containing the assembled contigs in fasta format."
 	)
 	parser.add_argument(
 		'--reference',
