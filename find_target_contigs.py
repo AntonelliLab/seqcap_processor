@@ -386,6 +386,8 @@ def main():
 	output_folder = args.output
 	create_conf_cmd = "echo \"[Organisms]\" > %s/config; ls %s/*.lastz | rev | cut -d/ -f1 | rev | cut -d \"_\" -f 1 >> %s/config; echo \"[Loci]\" >> %s/config; tail -n+2 %s/match_table.txt | cut -f 1 >> %s/config" %(output_folder,output_folder,output_folder,output_folder,output_folder,output_folder)
 	os.system(create_conf_cmd)
+	remove_lastz = "sed -i 's/.lastz//g' %s/config" %output_folder
+	os.system(remove_lastz)
 
 if __name__ == '__main__':
 	main()
