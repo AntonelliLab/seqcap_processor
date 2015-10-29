@@ -262,9 +262,9 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	
 	# Creating consensus sequences from bam-files
 	print "Creating consensus sequences from bam-files.........."
-	make_cons_0 = "%s mpileup -u %s | %s view -cg - | %s vcf2fq > %s_0.fq" %(samtools,allele_0_sorted_file,bcftools,vcfutils,phasing_basename)
-	make_cons_1 = "%s mpileup -u %s | %s view -cg - | %s vcf2fq > %s_1.fq" %(samtools,allele_1_sorted_file,bcftools,vcfutils,phasing_basename)
-	make_cons_unphased = "%s mpileup -u %s | %s view -cg - | %s vcf2fq > %s.fq" %(samtools,sorted_bam_file,bcftools,vcfutils,bam_basename)
+	make_cons_0 = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s_0.fq" %(samtools,reference,allele_0_sorted_file,bcftools,vcfutils,phasing_basename)
+	make_cons_1 = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s_1.fq" %(samtools,reference,allele_1_sorted_file,bcftools,vcfutils,phasing_basename)
+	make_cons_unphased = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s.fq" %(samtools,reference,sorted_bam_file,bcftools,vcfutils,bam_basename)
 	os.system(make_cons_0)
 	os.system(make_cons_1)
 	os.system(make_cons_unphased)
