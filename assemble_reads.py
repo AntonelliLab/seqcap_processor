@@ -42,7 +42,7 @@ def get_args():
 	)
 	parser.add_argument(
 		'--trinity',
-		default="/usr/local/bin/Trinity.pl",
+		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
 		action=CompletePath,
 		help='The path to the Trinity executable'
 	)
