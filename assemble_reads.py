@@ -142,7 +142,7 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
 		assert "Trinity.fasta" in names
 		assert "%s_trinity_screen_out.txt" %sample_id in names
 	except:
-		raise IOError("Neither Trinity.fasta nor %s_trinity_screen_out were found in output." %sample_id)
+		raise IOError("Neither Trinity.fasta nor %s_trinity_screen_out.txt were found in output." %sample_id)
 	for file in files:
 		if not os.path.basename(file) in ("Trinity.fasta", "%s_trinity_screen_out.txt" %sample_id, "%s_stats.txt" %sample_id):
 			if os.path.isfile(file) or os.path.islink(file):
