@@ -15,9 +15,9 @@ import subprocess
 
 # Complete path function
 class CompletePath(argparse.Action):
-    """give the full path of an input file/folder"""
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+	"""give the full path of an input file/folder"""
+	def __call__(self, parser, namespace, values, option_string=None):
+		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
 
 # Get arguments
@@ -41,16 +41,40 @@ def get_args():
 		help='The output directory where results will be safed'
 	)
 	parser.add_argument(
+		'--assembler',
+		choices=["trinity", "abyss"],
+		default="abyss",
+		help="""The assembler to use."""		
+	)	
+	parser.add_argument(
 		'--trinity',
 		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
 		action=CompletePath,
 		help='The path to the Trinity executable'
 	)
 	parser.add_argument(
+		'--abyss',
+		default="/usr/local/anaconda/bin/abyss-pe",
+		action=CompletePath,
+		help='The path to the abyss executable'
+	)
+	parser.add_argument(
+		'--kmer',
+		type=int,
+		default=35,
+		help='Set the kmer value'
+	)
+	parser.add_argument(
 		'--contig_length',
 		type=int,
 		default=200,
 		help='Set the minimum contig length for Trinity assembly. Contigs that are shorter than this threshold will be discarded.'
+	)
+	parser.add_argument(
+		'--single_reads',
+		action='store_true',
+		default=False,
+		help='Use this flag if you additionally want to use single reads for the assembly'
 	)
 	parser.add_argument(
 		'--cores',
@@ -67,13 +91,16 @@ args = get_args()
 out_folder = args.output
 out_dir = "%s/stats" %out_folder
 if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
+	os.makedirs(out_dir)
 	
 # Get all the other input variables
 input_folder = args.input
 min_length = args.contig_length
 trinity = args.trinity
 cores = args.cores
+abyss = args.abyss
+kmer = args.kmer
+home_dir = os.getcwd()
 	
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
@@ -108,7 +135,31 @@ def assembly_trinity(forw,backw,output_folder,id_sample):
 
 	except:
 		print "Could not assemble %s" %id_sample
+		
+		
+			
 	
+def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample):
+	print "De-novo assembly with abyss of sample %s:" %id_sample
+	command = [
+		abyss,
+		"k={}".format(kmer),
+		"j={}".format(cores),
+		'name={}'.format(id_sample),
+		'in={} {}'.format(forw,backw)
+	]
+	if args.single_reads:
+		command.append('se={} {}'.format(singlef,singleb))
+	try:
+		print "Building contigs........"		
+		with open(os.path.join(output_folder, "%s_abyss_screen_out.txt" %id_sample), 'w') as log_err_file:		
+			p = subprocess.Popen(command, stdout=log_err_file)
+			p.communicate()
+		print "%s assembled. Statistics are printed into %s" %(id_sample, os.path.join(output_folder, "%s_abyss_screen_out.txt" %sample_id))
+		
+	except:
+		print "Could not assemble %s" %id_sample
+
 
 def get_stats(sample_output_folder,sample_id):
 	print "Extracting statistics for", sample_id
@@ -153,7 +204,7 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Workflow %%%	
-print "\n\nRunning Trinity parallel on %d cores" %cores
+print "\n\nRunning %s parallel on %d cores" %(args.assembler,cores)
 for subfolder, dirs, files in os.walk(input_folder):
 	subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
 	if subfolder_path_elements[-1] != input_folder:
@@ -165,21 +216,43 @@ for subfolder, dirs, files in os.walk(input_folder):
 			os.makedirs(sample_output_folder)
 		for misc1, misc2, fastq in os.walk(subfolder):
 			forward = ""
-			backward = ""			
+			backward = ""
+			single_f = ""
+			single_b = ""		
 			for element in fastq:
 				if sample_id in element and element.endswith("READ1.fastq"):
 					forward = "%s/%s" %(subfolder,element)
 				if sample_id in element and element.endswith("READ2.fastq"):
 					backward = "%s/%s" %(subfolder,element)
+				if sample_id in element and element.endswith("READ1-single.fastq"):
+					single_f = "%s/%s" %(subfolder,element)
+				if sample_id in element and element.endswith("READ2-single.fastq"):
+					single_b = "%s/%s" %(subfolder,element)
 			if forward != "" and backward != "":
 				print "\n", "#" * 50
 				print "Processing sample", sample_id, "\n"
-				assembly_trinity(forward,backward,sample_output_folder,sample_id)
-				get_stats(sample_output_folder,sample_id)
-				cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
-				print "\n", "#" * 50
-				mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
-				os.system(mv_cmd)
+				
+				if args.assembler == "trinity":
+					assembly_trinity(forward,backward,sample_output_folder,sample_id)
+					get_stats(sample_output_folder,sample_id)
+					cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
+					print "\n", "#" * 50
+					mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
+					os.system(mv_cmd)
+				elif args.assembler == "abyss":
+					assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id)
+					files = glob.glob(os.path.join(home_dir,'*'))
+					links = [f for f in files if os.path.islink(f)]
+					for l in links:
+						if l.endswith("-contigs.fa"):
+							contig_file = os.path.realpath(l)
+							mv_contig = "mv %s %s/../../%s-contigs.fasta" %(contig_file,sample_output_folder,sample_id)
+							os.system(mv_contig)
+					mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+					os.system(mv_cmd1)
+					mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+					os.system(mv_cmd2)
+					
 			else:
 				print "\nError: Read-files for sample %s could not be found. Please check if subfolders/sample-folders are named in this pattern: 'sampleID_clean' and if the cleaned fastq files in the sample-folder end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
 				raise SystemExit
