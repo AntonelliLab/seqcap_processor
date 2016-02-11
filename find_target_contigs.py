@@ -133,6 +133,12 @@ def get_args():
 		action=FullPaths,
 		help="The complete path to sqlite3"
 	)
+	parser.add_argument(
+		'--assembler',
+		choices=["trinity", "abyss"],
+		default="abyss",
+		help="""Please specify which assembler was used to generate the input contigs"""
+	)
 	args = parser.parse_args()
 	return args
 
@@ -261,7 +267,12 @@ def pretty_log_output(log, critter, matches, contigs, pd, mc, exon_dupe_exons):
 
 def get_contig_name(header):
 	#parse the contig name from the header of Trinity assembled contigs"
-	match = re.search("^(c\d+_g\d+_i\d+).*", header)
+	args = get_args()
+	match = ""
+	if args.assembler == "trinity":
+		match = re.search("^(c\d+_g\d+_i\d+).*", header)
+	elif args.assembler == "abyss":
+		match = re.search("^(\d+).*", header)
 	#print "match:", match
 	return match.groups()[0]
 
@@ -282,12 +293,15 @@ def main():
 	else:
 		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(args.output))
 	exons = set(new_get_probe_name(seq.id, regex) for seq in SeqIO.parse(open(args.reference, 'rU'), 'fasta'))
+	#print exons
 	if args.dupefile:
 		dupes = get_dupes(log, args.dupefile, regex)
 	else:
 		dupes = set()
 	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
+	#print fasta_files
 	organisms = get_organism_names_from_fasta_files(fasta_files)
+	#print organisms
 	conn, c = create_probe_database(
 		log,
 		os.path.join(args.output, 'probe.matches.sqlite'),
@@ -375,7 +389,7 @@ def main():
 	log.info("The exon match database is in {}".format(os.path.join(args.output, "probes.matches.sqlite")))
 	text = " Completed {} ".format(my_name)
 	log.info(text.center(65, "="))
-	
+
 	# Access the SQL file and export tab-separated text-file
 	sql_file = os.path.join(args.output, 'probe.matches.sqlite')
 	tsf_out = os.path.join(args.output, 'match_table.txt')
@@ -391,4 +405,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
