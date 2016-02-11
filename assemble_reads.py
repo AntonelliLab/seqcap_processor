@@ -246,7 +246,7 @@ for subfolder, dirs, files in os.walk(input_folder):
 					for l in links:
 						if l.endswith("-contigs.fa"):
 							contig_file = os.path.realpath(l)
-							mv_contig = "mv %s %s/../../%s-contigs.fasta" %(contig_file,sample_output_folder,sample_id)
+							mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
 							os.system(mv_contig)
 					mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
 					os.system(mv_cmd1)
