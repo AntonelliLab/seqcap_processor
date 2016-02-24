@@ -299,6 +299,9 @@ def main():
 	else:
 		dupes = set()
 	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
+	for f in fasta_files:
+		replace_bad_fasta_chars = "sed -i -e '/>/! s=[K,Y,R,S,M,W,k,y,r,s,m,w]=N=g' %s" %f
+		os.system(replace_bad_fasta_chars)
 	#print fasta_files
 	organisms = get_organism_names_from_fasta_files(fasta_files)
 	#print organisms
