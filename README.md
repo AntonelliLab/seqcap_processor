@@ -1,4 +1,6 @@
-# palm_pipeline
+# seqcap_processor
+### Bioinformatic pipeline for processing Sequence Capture data for Phylogenetics
+
 #### Check the Wiki-page (click on the booklet-pictogram "Wiki" on the right-hand side) for a detailed work-flow!!
 This software package constitutes an automated workflow for processing and analyzing of Illumina read data. The workflow was developed within a phylogenetic project concerning different genera of palms (Arecaceae), using the standardized probe-set as described in Heyduk et al. (2015).  
 
