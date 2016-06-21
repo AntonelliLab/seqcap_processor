@@ -2,6 +2,6 @@
 samtools:/usr/local/anaconda/bin/samtools
 clc:/state/partition3/CLC-AssemblyCell/clc-assembly-cell-4.3.0-linux_64
 bcftools:/usr/local/anaconda/bin/bcftools
-vcfutils:/home/tobias/bin/samtools/bcftools/vcfutils.pl
+vcfutils:/usr/local/bin/vcfutils.pl
 emboss:/opt/bio/EMBOSS
 picard:/usr/local/bin/picard-tools-1.97
