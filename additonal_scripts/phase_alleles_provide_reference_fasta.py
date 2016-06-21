@@ -1,5 +1,5 @@
 #!/usr/local/opt/python/bin/python
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Hofmann, tobias.hofmann@bioenv.gu.se
 
 import os
 import sys
