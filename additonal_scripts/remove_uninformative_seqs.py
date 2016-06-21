@@ -76,6 +76,8 @@ def manage_homzygous_samples(fasta,threshold,output):
 			fraction = float(count_bad_chars/sequence_length)
 			if fraction <= threshold:
 				final_seqs.setdefault(header,[]).append(sequence)
+			else:
+				print "Dropped sequence for", header
 		for seqname, seq in final_seqs.iteritems():
 			sequence = str(seq[0])
 			outfile.write(">"+seqname+"\n")
