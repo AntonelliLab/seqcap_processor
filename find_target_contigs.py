@@ -277,6 +277,11 @@ def get_contig_name(header):
 	return match.groups()[0]
 
 
+def get_kmer_value(header):
+	match = re.search("^\d*\s\d*\s(\d*).*", header)
+	return match.groups()[0]
+
+
 def new_get_probe_name(header, regex):
 	match = re.search(regex, header)
 	#print match
@@ -318,6 +323,7 @@ def main():
 	else:
 		dupefile = None
 	log.info("{}".format("-" * 65))
+	kmers = {}
 	for contig in sorted(fasta_files):
 		critter = os.path.basename(contig).split('.')[0].replace('-', "_")
 		output = os.path.join(
@@ -351,6 +357,7 @@ def main():
 					matches[contig_name].add(exon_name)
 					orientation[exon_name].add(lz.strand2)
 					revmatches[exon_name].add(contig_name)
+
 		# we need to check nodes for dupe matches to the same probes
 		contigs_matching_mult_exons = check_contigs_for_dupes(matches)
 		exon_dupe_contigs, exon_dupe_exons = check_loci_for_dupes(revmatches)
@@ -374,6 +381,20 @@ def main():
 		for k in match_copy.keys():
 			if k in nodes_to_drop:
 				del matches[k]
+		#print matches
+		#print lz.name1
+		#get contig id
+		#contig_id = re.search("^(\d*)\s\d*\s\d*.*", lz.name1).groups()[0]
+		#print matches
+
+		#added function to return the kmer count (sum of all kmers of target contigs)
+		for lz in lastz.Reader(output):
+			for element in matches:
+				#print element, "has to match", lz[1]
+				if re.search("^(\d*)\s\d*\s\d*.*", lz[1]).groups()[0] == element:
+					kmer_value = get_kmer_value(lz.name1)
+					kmers.setdefault(contig,[])
+					kmers[contig].append(kmer_value)
 		store_lastz_results_in_db(c, matches, orientation, critter)
 		conn.commit()
 		pretty_log_output(
@@ -385,6 +406,16 @@ def main():
 			contigs_matching_mult_exons,
 			exon_dupe_exons
 		)
+
+	kmerfile = open(os.path.join(args.output,'kmer_count.txt'), 'w')
+
+	for key in kmers:
+		count = 0
+		for element in kmers[key]:
+			count += int(element)
+		kmerfile.write("%s : %d\n" %(os.path.basename(key).split('.')[0],count))
+
+
 	if dupefile is not None:
 		dupefile.close()
 	log.info("{}".format("-" * 65))
@@ -405,6 +436,9 @@ def main():
 	os.system(create_conf_cmd)
 	remove_lastz = "sed -i 's/.lastz//g' %s/config" %output_folder
 	os.system(remove_lastz)
+
+
+
 
 if __name__ == '__main__':
 	main()
