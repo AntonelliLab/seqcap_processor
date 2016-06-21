@@ -37,11 +37,11 @@ def get_args():
 		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_].'
 	)
 	parser.add_argument(
-		'--alignments',
+		'--reference',
 		required=True,
 		action=CompletePath,
 		default=None,
-		help='The folder containing exon-/gene-alignments of your target loci.'
+		help='The reference fasta file that you want to map the reads to.'
 	)
 	parser.add_argument(
 		'--config',
@@ -135,34 +135,13 @@ if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 # Get other input variables
-alignments = args.alignments
+reference = args.reference
 reads = args.reads
 length = args.l
 similarity = args.s
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
-
-
-def create_reference_fasta():
-	reference_folder = "%s/reference_seqs" %out_dir
-	if not os.path.exists(reference_folder):
-		os.makedirs(reference_folder)
-	# Create a list of fasta files from the input directory
-	file_list = [fn for fn in os.listdir(alignments) if fn.endswith(".fasta")]
-	reference_list = []
-	for fasta_alignment in file_list:
-		sequence_name = re.sub(".fasta","",fasta_alignment)
-		orig_aln = os.path.join(alignments,fasta_alignment)
-		sep_reference = "%s/%s" %(reference_folder,fasta_alignment)
-		reference_list.append(sep_reference)
-		cons_cmd = "%s -sequence %s -outseq %s -name %s -plurality 0.1 -setcase 0.1" %(cons,orig_aln,sep_reference,sequence_name)
-		os.system(cons_cmd)
-	reference = os.path.join(reference_folder,"joined_fasta_library.fasta")
-	join_fastas = "cat %s/*.fasta > %s" %(reference_folder,reference)
-	os.system(join_fastas)
-	return reference
-
 
 
 def mapping(forward,backward,reference,sample_id,sample_output_folder):
@@ -370,7 +349,6 @@ def assembly_clc(forward,backward):
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Workflow %%%
 
-reference = create_reference_fasta()
 for subfolder, dirs, files in os.walk(reads):
 	subfolder_path_elements = re.split("%s/" %reads, subfolder)
 	if subfolder_path_elements[-1] != reads:
