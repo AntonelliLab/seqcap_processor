@@ -18,9 +18,10 @@ from Bio import SeqIO
 
 # Complete path function
 class CompletePath(argparse.Action):
-    """give the full path of an input file/folder"""
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+	"""give the full path of an input file/folder"""
+	def __call__(self, parser, namespace, values, option_string=None):
+		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+
 
 
 # Get arguments
@@ -37,11 +38,17 @@ def get_args():
 		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_].'
 	)
 	parser.add_argument(
-		'--alignments',
+		'--reference_type',
+		choices=["alignment-consensus", "sample-specific", "user-ref-lib"],
+		default="user-ref-lib",
+		help='Please choose which type of reference you want to map the samples to. "alignment-consensus" will create a consensus sequence for each alignment file which will be used as a reference for all samples. This is recommendable when all samples are rather closely related to each other. "sample-specific" will extract the sample specific sequences from an alignment and use these as a separate reference for each individual sample. "user-ref-lib" enables to input one single fasta file created by the user which will be used as a reference library for all samples.'
+	)
+	parser.add_argument(
+		'--reference',
 		required=True,
 		action=CompletePath,
 		default=None,
-		help='The folder containing exon-/gene-alignments of your target loci.'
+		help='When choosing "alignment-consensus" or "sample-specific" as reference_type, this flag calls the folder containing the alignment files for your target loci (fasta-format). In case of "user-ref-lib" as reference_type, this flag calls one single fasta file that contains a user-prepared reference library which will be applied to all samples.'
 	)
 	parser.add_argument(
 		'--config',
@@ -121,6 +128,10 @@ emboss = ""
 for i in paths:
 		if "emboss" in i:
 			emboss = i[1]
+seqtk = ""
+for i in paths:
+		if "seqtk" in i:
+			seqtk = i[1]
 
 # Specify the different CLC commands
 mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
@@ -132,10 +143,10 @@ clc_cas_to_sam = os.path.join(clc,"clc_cas_to_sam")
 # Set working directory
 out_dir = args.output
 if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
+	os.makedirs(out_dir)
 
 # Get other input variables
-alignments = args.alignments
+alignments = args.reference
 reads = args.reads
 length = args.l
 similarity = args.s
@@ -144,10 +155,7 @@ similarity = args.s
 #%%% Functions %%%
 
 
-def create_reference_fasta():
-	reference_folder = "%s/reference_seqs" %out_dir
-	if not os.path.exists(reference_folder):
-		os.makedirs(reference_folder)
+def create_reference_fasta(reference_folder):
 	# Create a list of fasta files from the input directory
 	file_list = [fn for fn in os.listdir(alignments) if fn.endswith(".fasta")]
 	reference_list = []
@@ -163,7 +171,31 @@ def create_reference_fasta():
 	os.system(join_fastas)
 	return reference
 
-
+def create_sample_reference_fasta(reference_folder,sample_id):
+	print "Creating reference library for %s .........." %sample_id
+#	get the sequence header with the correct fasta id and extract sequence
+#	store these sequences in separate fasta file for each locus at out_dir/reference_seqs/sample_id
+#	header of sequence remains the locus name
+#	remove all "-" and "?" in sequence (not in header!!)
+	sample_reference_folder = os.path.join(reference_folder,sample_id)
+	if not os.path.exists(sample_reference_folder):
+		os.makedirs(sample_reference_folder)
+	file_list = [fn for fn in os.listdir(alignments) if fn.endswith(".fasta")]
+	for fasta_alignment in file_list:
+		locus_id = fasta_alignment.replace(".fasta", "")
+		sample_reference_fasta = os.path.join(sample_reference_folder,fasta_alignment)
+		fasta_sequences = SeqIO.parse(open("%s/%s" %(alignments,fasta_alignment)),'fasta')
+		outfile = open(sample_reference_fasta, 'w')
+		for fasta in fasta_sequences:
+			if fasta.id == sample_id:
+				outfile.write(">%s\n%s\n" %(locus_id,fasta.seq))
+		outfile.close()
+		remove_chars = "sed -i 's/[-?]//g' %s" %sample_reference_fasta
+		os.system(remove_chars)
+	reference = os.path.join(sample_reference_folder,"joined_fasta_library.fasta")
+	join_fastas = "cat %s/*.fasta > %s" %(sample_reference_folder,reference)
+	os.system(join_fastas)
+	return reference
 
 def mapping(forward,backward,reference,sample_id,sample_output_folder):
 	print "Mapping.........."
@@ -283,9 +315,9 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	os.system(make_cons_unphased)
 
 	# Converting fq into fasta files
-	make_fasta_cmd_0 = "seqtk seq -a %s_0.fq > %s_0.fasta" %(phasing_basename,phasing_basename)
-	make_fasta_cmd_1 = "seqtk seq -a %s_1.fq > %s_1.fasta" %(phasing_basename,phasing_basename)
-	make_fasta_cmd_unphased = "seqtk seq -a %s.fq > %s.fasta" %(bam_basename,bam_basename)
+	make_fasta_cmd_0 = "%s seq -a %s_0.fq > %s_0.fasta" %(seqtk,phasing_basename,phasing_basename)
+	make_fasta_cmd_1 = "%s seq -a %s_1.fq > %s_1.fasta" %(seqtk,phasing_basename,phasing_basename)
+	make_fasta_cmd_unphased = "%s seq -a %s.fq > %s.fasta" %(seqtk,bam_basename,bam_basename)
 	os.system(make_fasta_cmd_0)
 	os.system(make_fasta_cmd_1)
 	os.system(make_fasta_cmd_unphased)
@@ -370,12 +402,21 @@ def assembly_clc(forward,backward):
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Workflow %%%
 
-reference = create_reference_fasta()
+reference = ''
+reference_folder = "%s/reference_seqs" %out_dir
+if not os.path.exists(reference_folder):
+	os.makedirs(reference_folder)
+if args.reference_type == "user-ref-lib":
+	reference = args.reference
+elif args.reference_type == "alignment-consensus":
+	reference = create_reference_fasta(reference_folder)
 for subfolder, dirs, files in os.walk(reads):
 	subfolder_path_elements = re.split("%s/" %reads, subfolder)
 	if subfolder_path_elements[-1] != reads:
 		sample_folder = subfolder_path_elements[-1]
 		sample_id = re.sub("_clean","",sample_folder)
+		if args.reference_type == "sample-specific":
+			reference = create_sample_reference_fasta(reference_folder,sample_id)
 		# Loop through each sample-folder and find read-files
 		sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
 		if not os.path.exists(sample_output_folder):

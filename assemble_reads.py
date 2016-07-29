@@ -32,7 +32,7 @@ def get_args():
 		action=CompletePath,
 		default=None,
 		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_]'
-	)	
+	)
 	parser.add_argument(
 		'--output',
 		required=True,
@@ -44,8 +44,8 @@ def get_args():
 		'--assembler',
 		choices=["trinity", "abyss"],
 		default="abyss",
-		help="""The assembler to use."""		
-	)	
+		help="""The assembler to use."""
+	)
 	parser.add_argument(
 		'--trinity',
 		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
@@ -56,7 +56,7 @@ def get_args():
 		'--abyss',
 		default="/usr/local/anaconda/bin/abyss-pe",
 		action=CompletePath,
-		help='The path to the abyss executable'
+		help='The path to the abyss-pe executable'
 	)
 	parser.add_argument(
 		'--kmer',
@@ -92,7 +92,7 @@ out_folder = args.output
 out_dir = "%s/stats" %out_folder
 if not os.path.exists(out_dir):
 	os.makedirs(out_dir)
-	
+
 # Get all the other input variables
 input_folder = args.input
 min_length = args.contig_length
@@ -101,7 +101,7 @@ cores = args.cores
 abyss = args.abyss
 kmer = args.kmer
 home_dir = os.getcwd()
-	
+
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
 
@@ -126,19 +126,19 @@ def assembly_trinity(forw,backw,output_folder,id_sample):
 	]
 
 	try:
-		print "Building contigs........"		
-		with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:		
+		print "Building contigs........"
+		with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
 			p = subprocess.Popen(command, stdout=log_err_file)
 			p.communicate()
 		print "%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %sample_id))
-		
+
 
 	except:
 		print "Could not assemble %s" %id_sample
-		
-		
-			
-	
+
+
+
+
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample):
 	print "De-novo assembly with abyss of sample %s:" %id_sample
 	command = [
@@ -151,19 +151,19 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample):
 	if args.single_reads:
 		command.append('se={} {}'.format(singlef,singleb))
 	try:
-		print "Building contigs........"		
-		with open(os.path.join(output_folder, "%s_abyss_screen_out.txt" %id_sample), 'w') as log_err_file:		
+		print "Building contigs........"
+		with open(os.path.join(output_folder, "%s_abyss_screen_out.txt" %id_sample), 'w') as log_err_file:
 			p = subprocess.Popen(command, stdout=log_err_file)
 			p.communicate()
 		print "%s assembled. Statistics are printed into %s" %(id_sample, os.path.join(output_folder, "%s_abyss_screen_out.txt" %sample_id))
-		
+
 	except:
 		print "Could not assemble %s" %id_sample
 
 
 def get_stats(sample_output_folder,sample_id):
 	print "Extracting statistics for", sample_id
-	# Read counts	
+	# Read counts
 	read_count_cmd = subprocess.Popen(["cat", "%s/both.fa.read_count" %sample_output_folder], stdout=subprocess.PIPE)
 	read_count = read_count_cmd.communicate()[0]
 	# Assembled read counts
@@ -181,8 +181,8 @@ def get_stats(sample_output_folder,sample_id):
 		stat_file.write("Read-count in trimmed fastq read-files : %s" %read_count)
 		stat_file.write("Reads assembled into contigs : %s\n" %assembled_reads_count)
 		stat_file.write("Assembled contigs : %s\n" %contig_count)
-	
-	
+
+
 def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
 # This function is copied (and slightly modified) from phyluce, written by Brant Faircloth
 	print "Removing unnecessary files from the Trinity folder for %s" %sample_id
@@ -203,7 +203,7 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
 
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Workflow %%%	
+#%%% Workflow %%%
 print "\n\nRunning %s parallel on %d cores" %(args.assembler,cores)
 for subfolder, dirs, files in os.walk(input_folder):
 	subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
@@ -218,7 +218,7 @@ for subfolder, dirs, files in os.walk(input_folder):
 			forward = ""
 			backward = ""
 			single_f = ""
-			single_b = ""		
+			single_b = ""
 			for element in fastq:
 				if sample_id in element and element.endswith("READ1.fastq"):
 					forward = "%s/%s" %(subfolder,element)
@@ -231,7 +231,7 @@ for subfolder, dirs, files in os.walk(input_folder):
 			if forward != "" and backward != "":
 				print "\n", "#" * 50
 				print "Processing sample", sample_id, "\n"
-				
+
 				if args.assembler == "trinity":
 					assembly_trinity(forward,backward,sample_output_folder,sample_id)
 					get_stats(sample_output_folder,sample_id)
@@ -252,7 +252,7 @@ for subfolder, dirs, files in os.walk(input_folder):
 					os.system(mv_cmd1)
 					mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
 					os.system(mv_cmd2)
-					
+
 			else:
 				print "\nError: Read-files for sample %s could not be found. Please check if subfolders/sample-folders are named in this pattern: 'sampleID_clean' and if the cleaned fastq files in the sample-folder end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
 				raise SystemExit
