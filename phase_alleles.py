@@ -38,6 +38,12 @@ def get_args():
 		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_].'
 	)
 	parser.add_argument(
+		'--mapper',
+		choices=["clc", "bwa"],
+		default="bwa",
+		help='Choose your desired mapping software. Both mappers perform well in our experience, but you will need to purchase a licence for clc-assembly-cell in case you want to download it. We therefore recommend the cost-free alternative bwa.'
+	)
+	parser.add_argument(
 		'--reference_type',
 		choices=["alignment-consensus", "sample-specific", "user-ref-lib"],
 		default="user-ref-lib",
@@ -53,7 +59,7 @@ def get_args():
 	parser.add_argument(
 		'--config',
 		required=True,
-		help='A configuration file containing the full paths to the following programs: samtools, clc-assembly-cell, bcftools, vcfutils, emboss, picard'
+		help='A configuration file containing the full paths to the following programs: samtools, bcftools, vcfutils, emboss, picard. Also the paths to either clc-assembly-cell or bwa, depending on which of these two mapping softwares is chosen (see --mapper)'
 	)
 	parser.add_argument(
 		'--output',
@@ -106,32 +112,37 @@ paths = conf.items('paths')
 # Find each program name in list and define variable
 samtools = ""
 for i in paths:
-		if "samtools" in i:
-			samtools = i[1]
+	if "samtools" in i:
+		samtools = i[1]
 bcftools = ""
 for i in paths:
-		if "bcftools" in i:
-			bcftools = i[1]
+	if "bcftools" in i:
+		bcftools = i[1]
 vcfutils = ""
 for i in paths:
-		if "vcfutils" in i:
-			vcfutils = i[1]
+	if "vcfutils" in i:
+		vcfutils = i[1]
 picard = ""
 for i in paths:
-		if "picard" in i:
-			picard = i[1]
-clc = ""
-for i in paths:
-		if "clc" in i:
-			clc = i[1]
+	if "picard" in i:
+		picard = i[1]
 emboss = ""
 for i in paths:
-		if "emboss" in i:
-			emboss = i[1]
+	if "emboss" in i:
+		emboss = i[1]
 seqtk = ""
 for i in paths:
-		if "seqtk" in i:
-			seqtk = i[1]
+	if "seqtk" in i:
+		seqtk = i[1]
+clc = ""
+for i in paths:
+	if "clc" in i:
+		clc = i[1]
+bwa = ""
+for i in paths:
+	if "bwa" in i:
+		bwa = i[1]
+
 
 # Specify the different CLC commands
 mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
@@ -197,7 +208,29 @@ def create_sample_reference_fasta(reference_folder,sample_id):
 	os.system(join_fastas)
 	return reference
 
-def mapping(forward,backward,reference,sample_id,sample_output_folder):
+def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
+
+	command1 = "%s index %s" %(bwa,reference)
+	os.system(command1)
+
+	print "Mapping.........."
+	sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
+	command2 = "%s mem %s %s %s > %s" %(bwa,reference,forward,backward,sam_name)
+	os.system(command2)
+
+	print "Converting to bam.........."
+	bam_core = "%s/%s.sorted" %(sample_output_folder,sample_id)
+	command3 = "%s view -bS %s | %s sort - %s" %(samtools,sam_name,samtools,bam_core)
+	os.system(command3)
+
+	print "Indexing bam.........."
+	sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
+	command4 = "%s index %s" %(samtools,sorted_bam)
+	os.system(command4)
+	return sorted_bam
+
+
+def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
 	print "Mapping.........."
 	cas = "%s/%s.cas" %(sample_output_folder,sample_id)
 	command1 = "%s -o %s -d %s -q -p fb ss 100 1000 -i %s %s -l %d -s %d --cpus %d" %(clc_mapper,cas,reference,forward,backward,length,similarity,args.cores)
@@ -408,6 +441,8 @@ if not os.path.exists(reference_folder):
 	os.makedirs(reference_folder)
 if args.reference_type == "user-ref-lib":
 	reference = args.reference
+	manage_reference = "cp %s %s" %(reference,reference_folder)
+	os.system(manage_reference)
 elif args.reference_type == "alignment-consensus":
 	reference = create_reference_fasta(reference_folder)
 for subfolder, dirs, files in os.walk(reads):
@@ -432,7 +467,11 @@ for subfolder, dirs, files in os.walk(reads):
 			if forward != "" and backward != "":
 				print "\n", "#" * 50
 				print "Processing sample", sample_id, "\n"
-				sorted_bam = mapping(forward,backward,reference,sample_id,sample_output_folder)
+				sorted_bam = ""
+				if args.mapper == "bwa":
+					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
+				elif args.mapper =="clc":
+					sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
 				if args.no_duplicates:
 					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
 				allele_fastas = phase_bam(sorted_bam,sample_output_folder)
