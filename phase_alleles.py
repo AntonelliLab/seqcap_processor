@@ -338,6 +338,12 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	os.system(sort_phased_0)
 	os.system(sort_phased_1)
 
+	# Creating index file for phased bam-files:
+	index_allele0 = "%s index %s" %(samtools,allele_0_sorted_file)
+	index_allele1 = "%s index %s" %(samtools,allele_1_sorted_file)
+	os.system(index_allele0)
+	os.system(index_allele1)
+
 	# Creating consensus sequences from bam-files
 	print "Creating consensus sequences from bam-files.........."
 	make_cons_0 = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s_0.fq" %(samtools,reference,allele_0_sorted_file,bcftools,vcfutils,phasing_basename)
