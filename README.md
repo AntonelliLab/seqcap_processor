@@ -6,7 +6,7 @@
 ***
   
   
-#### Check the Wiki-page (click on the booklet-pictogram "Wiki" on the right-hand side) for a detailed work-flow!!
+#### Check the [Wiki-page](https://github.com/AntonelliLab/seqcap_processor/wiki) for a detailed work-flow!!
 This software package constitutes an automated workflow for processing and analyzing of Illumina read data. The workflow was developed within a phylogenetic project concerning different genera of palms (Arecaceae), using the standardized probe-set as described in Heyduk et al. (2015).  
 
 These scripts can also be applied to other Illumina datasets based on different probe sets, yet specific parameters for qualtiy filtering, adapter trimming and assembly of contigs may have to fitted to the specific dataset. The enclosed wiki-page explains the complete workflow, aimed at users with no prior Illumina experience. No advanced bioinformatic skills are required for carrying out this protocol.  All scripts are written in python2.7 and in some cases have to be run with that specific python version for proper functioning!
