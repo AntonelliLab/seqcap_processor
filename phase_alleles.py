@@ -81,16 +81,22 @@ def get_args():
 		help='Use this flag if you want to discard all base calls with limited certainty (covered by <3 reads). This will produce the ambiguity character "N" instead of that potential base call in the final sequence.'
 	)
 	parser.add_argument(
+		'--k',
+		type=float,
+		default=80,
+		help='(only for bwa mapper): Reads with a length shorter than this threshold will not be used for mapping.'
+	)
+	parser.add_argument(
 		'--l',
 		type=float,
 		default=0.7,
-		help='Define the fraction of the read that has to fulfil the similarity-threshold.'
+		help='(only for CLC mapper): Define the fraction of the read that has to fulfil the similarity-threshold.'
 	)
 	parser.add_argument(
 		'--s',
 		type=float,
 		default=0.9,
-		help='Set a similarity threshold, defining how similar the read has to be to the reference in order to be a match.'
+		help='(only for CLC mapper): Set a similarity threshold, defining how similar the read has to be to the reference in order to be a match.'
 	)
 	parser.add_argument(
 		'--cores',
@@ -161,6 +167,7 @@ alignments = args.reference
 reads = args.reads
 length = args.l
 similarity = args.s
+min_length = args.k
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
@@ -215,7 +222,7 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
 
 	print "Mapping.........."
 	sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
-	command2 = "%s mem %s %s %s > %s" %(bwa,reference,forward,backward,sam_name)
+	command2 = "%s mem -k %d %s %s %s > %s" %(bwa,min_length,reference,forward,backward,sam_name)
 	os.system(command2)
 
 	print "Converting to bam.........."
