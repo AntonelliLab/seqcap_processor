@@ -189,6 +189,7 @@ def create_reference_fasta(reference_folder):
 	os.system(join_fastas)
 	return reference
 
+
 def create_sample_reference_fasta(reference_folder,sample_id):
 	print "Creating reference library for %s .........." %sample_id
 #	get the sequence header with the correct fasta id and extract sequence
@@ -206,34 +207,54 @@ def create_sample_reference_fasta(reference_folder,sample_id):
 		outfile = open(sample_reference_fasta, 'w')
 		for fasta in fasta_sequences:
 			if fasta.id == sample_id:
-				outfile.write(">%s\n%s\n" %(locus_id,fasta.seq))
+				sequence = re.sub('[-,?]','',fasta.seq)
+				outfile.write(">%s\n%s\n" %(locus_id,sequence))
 		outfile.close()
-		remove_chars = "sed -i 's/[-?]//g' %s" %sample_reference_fasta
-		os.system(remove_chars)
 	reference = os.path.join(sample_reference_folder,"joined_fasta_library.fasta")
 	join_fastas = "cat %s/*.fasta > %s" %(sample_reference_folder,reference)
 	os.system(join_fastas)
 	return reference
 
+
 def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
+	#Indexing
+	command1 = [bwa,"index",reference]
+	bwa_out = os.path.join(sample_output_folder, "bwa_screen_out.txt")
+	try:
+		with open(bwa_out, 'w') as logfile:
+			sp1 = subprocess.Popen(command1, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
+			sp1.wait()
+	except:
+		print "Running bwa (%s) caused an error. Please check your bwa path specification and version in the control file." %bwa
+		sys.exit()
 
-	command1 = "%s index %s" %(bwa,reference)
-	os.system(command1)
-
-	print "Mapping.........."
+	#Mapping
+	command2 = [bwa,"mem","-k",str(min_length),reference,forward,backward]
 	sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
-	command2 = "%s mem -k %d %s %s %s > %s" %(bwa,min_length,reference,forward,backward,sam_name)
-	os.system(command2)
+	print "Mapping.........."
+	with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
+		sp2 = subprocess.Popen(command2, stderr = err, stdout=out)
+		sp2.wait()
 
+	#Converting to bam-format with samtools
 	print "Converting to bam.........."
-	bam_core = "%s/%s.sorted" %(sample_output_folder,sample_id)
-	command3 = "%s view -bS %s | %s sort - %s" %(samtools,sam_name,samtools,bam_core)
-	os.system(command3)
+	raw_bam = os.path.join(sample_output_folder,"%s_raw.bam" %sample_id)
+	command3 = [samtools,"view","-b","-o",raw_bam,"-S",sam_name]
+	sp3 = subprocess.Popen(command3,stderr=subprocess.PIPE)
+	sp3.wait()
 
+	bam_core = "%s/%s.sorted" %(sample_output_folder,sample_id)
+	command4 = [samtools,"sort",raw_bam,bam_core]
+	sp4 = subprocess.Popen(command4)
+	sp4.wait()
+
+	#Indexing bam files
 	print "Indexing bam.........."
 	sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
-	command4 = "%s index %s" %(samtools,sorted_bam)
-	os.system(command4)
+	command5 = [samtools,"index",sorted_bam]
+	sp5 = subprocess.Popen(command5)
+	sp5.wait()
+
 	return sorted_bam
 
 
@@ -306,7 +327,6 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	split_sample_path = re.split("/",sorted_bam_file)
 	split_file_name = split_sample_path[-1]
 	phasing_file_base_pre = re.sub('.sorted.bam$', '', split_file_name)
-
 	phasing_out_dir = "%s/phased" %(sample_output_folder)
 	if not os.path.exists(phasing_out_dir):
 		os.makedirs(phasing_out_dir)
@@ -368,7 +388,7 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	os.system(make_fasta_cmd_1)
 	os.system(make_fasta_cmd_unphased)
 
-	# Cleaning up output directory
+	# Cleaning up output directory	
 	output_files = [val for sublist in [[os.path.join(i[0], j) for j in i[2]] for i in os.walk(sample_output_folder)] for val in sublist]
 	fasta_dir = "%s/final_fasta_files" %sample_output_folder
 	if not os.path.exists(fasta_dir):
@@ -380,16 +400,17 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		raise IOError("Output-files were not created properly.")
 	for file in output_files:
 		if file in ("%s.fasta" %bam_basename, "%s_0.fasta" %phasing_basename, "%s_1.fasta" %phasing_basename):
+			with open(file) as f:
+				content = f.readlines()
+				for line in content:
+					if line.startswith(">"):
+						pass
+					else:
+						line = re.sub('[y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',line)
+						if args.conservative:
+							line = re.sub('[a,c,t,g]','N',line)
 			shutil.move(file,fasta_dir)
 
-	if args.conservative:
-		# Clean up the final fasta alignments and replace all uncertain base-calls (non-capitalized letters) with "N"
-		replace_uncertain_base_calls = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[actgn]=N=g' $fasta; done" %fasta_dir
-		os.system(replace_uncertain_base_calls)
-
-	# Standardize all the different ambiguity code-bases with N
-	standardize_all_ambiguities = "for fasta in $(ls %s/*.fasta); do sed -i -e '/>/! s=[ywrksmYWRKSM]=N=g' $fasta; done" %fasta_dir
-	os.system(standardize_all_ambiguities)
 	# Remove the unnecessary .fq files
 	remove_fq_file = "rm %s/*.fq" %sample_output_folder
 	remove_fq_file_2 = "rm %s/*/*.fq" %sample_output_folder
@@ -400,14 +421,21 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	return fasta_dir
 
 
-def edit_fasta_headers(allele_fastas,sample_id):
-	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_phased/g' %s/*allele_0.fasta" %(sample_id,allele_fastas)
+def edit_fasta_headers(allele_fasta_dir,sample_id):
+	#with open(file) as f:
+	#content = f.readlines()
+	#for line in content:
+	#	if line.startswith(">"):
+	#		pass
+	#	else:
+	#		line = re.sub('[y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',line)
+	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_phased/g' %s/*allele_0.fasta" %(sample_id,allele_fasta_dir)
 	os.system(cmd0)
-	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_phased/g' %s/*allele_1.fasta" %(sample_id,allele_fastas)
+	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_phased/g' %s/*allele_1.fasta" %(sample_id,allele_fasta_dir)
 	os.system(cmd1)
-	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_hom |&/g' %s/*sorted.fasta" %(sample_id,allele_fastas)
+	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_hom |&/g' %s/*sorted.fasta" %(sample_id,allele_fasta_dir)
 	os.system(cmd_unphased)
-	cmd_final = "for allele in $(ls %s/*.fasta); do sed -i 's/|>/|/g' $allele; done" %allele_fastas
+	cmd_final = "for allele in $(ls %s/*.fasta); do sed -i 's/|>/|/g' $allele; done" %allele_fasta_dir
 	os.system(cmd_final)
 
 
@@ -458,58 +486,61 @@ if args.reference_type == "user-ref-lib":
 	os.system(manage_reference)
 elif args.reference_type == "alignment-consensus":
 	reference = create_reference_fasta(reference_folder)
-for subfolder, dirs, files in os.walk(reads):
-	subfolder_path_elements = re.split("%s/" %reads, subfolder)
-	if subfolder_path_elements[-1] != reads:
-		sample_folder = subfolder_path_elements[-1]
-		sample_id = re.sub("_clean","",sample_folder)
-		if args.reference_type == "sample-specific":
-			reference = create_sample_reference_fasta(reference_folder,sample_id)
-		# Loop through each sample-folder and find read-files
-		sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
-		if not os.path.exists(sample_output_folder):
-			os.makedirs(sample_output_folder)
-		for misc1, misc2, fastq in os.walk(subfolder):
-			forward = ""
-			backward = ""
-			for element in fastq:
-				if sample_id in element and element.endswith("READ1.fastq"):
-					forward = "%s/%s" %(subfolder,element)
-				if sample_id in element and element.endswith("READ2.fastq"):
-					backward = "%s/%s" %(subfolder,element)
-			if forward != "" and backward != "":
-				print "\n", "#" * 50
-				print "Processing sample", sample_id, "\n"
-				sorted_bam = ""
-				if args.mapper == "bwa":
-					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
-				elif args.mapper =="clc":
-					sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
-				if args.no_duplicates:
-					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
-				allele_fastas = phase_bam(sorted_bam,sample_output_folder)
+for subfolder in os.listdir(reads):
+	subfolder_path = os.path.join(reads,subfolder)
+	sample_folder = subfolder
+	sample_id = re.sub("_clean","",sample_folder)
+	if args.reference_type == "sample-specific":
+		reference = create_sample_reference_fasta(reference_folder,sample_id)
+	# Loop through each sample-folder and find read-files
+	sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
+	#if os.path.exists(sample_output_folder):
+	#	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
+	#	continue
+	if not os.path.exists(sample_output_folder):
+		os.makedirs(sample_output_folder)
+
+	forward = ""
+	backward = ""
+	for fastq in os.listdir(subfolder_path):
+		if fastq.endswith('.fastq') or fastq.endswith('.fq'):
+			if sample_id in fastq and "READ1" in fastq:
+				forward = os.path.join(subfolder_path,fastq)
+			elif sample_id in fastq and "READ2" in fastq:
+				backward = os.path.join(subfolder_path,fastq)
+	if forward != "" and backward != "":
+		print "\n", "#" * 50
+		print "Processing sample", sample_id, "\n"
+		sorted_bam = ""
+		if args.mapper == "bwa":
+			sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
+		elif args.mapper =="clc":
+			sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
+		if args.no_duplicates:
+			sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
+		allele_fastas = phase_bam(sorted_bam,sample_output_folder)
 
 ## THIS iS STILL NOT WORKING PROPERLY WHEN ONLY SINGLE FILE PRESENT:
 
 				# The following is for the case that no phased bam files were created, i.e. the individual is homozygous for all loci (happens when only looking at one locus or a very few)
-				allele0 = ""
-				allele1 = ""
-				# testing if phasing files were created
-				for file in os.listdir(allele_fastas):
-					if file.endswith(".fasta"):
-						if "allele_0" in file:
-							allele0 = file
-						if "allele_1" in file:
-							allele1 = file
-				if allele0 == 0:
-					manage_homzygous_samples(allele_fastas,sample_id)
-					os.remove(os.path.join(allele_fastas,allele0))
-					os.remove(os.path.join(allele_fastas,allele1))
-				# Give fasta headers the correct format for phasing script
-				edit_fasta_headers(allele_fastas,sample_id)
-				#os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
-				print "\n", "#" * 50
-join_allele_fastas()
+		allele0 = ""
+		allele1 = ""
+		# testing if phasing files were created
+		for file in os.listdir(allele_fastas):
+			if file.endswith(".fasta"):
+				if "allele_0" in file:
+					allele0 = file
+				if "allele_1" in file:
+					allele1 = file
+		if allele0 == 0:
+			manage_homzygous_samples(allele_fastas,sample_id)
+			os.remove(os.path.join(allele_fastas,allele0))
+			os.remove(os.path.join(allele_fastas,allele1))
+		# Give fasta headers the correct format for phasing script
+		#edit_fasta_headers(allele_fastas,sample_id)
+		#os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
+		print "\n", "#" * 50
+#join_allele_fastas()
 
 
 #			else:
