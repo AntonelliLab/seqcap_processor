@@ -75,10 +75,10 @@ def get_args():
 		help='Use this flag if you want to clean the mapped reads from all duplicates with Picard.'
 	)
 	parser.add_argument(
-		'--conservative',
-		action='store_true',
-		default=False,
-		help='Use this flag if you want to discard all base calls with limited certainty (covered by <3 reads). This will produce the ambiguity character "N" instead of that potential base call in the final sequence.'
+		'--min_coverage',
+		type=int,
+		default=4,
+		help='Set the minimum read coverage. Only positions that are covered by this number of reads will be called in the consensus sequence, otherwise the program will add an ambiguity at this position.'
 	)
 	parser.add_argument(
 		'--k',
@@ -168,6 +168,7 @@ reads = args.reads
 length = args.l
 similarity = args.s
 min_length = args.k
+min_cov = args.min_coverage
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
@@ -321,6 +322,108 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam):
 	return picard_out
 
 
+def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
+
+	# Creating consensus sequences from bam-files
+	mpileup = [
+		samtools,
+		"mpileup",
+		"-u",
+		"-f",
+		reference,
+		bam_file
+	]
+	mpileup_file = os.path.join(out_dir, "%s.mpileup" %name_base)
+	with open(mpileup_file, 'w') as mpileupfile:
+		mp = subprocess.Popen(mpileup, stdout=mpileupfile, stderr=subprocess.PIPE)
+		mp.communicate()
+		mp.wait()
+	
+	vcf_file = os.path.join(out_dir, "%s.vcf" %name_base)
+	bcf_cmd = [
+		bcftools,
+		"view",
+		"-c",
+		"-g",
+		mpileup_file
+	]
+	with open(vcf_file, 'w') as vcffile:
+		vcf = subprocess.Popen(bcf_cmd, stdout=vcffile)
+		vcf.communicate()
+		vcf.wait()
+
+	fq_file = os.path.join(out_dir, "%s.fq" %name_base)
+	vcfutils_cmd = [
+		vcfutils,
+		"vcf2fq",
+		"-d",
+		str(min_cov),
+		vcf_file
+	]
+	with open(fq_file, 'w') as fqfile:
+		fq = subprocess.Popen(vcfutils_cmd, stdout=fqfile)
+		fq.communicate()
+		fq.wait()
+
+	# Converting fq into fasta files
+	fasta_file = os.path.join(out_dir,"%s_temp.fasta" %name_base)
+	make_fasta = [
+		seqtk,
+		"seq",
+		"-a",
+		fq_file,
+	]
+	with open(fasta_file, 'w') as fastafile:
+		fasta = subprocess.Popen(make_fasta, stdout=fastafile)
+		fasta.communicate()
+		fasta.wait()
+	
+	# Create a new fasta file for final fasta printing
+	final_fasta_file = os.path.join(out_dir,"%s.fasta" %name_base)
+
+	if "allele_0" in name_base:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, fasta.seq.tostring()
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s_0 |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+	
+	elif "allele_1" in name_base:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, fasta.seq.tostring()
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s_1 |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+
+	else:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, fasta.seq.tostring()
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+
+
+	os.remove(fasta_file)
+	os.remove(fq_file)
+
+	return final_fasta_file
+
+
 def phase_bam(sorted_bam_file,sample_output_folder):
 	# Phasing:
 	bam_basename = re.sub('.bam$', '', sorted_bam_file)
@@ -370,23 +473,21 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	index_allele1 = "%s index %s" %(samtools,allele_1_sorted_file)
 	os.system(index_allele0)
 	os.system(index_allele1)
-
-	# Creating consensus sequences from bam-files
+	
 	print "Creating consensus sequences from bam-files.........."
-	make_cons_0 = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s_0.fq" %(samtools,reference,allele_0_sorted_file,bcftools,vcfutils,phasing_basename)
-	make_cons_1 = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s_1.fq" %(samtools,reference,allele_1_sorted_file,bcftools,vcfutils,phasing_basename)
-	make_cons_unphased = "%s mpileup -u -f %s %s | %s view -cg - | %s vcf2fq > %s.fq" %(samtools,reference,sorted_bam_file,bcftools,vcfutils,bam_basename)
-	os.system(make_cons_0)
-	os.system(make_cons_1)
-	os.system(make_cons_unphased)
+	name_stem = "%s_unphased" %phasing_file_base_pre
 
-	# Converting fq into fasta files
-	make_fasta_cmd_0 = "%s seq -a %s_0.fq > %s_0.fasta" %(seqtk,phasing_basename,phasing_basename)
-	make_fasta_cmd_1 = "%s seq -a %s_1.fq > %s_1.fasta" %(seqtk,phasing_basename,phasing_basename)
-	make_fasta_cmd_unphased = "%s seq -a %s.fq > %s.fasta" %(seqtk,bam_basename,bam_basename)
-	os.system(make_fasta_cmd_0)
-	os.system(make_fasta_cmd_1)
-	os.system(make_fasta_cmd_unphased)
+	print allele_0_sorted_base
+	allele0_stem = re.split("/", allele_0_sorted_base)[-1]
+	allele0_stem = re.sub('_sorted', '', allele0_stem)
+	print allele0_stem
+
+	allele1_stem = re.split("/", allele_1_sorted_base)[-1]
+	allele1_stem = re.sub('_sorted', '', allele1_stem)
+
+	fasta_unphased = bam_consensus(reference,sorted_bam_file,name_stem,sample_output_folder,min_cov)
+	fasta_allele0 = bam_consensus(reference,allele_0_sorted_file,allele0_stem,sample_output_folder,min_cov)
+	fasta_allele1 = bam_consensus(reference,allele_1_sorted_file,allele1_stem,sample_output_folder,min_cov)
 
 	# Cleaning up output directory	
 	output_files = [val for sublist in [[os.path.join(i[0], j) for j in i[2]] for i in os.walk(sample_output_folder)] for val in sublist]
@@ -395,55 +496,43 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		os.makedirs(fasta_dir)
 	# check the names to make sure we're not deleting something improperly
 	try:
-		assert "%s.fasta" %bam_basename in output_files
+		assert fasta_unphased in output_files
 	except:
 		raise IOError("Output-files were not created properly.")
 	for file in output_files:
-		if file in ("%s.fasta" %bam_basename, "%s_0.fasta" %phasing_basename, "%s_1.fasta" %phasing_basename):
-			with open(file) as f:
-				content = f.readlines()
-				for line in content:
-					if line.startswith(">"):
-						pass
-					else:
-						line = re.sub('[y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',line)
-						if args.conservative:
-							line = re.sub('[a,c,t,g]','N',line)
+		if file in (fasta_unphased,fasta_allele0,fasta_allele1):
 			shutil.move(file,fasta_dir)
-
-	# Remove the unnecessary .fq files
-	remove_fq_file = "rm %s/*.fq" %sample_output_folder
-	remove_fq_file_2 = "rm %s/*/*.fq" %sample_output_folder
-	if args.no_duplicates:
-		os.system(remove_fq_file_2)
-	else:
-		os.system(remove_fq_file)
 	return fasta_dir
 
 
-def edit_fasta_headers(allele_fasta_dir,sample_id):
-	#with open(file) as f:
-	#content = f.readlines()
-	#for line in content:
-	#	if line.startswith(">"):
-	#		pass
-	#	else:
-	#		line = re.sub('[y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',line)
-	cmd0 = "sed -i -e 's/>\(.*\)/&_%s_0 |&_phased/g' %s/*allele_0.fasta" %(sample_id,allele_fasta_dir)
-	os.system(cmd0)
-	cmd1 = "sed -i -e 's/>\(.*\)/&_%s_1 |&_phased/g' %s/*allele_1.fasta" %(sample_id,allele_fasta_dir)
-	os.system(cmd1)
-	cmd_unphased = "sed -i -e 's/>\(.*\)/&_%s_hom |&/g' %s/*sorted.fasta" %(sample_id,allele_fasta_dir)
-	os.system(cmd_unphased)
-	cmd_final = "for allele in $(ls %s/*.fasta); do sed -i 's/|>/|/g' $allele; done" %allele_fasta_dir
-	os.system(cmd_final)
+def join_fastas(out_dir):
+	fasta_files = [os.path.join(dirpath, f) for dirpath, dirnames, files in os.walk(out_dir) for f in files if f.endswith('.fasta')]
+	allele_fastas = []
+	unphased_fastas = []
+	for fasta in fasta_files:
+		if "allele_0" in fasta:
+			allele_fastas.append(fasta)
+		elif "allele_1" in fasta:
+			allele_fastas.append(fasta)
+		elif "_unphased" in fasta:
+			unphased_fastas.append(fasta)
 
+	joined_allele_fastas = "%s/joined_allele_fastas.fasta" %out_dir
+	with open(joined_allele_fastas, 'w') as outfile:
+	    for fname in allele_fastas:
+	        with open(fname) as infile:
+	            for line in infile:
+	                outfile.write(line)
 
-def join_allele_fastas():
-	final_merging = "for folder in $(find %s -type d -name '*_remapped'); do cat $folder/final_fasta_files/*allele*; done > %s/joined_allele_sequences_all_samples.fasta" %(out_dir,out_dir)
-	os.system(final_merging)
-	capitalize = "sed -i -e '/>/! s=[actgn]=\U&=g' %s/joined_allele_sequences_all_samples.fasta" %out_dir
-	os.system(capitalize)
+	joined_unphased_fastas = "%s/joined_unphased_fastas.fasta" %out_dir
+	with open(joined_unphased_fastas, 'w') as outfile:
+	    for fname in unphased_fastas:
+	        with open(fname) as infile:
+	            for line in infile:
+	                outfile.write(line)	
+		
+	#final_merging = "for folder in $(find %s -type d -name '*_remapped'); do cat $folder/final_fasta_files/*allele*; done > %s/joined_allele_sequences_all_samples.fasta" %(out_dir,out_dir)
+	#os.system(final_merging)
 
 
 def manage_homzygous_samples(fasta_dir, sample_id):
@@ -536,11 +625,8 @@ for subfolder in os.listdir(reads):
 			manage_homzygous_samples(allele_fastas,sample_id)
 			os.remove(os.path.join(allele_fastas,allele0))
 			os.remove(os.path.join(allele_fastas,allele1))
-		# Give fasta headers the correct format for phasing script
-		#edit_fasta_headers(allele_fastas,sample_id)
-		#os.remove(os.path.join(allele_fastas,"%s.sorted.fasta" %sample_id))
 		print "\n", "#" * 50
-#join_allele_fastas()
+join_fastas(out_dir)
 
 
 #			else:
