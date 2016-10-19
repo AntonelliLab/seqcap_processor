@@ -69,10 +69,10 @@ def get_args():
 		help='The output directory where results will be safed.'
 	)
 	parser.add_argument(
-		'--no_duplicates',
+		'--include_duplicates',
 		action='store_true',
 		default=False,
-		help='Use this flag if you want to clean the mapped reads from all duplicates with Picard.'
+		help='Use this flag if you do not want to discard all duplicate reads with Picard.'
 	)
 	parser.add_argument(
 		'--min_coverage',
@@ -605,7 +605,7 @@ for subfolder in os.listdir(reads):
 			sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
 		elif args.mapper =="clc":
 			sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
-		if args.no_duplicates:
+		if not args.include_duplicates:
 			sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
 		allele_fastas = phase_bam(sorted_bam,sample_output_folder)
 
