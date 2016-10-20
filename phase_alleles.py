@@ -602,9 +602,9 @@ for subfolder in os.listdir(reads):
 	backward = ""
 	for fastq in os.listdir(subfolder_path):
 		if fastq.endswith('.fastq') or fastq.endswith('.fq'):
-			if sample_id in fastq and "READ1" in fastq:
+			if sample_id in fastq and "READ1.fastq" in fastq:
 				forward = os.path.join(subfolder_path,fastq)
-			elif sample_id in fastq and "READ2" in fastq:
+			elif sample_id in fastq and "READ2.fastq" in fastq:
 				backward = os.path.join(subfolder_path,fastq)
 	if forward != "" and backward != "":
 		print "\n", "#" * 50
