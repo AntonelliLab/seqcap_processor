@@ -69,7 +69,7 @@ def get_args():
 		help='The output directory where results will be safed.'
 	)
 	parser.add_argument(
-		'--include_duplicates',
+		'--keep_duplicates',
 		action='store_true',
 		default=False,
 		help='Use this flag if you do not want to discard all duplicate reads with Picard.'
@@ -416,7 +416,18 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 				name = re.sub(r'(.*)',r'\1_%s |\1' %sample_id ,name)
 				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
 				out_file.write(">%s\n%s\n" %(name,sequence))
-
+		if not args.keep_duplicates:
+			dupl_folder = "%s/with_duplicates" %out_dir
+			if not os.path.exists(dupl_folder):
+				os.makedirs(dupl_folder)
+			standard_bam = glob.glob('%s/*.bam' %out_dir)[0]
+			standard_bai = glob.glob('%s/*.bam.bai' %out_dir)[0]
+			shutil.move(standard_bam,dupl_folder)
+			shutil.move(standard_bai,dupl_folder)
+			picard_bam = glob.glob('%s/picard/*.bam' %out_dir)[0]
+			picard_bai = glob.glob('%s/picard/*.bam.bai' %out_dir)[0]
+			shutil.move(picard_bam,out_dir)
+			shutil.move(picard_bai,out_dir)
 
 	os.remove(fasta_file)
 	os.remove(fq_file)
@@ -477,10 +488,8 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	print "Creating consensus sequences from bam-files.........."
 	name_stem = "%s_unphased" %phasing_file_base_pre
 
-	print allele_0_sorted_base
 	allele0_stem = re.split("/", allele_0_sorted_base)[-1]
 	allele0_stem = re.sub('_sorted', '', allele0_stem)
-	print allele0_stem
 
 	allele1_stem = re.split("/", allele_1_sorted_base)[-1]
 	allele1_stem = re.sub('_sorted', '', allele1_stem)
@@ -605,7 +614,7 @@ for subfolder in os.listdir(reads):
 			sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
 		elif args.mapper =="clc":
 			sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
-		if not args.include_duplicates:
+		if not args.keep_duplicates:
 			sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
 		allele_fastas = phase_bam(sorted_bam,sample_output_folder)
 
@@ -625,7 +634,7 @@ for subfolder in os.listdir(reads):
 			manage_homzygous_samples(allele_fastas,sample_id)
 			os.remove(os.path.join(allele_fastas,allele0))
 			os.remove(os.path.join(allele_fastas,allele1))
-		print "\n", "#" * 50
+		print "#" * 50
 join_fastas(out_dir)
 
 
