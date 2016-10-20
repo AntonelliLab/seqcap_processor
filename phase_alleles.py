@@ -255,6 +255,10 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
 	command5 = [samtools,"index",sorted_bam]
 	sp5 = subprocess.Popen(command5)
 	sp5.wait()
+	
+	#Remove some big and unnecessary intermediate files
+	os.remove(sam_name)
+	os.remove(raw_bam)
 
 	return sorted_bam
 
@@ -323,7 +327,6 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam):
 
 
 def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
-
 	# Creating consensus sequences from bam-files
 	mpileup = [
 		samtools,
@@ -493,7 +496,6 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 
 	allele1_stem = re.split("/", allele_1_sorted_base)[-1]
 	allele1_stem = re.sub('_sorted', '', allele1_stem)
-
 	fasta_unphased = bam_consensus(reference,sorted_bam_file,name_stem,sample_output_folder,min_cov)
 	fasta_allele0 = bam_consensus(reference,allele_0_sorted_file,allele0_stem,sample_output_folder,min_cov)
 	fasta_allele1 = bam_consensus(reference,allele_1_sorted_file,allele1_stem,sample_output_folder,min_cov)
@@ -585,6 +587,8 @@ if args.reference_type == "user-ref-lib":
 elif args.reference_type == "alignment-consensus":
 	reference = create_reference_fasta(reference_folder)
 for subfolder in os.listdir(reads):
+#	if not "A10" in subfolder:
+#		exit()
 	subfolder_path = os.path.join(reads,subfolder)
 	sample_folder = subfolder
 	sample_id = re.sub("_clean","",sample_folder)
