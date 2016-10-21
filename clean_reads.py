@@ -61,7 +61,7 @@ def get_args():
 	)
 	parser.add_argument(
 		'--trimmomatic',
-		default="/usr/local/anaconda/jar/trimmomatic.jar",
+		default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
 		action=CompletePath,
 		help='The path to the trimmomatic-0.XX.jar file.'
 	)
@@ -238,7 +238,8 @@ def quality_trim(r1,r2,sample_id):
 					output[3],
 					"ILLUMINACLIP:%s:2:30:10" %adapter_fasta,
 					"SLIDINGWINDOW:4:15",
-					"LEADING:5",
+					"LEADING:20",
+					"TRAILING:20"
 					"MINLEN:40"
 				]
 				p1 = subprocess.Popen(command1, stderr=log_err_file)
