@@ -239,7 +239,7 @@ def quality_trim(r1,r2,sample_id):
 					"ILLUMINACLIP:%s:2:30:10" %adapter_fasta,
 					"SLIDINGWINDOW:4:15",
 					"LEADING:20",
-					"TRAILING:20"
+					"TRAILING:20",
 					"MINLEN:40"
 				]
 				p1 = subprocess.Popen(command1, stderr=log_err_file)
@@ -265,7 +265,8 @@ def quality_trim(r1,r2,sample_id):
 				output[2],
 				output[3],
 				"SLIDINGWINDOW:4:15",
-				"LEADING:5",
+				"LEADING:20",
+				"TRAILING:20",
 				"MINLEN:40"
 			]
 			p2 = subprocess.Popen(command2, stderr=log_err_file)
@@ -310,7 +311,9 @@ for key, values in read_pairs.items():
 				elif any(pat in fq for pat in pattern_r2):
 					r2 = fq
 				else:
+					print "#" * 50, "\n"
 					print "No matching read designation (R1 or R2) found for %s" %fq
+					print "#" * 50, "\n"
 			# Remove the delimiter after the sample name in case it is part of the key
 			if key.endswith(delimiter[0]):
 				clean_key = rchop(key,delimiter[0])
