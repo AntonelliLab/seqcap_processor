@@ -54,7 +54,7 @@ def get_args():
 	)
 	parser.add_argument(
 		'--abyss',
-		default="/usr/local/anaconda/bin/abyss-pe",
+		default="/usr/local/packages/anaconda2/bin/abyss-pe",
 		action=CompletePath,
 		help='The path to the abyss-pe executable'
 	)
