@@ -85,19 +85,39 @@ for seq in sequence_list:
 	if place_in_list > 0:
 		match = longest_common_substring(sequence_list[place_in_list],sequence_list[place_in_list-1])
 		if not sequence_list[place_in_list-1].endswith(match):
-			new_header = header
-			sequence_dictionary.setdefault(new_header,[])
-			sequence_dictionary[new_header].append(seq)
-		elif sequence_list[place_in_list-1].endswith(match):
-			seq = seq.replace(match,'')
-			sequence_dictionary[new_header].append(seq)
+			# sometimes there are cases where the matching substring is not at the end of the previous sequence,
+			# since there are some slightly diffeent bases in the sequence of the following probe, even though the
+			# sequences are clearly homologous. In that case we want to remove everything following the match from 
+			# the previous probe and add this complete probe sequence into the final dictionary
+			if len(match) > 20:
+				splitstring = sequence_list[place_in_list-1].rsplit(match, 1)
+				substring = match+splitstring[1]
+				sequence_dictionary[new_header][-1] = sequence_dictionary[new_header][-1].replace(substring,'')
+				sequence_dictionary[new_header].append(seq)
+			else:
+				new_header = header
+				sequence_dictionary.setdefault(new_header,[])
+				sequence_dictionary[new_header].append(seq)
+				
+		elif sequence_list[place_in_list-1].endswith(match) and sequence_list[place_in_list].startswith(match):
+			if len(match)> 9:
+				seq = seq.replace(match,'')
+				sequence_dictionary[new_header].append(seq)
+			else:
+				print header, seq,  match, '\n'
+				sequence_dictionary.setdefault(new_header,[])
+				sequence_dictionary[new_header].append(seq)
+		else:
+			print 'unidentifiable probe:', header, seq
 	elif place_in_list == 0:
 		new_header = header
 		sequence_dictionary.setdefault(new_header,[])
+		sequence_dictionary[new_header].append(seq)
+
 
 
 out_fasta = open(out_file, 'w')
-for header in sequence_dictionary:
+for header in sorted(sequence_dictionary):
 	sequence = ''.join(sequence_dictionary[header])
 	out_fasta.write(header+"\n")
 	out_fasta.write(sequence+"\n")
