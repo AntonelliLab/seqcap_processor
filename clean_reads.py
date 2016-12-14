@@ -61,7 +61,7 @@ def get_args():
 	)
 	parser.add_argument(
 		'--trimmomatic',
-		default="/usr/local/anaconda/jar/trimmomatic.jar",
+		default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
 		action=CompletePath,
 		help='The path to the trimmomatic-0.XX.jar file.'
 	)
@@ -83,7 +83,7 @@ conf = ConfigParser.ConfigParser()
 # Read the config argument and define input as string
 conf.optionxform = str
 conf.read(args.config)
-# Call a config element 
+# Call a config element
 adapters = conf.items('adapters')
 barcodes = conf.items('barcodes')
 names = conf.items('names')
@@ -121,7 +121,7 @@ def make_adapter_fasta(sample,sampledir):
 		i7 = conf.get('adapters', 'i7')
 		i7 = i7.replace("*", i7_barcode)
 		i5 = conf.get('adapters', 'i5')
-		if adapt_index is "single":
+		if adapt_index == "single":
 			try:
 				i5_barcode = find_barcode("i5",sample)[1]
 			except:
@@ -130,12 +130,12 @@ def make_adapter_fasta(sample,sampledir):
 			if not i5_barcode is None:
 				print "Reads are not single-indexed. Use '--index double' in your command."
 				sys.exit()
-		if adapt_index is "double":
+		if adapt_index == "double":
 			i5_barcode = find_barcode("i5",sample)[1]
 			i5 = i5.replace("*", i5_barcode)
 		with open(adapters, 'w') as outf:
-			outf.write(">\n%s\n>i7\n%s\n" %(i5,i7))
-		return adapters	
+			outf.write(">i5\n%s\n>i7\n%s\n" %(i5,i7))
+		return adapters
 	except TypeError:
 		return None
 
@@ -177,12 +177,12 @@ def find_fastq_pairs(name_pattern,work_dir):
 	id_of_file = []
 	for fastq in file_list:
 		matches = []
-		for name in name_pattern:	
+		for name in name_pattern:
 			matches.append(longest_common_substring(fastq,name))
 		# Give the longest match
 		sample_id = max(matches, key=len)
 		id_of_file.append(sample_id)
-	# Create a dictionary with the file names as keys and the corresponding sample IDs as values  
+	# Create a dictionary with the file names as keys and the corresponding sample IDs as values
 	file_info = dict(zip(file_list, id_of_file))
 	# Reverse the dictionary
 	rev_file_info = {}
@@ -195,15 +195,15 @@ def find_fastq_pairs(name_pattern,work_dir):
 			rev_file_info.pop(key, None)
 		else:
 			pass
-	
-	return rev_file_info		
+
+	return rev_file_info
 
 
 def quality_trim(r1,r2,sample_id):
-	print "\n", "#" * 50	
+	print "\n", "#" * 50
 	print "Processing %s...\n" %sample_id
 	# Trimmomatic path
-	trimmomatic = ""	
+	trimmomatic = ""
 	#if trimmomatic_path() is not False:
 	#	trimmomatic = trimmomatic_path()
 	if args.trimmomatic:
@@ -217,13 +217,13 @@ def quality_trim(r1,r2,sample_id):
 	if not os.path.exists(output_sample_dir):
 		os.makedirs(output_sample_dir)
 	for read in ["READ1", "READ1-single", "READ2", "READ2-single"]:
-		output.append(os.path.join(output_sample_dir, "%s_clean-%s.fastq" %(sample_id,read)))	
+		output.append(os.path.join(output_sample_dir, "%s_clean-%s.fastq" %(sample_id,read)))
 	# Adapters to trim
 	adapter_fasta = make_adapter_fasta(sample_id,output_sample_dir)
 	# Command for trimmomatic
 	if not adapter_fasta == None:
 		try:
-			with open(os.path.join(output_sample_dir, "%s_stats.txt" %sample_id), 'w') as log_err_file:		
+			with open(os.path.join(output_sample_dir, "%s_stats.txt" %sample_id), 'w') as log_err_file:
 				command1 = [
 					"java",
 					"-jar",
@@ -238,19 +238,20 @@ def quality_trim(r1,r2,sample_id):
 					output[3],
 					"ILLUMINACLIP:%s:2:30:10" %adapter_fasta,
 					"SLIDINGWINDOW:4:15",
-					"LEADING:5",
+					"LEADING:20",
+					"TRAILING:20",
 					"MINLEN:40"
 				]
 				p1 = subprocess.Popen(command1, stderr=log_err_file)
 				p1.communicate()
 				print "%s successfully cleaned and trimmed. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id))
-				print "#" * 50, "\n"		
+				print "#" * 50, "\n"
 		except:
 			print "Trimmomatic was interrupted or did not start properly. Use --trimmomatic flag in command to specify the correct path to trimmomatic."
 			sys.exit()
 	else:
 		print "***********No barcodes for %s stored in config-file. Only quality trimming (no adapter trimming) will be performed***********" %sample_id
-		with open(os.path.join(output_sample_dir, "%s_stats.txt" %sample_id), 'w') as log_err_file:		
+		with open(os.path.join(output_sample_dir, "%s_stats.txt" %sample_id), 'w') as log_err_file:
 			command2 = [
 				"java",
 				"-jar",
@@ -264,13 +265,14 @@ def quality_trim(r1,r2,sample_id):
 				output[2],
 				output[3],
 				"SLIDINGWINDOW:4:15",
-				"LEADING:5",
+				"LEADING:20",
+				"TRAILING:20",
 				"MINLEN:40"
 			]
 			p2 = subprocess.Popen(command2, stderr=log_err_file)
-			p2.communicate()		
+			p2.communicate()
 			print "%s successfully cleaned. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id))
-			print "#" * 50, "\n"		
+			print "#" * 50, "\n"
 
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -309,7 +311,9 @@ for key, values in read_pairs.items():
 				elif any(pat in fq for pat in pattern_r2):
 					r2 = fq
 				else:
+					print "#" * 50, "\n"
 					print "No matching read designation (R1 or R2) found for %s" %fq
+					print "#" * 50, "\n"
 			# Remove the delimiter after the sample name in case it is part of the key
 			if key.endswith(delimiter[0]):
 				clean_key = rchop(key,delimiter[0])

@@ -98,10 +98,17 @@ def get_args():
         default=None,
         help="The path to a directory to hold logs."
     )
+    parser.add_argument(
+        '--assembler',
+        choices=["trinity", "abyss"],
+        default="abyss",
+        help="""Please specify which assembler was used to generate the input contigs"""
+    )    
     return parser.parse_args()
-
+    
 
 def get_nodes_for_exons(c, organism, exons, extend=False, notstrict=False):
+    args = get_args()
     # get only those exons we know are in the set
     exons = [("\'{0}\'").format(u) for u in exons]
     if not extend:
@@ -114,7 +121,11 @@ def get_nodes_for_exons(c, organism, exons, extend=False, notstrict=False):
     missing = []
     for node in rows:
         if node[0] is not None:
-            match = re.search('^(c\d+_g\d+_i\d+)\(([+-])\)', node[0])
+            match = ""
+            if args.assembler == "trinity":
+                match = re.search('^(c\d+_g\d+_i\d+)\(([+-])\)', node[0])
+            elif args.assembler == "abyss":
+                match = re.search('^(\d+)\(([+-])\)', node[0])
             #print "match:", match.groups()[0]
             #print node[1]
             node_dict[match.groups()[0]] = (node[1], match.groups()[1])
@@ -149,8 +160,13 @@ def find_file(contigs, name):
 
 
 def get_contig_name(header):
-    """parse the contig name from the header of either velvet/trinity assembled contigs"""
-    match = re.search("^(c\d+_g\d+_\i\d+).*", header)
+    args = get_args()
+    """parse the contig name from the header of either abyss/trinity assembled contigs"""
+    match = ""
+    if args.assembler == "trinity":
+        match = re.search("^(c\d+_g\d+_i\d+).*", header)
+    elif args.assembler == "abyss":
+        match = re.search("^(\d+).*", header)
     return match.groups()[0]
 
 

@@ -133,6 +133,12 @@ def get_args():
 		action=FullPaths,
 		help="The complete path to sqlite3"
 	)
+	parser.add_argument(
+		'--assembler',
+		choices=["trinity", "abyss"],
+		default="abyss",
+		help="""Please specify which assembler was used to generate the input contigs"""
+	)
 	args = parser.parse_args()
 	return args
 
@@ -261,8 +267,18 @@ def pretty_log_output(log, critter, matches, contigs, pd, mc, exon_dupe_exons):
 
 def get_contig_name(header):
 	#parse the contig name from the header of Trinity assembled contigs"
-	match = re.search("^(c\d+_g\d+_i\d+).*", header)
+	args = get_args()
+	match = ""
+	if args.assembler == "trinity":
+		match = re.search("^(c\d+_g\d+_i\d+).*", header)
+	elif args.assembler == "abyss":
+		match = re.search("^(\d+).*", header)
 	#print "match:", match
+	return match.groups()[0]
+
+
+def get_kmer_value(header):
+	match = re.search("^\d*\s\d*\s(\d*).*", header)
 	return match.groups()[0]
 
 
@@ -282,12 +298,18 @@ def main():
 	else:
 		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(args.output))
 	exons = set(new_get_probe_name(seq.id, regex) for seq in SeqIO.parse(open(args.reference, 'rU'), 'fasta'))
+	#print exons
 	if args.dupefile:
 		dupes = get_dupes(log, args.dupefile, regex)
 	else:
 		dupes = set()
 	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
+	for f in fasta_files:
+		replace_bad_fasta_chars = "sed -i -e '/>/! s=[K,Y,R,S,M,W,k,y,r,s,m,w]=N=g' %s" %f
+		os.system(replace_bad_fasta_chars)
+	#print fasta_files
 	organisms = get_organism_names_from_fasta_files(fasta_files)
+	#print organisms
 	conn, c = create_probe_database(
 		log,
 		os.path.join(args.output, 'probe.matches.sqlite'),
@@ -301,6 +323,7 @@ def main():
 	else:
 		dupefile = None
 	log.info("{}".format("-" * 65))
+	kmers = {}
 	for contig in sorted(fasta_files):
 		critter = os.path.basename(contig).split('.')[0].replace('-', "_")
 		output = os.path.join(
@@ -334,6 +357,7 @@ def main():
 					matches[contig_name].add(exon_name)
 					orientation[exon_name].add(lz.strand2)
 					revmatches[exon_name].add(contig_name)
+
 		# we need to check nodes for dupe matches to the same probes
 		contigs_matching_mult_exons = check_contigs_for_dupes(matches)
 		exon_dupe_contigs, exon_dupe_exons = check_loci_for_dupes(revmatches)
@@ -357,6 +381,20 @@ def main():
 		for k in match_copy.keys():
 			if k in nodes_to_drop:
 				del matches[k]
+		#print matches
+		#print lz.name1
+		#get contig id
+		#contig_id = re.search("^(\d*)\s\d*\s\d*.*", lz.name1).groups()[0]
+		#print matches
+
+		#added function to return the kmer count (sum of all kmers of target contigs)
+		for lz in lastz.Reader(output):
+			for element in matches:
+				#print element, "has to match", lz[1]
+				if re.search("^(\d*)\s\d*\s\d*.*", lz[1]).groups()[0] == element:
+					kmer_value = get_kmer_value(lz.name1)
+					kmers.setdefault(contig,[])
+					kmers[contig].append(kmer_value)
 		store_lastz_results_in_db(c, matches, orientation, critter)
 		conn.commit()
 		pretty_log_output(
@@ -368,6 +406,16 @@ def main():
 			contigs_matching_mult_exons,
 			exon_dupe_exons
 		)
+
+	kmerfile = open(os.path.join(args.output,'kmer_count.txt'), 'w')
+
+	for key in kmers:
+		count = 0
+		for element in kmers[key]:
+			count += int(element)
+		kmerfile.write("%s : %d\n" %(os.path.basename(key).split('.')[0],count))
+
+
 	if dupefile is not None:
 		dupefile.close()
 	log.info("{}".format("-" * 65))
@@ -375,7 +423,7 @@ def main():
 	log.info("The exon match database is in {}".format(os.path.join(args.output, "probes.matches.sqlite")))
 	text = " Completed {} ".format(my_name)
 	log.info(text.center(65, "="))
-	
+
 	# Access the SQL file and export tab-separated text-file
 	sql_file = os.path.join(args.output, 'probe.matches.sqlite')
 	tsf_out = os.path.join(args.output, 'match_table.txt')
@@ -389,6 +437,8 @@ def main():
 	remove_lastz = "sed -i 's/.lastz//g' %s/config" %output_folder
 	os.system(remove_lastz)
 
+
+
+
 if __name__ == '__main__':
 	main()
-
