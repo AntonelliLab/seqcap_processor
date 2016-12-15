@@ -37,6 +37,16 @@ setup(
 	#	'PyYAML',
 	#],
 	
+
+        ## Estelle
+        install_requires = [ 
+                'Bio>=1.68 ',
+                'phyluce>=1.5.0',
+                'cogent>=0.7.7', #?
+                'sqlite3>=3.8.6',
+        ],
+                
+
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
