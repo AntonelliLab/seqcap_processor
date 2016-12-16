@@ -20,7 +20,7 @@ setup(
 	description = 'Process sequence-capture fastq files into alignments for phylogenetic analyses',
 	long_description = long_description,
 	#license = 'BSD',
-	#entry_points = {'console_scripts': ['igdiscover = igdiscover.__main__:main']},
+	entry_points = {'console_scripts': ['secapr = secapr.__main__:main']},
 	packages = ['secapr'],
 	#package_data = {'igdiscover': ['igdiscover.yaml', 'Snakefile', 'empty.aux']},
 
