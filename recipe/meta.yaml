@@ -1,0 +1,28 @@
+package:
+  name: secapr
+  version: '0.1'
+
+about:
+  home:
+  license:
+  summary: ''
+
+source:
+  url: ...tar.gz
+  md5:
+
+build:
+  number: 0
+  script: $PYTHON setup.py install
+
+requirements:
+  build:
+    - python
+  run:
+    - python
+
+test:
+  imports:
+    - secapr
+  commands:
+    - secapr --version
