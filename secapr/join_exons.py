@@ -1,6 +1,6 @@
-#!/usr/local/opt/python/bin/python
 '''Join exon-alignment files belonging to the same gene
 '''
+
 #author: Tobias Hofmann, tobiashofmann@gmx.net
 
 import os

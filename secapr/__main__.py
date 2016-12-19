@@ -1,4 +1,3 @@
-#!/usr/local/anaconda/bin/python
 # encoding: utf-8
 
 #author: Tobias Hofmann, tobiashofmann@gmx.net
@@ -20,7 +19,7 @@ __author__ = "Tobias Hofmann"
 
 COMMANDS = [
         'clean_reads',
-        #'assemble_reads',
+        'assemble_reads',
         #'find_target_contigs',
         #'extract_contigs',
         #'align_contigs',

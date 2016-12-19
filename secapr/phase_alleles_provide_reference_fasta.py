@@ -1,4 +1,3 @@
-#!/usr/local/opt/python/bin/python
 #author: Tobias Hofmann, tobias.hofmann@bioenv.gu.se
 
 import os

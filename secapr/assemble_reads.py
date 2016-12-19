@@ -1,5 +1,8 @@
-#!/usr/local/opt/python/bin/python
 #author: Tobias Hofmann, tobiashofmann@gmx.net
+
+'''
+Assemble trimmed Illumina read files (fastq)
+'''
 
 import os
 import sys
@@ -15,18 +18,13 @@ import subprocess
 
 # Complete path function
 class CompletePath(argparse.Action):
-	"""give the full path of an input file/folder"""
-	def __call__(self, parser, namespace, values, option_string=None):
+        """give the full path of an input file/folder"""
+        def __call__(self, parser, namespace, values, option_string=None):
 		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
 
-# Get arguments
-def get_args():
-	parser = argparse.ArgumentParser(
-		description="Assemble trimmed Illumina read files (fastq)",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter
-	)
-	parser.add_argument(
+def add_arguments(parser):
+        parser.add_argument(
 		'--input',
 		required=True,
 		action=CompletePath,
@@ -46,6 +44,7 @@ def get_args():
 		default="abyss",
 		help="""The assembler to use."""
 	)
+        '''
 	parser.add_argument(
 		'--trinity',
 		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
@@ -58,6 +57,7 @@ def get_args():
 		action=CompletePath,
 		help='The path to the abyss-pe executable'
 	)
+        '''
 	parser.add_argument(
 		'--kmer',
 		type=int,
@@ -82,33 +82,86 @@ def get_args():
 		default=1,
 		help='For parallel processing you can set the number of cores you want to run Trinity on.'
 	)
-	return parser.parse_args()
 
-# Preparation for calling input variables and files
-args = get_args()
 
-# Set working directory
-out_folder = args.output
-out_dir = "%s/stats" %out_folder
-if not os.path.exists(out_dir):
-	os.makedirs(out_dir)
 
-# Get all the other input variables
-input_folder = args.input
-min_length = args.contig_length
-trinity = args.trinity
-cores = args.cores
-abyss = args.abyss
-kmer = args.kmer
-home_dir = os.getcwd()
+def main(args):
+        # Set working directory
+        out_folder = args.output
+        out_dir = "%s/stats" %out_folder
+        if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Functions %%%
+        # Get all the other input variables
+        input_folder = args.input
+        min_length = args.contig_length
+        #trinity = args.trinity
+        cores = args.cores
+        #abyss = args.abyss
+        kmer = args.kmer
+        home_dir = os.getcwd()
 
-def assembly_trinity(forw,backw,output_folder,id_sample):
+
+        print "\n\nRunning %s parallel on %d cores" %(args.assembler,cores)
+        for subfolder, dirs, files in os.walk(input_folder):
+                subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
+                if subfolder_path_elements[-1] != input_folder:
+                        sample_folder = subfolder_path_elements[-1]
+                        sample_id = re.split("_", sample_folder)[0]
+                        # Loop through each sample-folder and find read-files
+                        sample_output_folder = "%s/%s" %(out_dir,sample_id)
+                        if not os.path.exists(sample_output_folder):
+                                os.makedirs(sample_output_folder)
+                        for misc1, misc2, fastq in os.walk(subfolder):
+                                forward = ""
+                                backward = ""
+                                single_f = ""
+                                single_b = ""
+                                for element in fastq:
+                                        if sample_id in element and element.endswith("READ1.fastq"):
+                                                forward = "%s/%s" %(subfolder,element)
+                                        if sample_id in element and element.endswith("READ2.fastq"):
+                                                backward = "%s/%s" %(subfolder,element)
+                                        if sample_id in element and element.endswith("READ1-single.fastq"):
+                                                single_f = "%s/%s" %(subfolder,element)
+                                        if sample_id in element and element.endswith("READ2-single.fastq"):
+                                                single_b = "%s/%s" %(subfolder,element)
+                                if forward != "" and backward != "":
+                                        print "\n", "#" * 50
+                                        print "Processing sample", sample_id, "\n"
+
+                                        if args.assembler == "trinity":
+                                                assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length)
+                                                get_stats(sample_output_folder,sample_id)
+                                                cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
+                                                print "\n", "#" * 50
+                                                mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
+                                                os.system(mv_cmd)
+                                        elif args.assembler == "abyss":
+                                                assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
+                                                files = glob.glob(os.path.join(home_dir,'*'))
+                                                links = [f for f in files if os.path.islink(f)]
+                                                for l in links:
+                                                        if l.endswith("-contigs.fa"):
+                                                                contig_file = os.path.realpath(l)
+                                                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
+                                                                os.system(mv_contig)
+                                                mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+                                                os.system(mv_cmd1)
+                                                mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+                                                os.system(mv_cmd2)
+
+                                else:
+                                        print "\nError: Read-files for sample %s could not be found. Please check if subfolders/sample-folders are named in this pattern: 'sampleID_clean' and if the cleaned fastq files in the sample-folder end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
+                                        raise SystemExit
+
+
+
+
+def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
 	print "De-novo assembly with Trinity of sample %s:" %id_sample
 	command = [
-		trinity,
+		"Trinity",
 		"--seqType",
 		"fq",
 		"--left",
@@ -119,8 +172,8 @@ def assembly_trinity(forw,backw,output_folder,id_sample):
 		str(cores),
 		"--min_contig_length",
 		str(min_length),
-		"--JM",
-		"20G",
+		#"--JM",
+		#"20G",
 		"--output",
 		output_folder
 	]
@@ -139,10 +192,10 @@ def assembly_trinity(forw,backw,output_folder,id_sample):
 
 
 
-def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample):
+def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
 	print "De-novo assembly with abyss of sample %s:" %id_sample
 	command = [
-		abyss,
+		"abyss-pe",
 		"k={}".format(kmer),
 		"j={}".format(cores),
 		'name={}'.format(id_sample),
@@ -202,57 +255,3 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
 				shutil.rmtree(file)
 
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Workflow %%%
-print "\n\nRunning %s parallel on %d cores" %(args.assembler,cores)
-for subfolder, dirs, files in os.walk(input_folder):
-	subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
-	if subfolder_path_elements[-1] != input_folder:
-		sample_folder = subfolder_path_elements[-1]
-		sample_id = re.split("_", sample_folder)[0]
-		# Loop through each sample-folder and find read-files
-		sample_output_folder = "%s/%s" %(out_dir,sample_id)
-		if not os.path.exists(sample_output_folder):
-			os.makedirs(sample_output_folder)
-		for misc1, misc2, fastq in os.walk(subfolder):
-			forward = ""
-			backward = ""
-			single_f = ""
-			single_b = ""
-			for element in fastq:
-				if sample_id in element and element.endswith("READ1.fastq"):
-					forward = "%s/%s" %(subfolder,element)
-				if sample_id in element and element.endswith("READ2.fastq"):
-					backward = "%s/%s" %(subfolder,element)
-				if sample_id in element and element.endswith("READ1-single.fastq"):
-					single_f = "%s/%s" %(subfolder,element)
-				if sample_id in element and element.endswith("READ2-single.fastq"):
-					single_b = "%s/%s" %(subfolder,element)
-			if forward != "" and backward != "":
-				print "\n", "#" * 50
-				print "Processing sample", sample_id, "\n"
-
-				if args.assembler == "trinity":
-					assembly_trinity(forward,backward,sample_output_folder,sample_id)
-					get_stats(sample_output_folder,sample_id)
-					cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
-					print "\n", "#" * 50
-					mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
-					os.system(mv_cmd)
-				elif args.assembler == "abyss":
-					assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id)
-					files = glob.glob(os.path.join(home_dir,'*'))
-					links = [f for f in files if os.path.islink(f)]
-					for l in links:
-						if l.endswith("-contigs.fa"):
-							contig_file = os.path.realpath(l)
-							mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
-							os.system(mv_contig)
-					mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
-					os.system(mv_cmd1)
-					mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
-					os.system(mv_cmd2)
-
-			else:
-				print "\nError: Read-files for sample %s could not be found. Please check if subfolders/sample-folders are named in this pattern: 'sampleID_clean' and if the cleaned fastq files in the sample-folder end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
-				raise SystemExit

@@ -1,4 +1,3 @@
-#!/usr/local/python2.7
 #author: Tobias Hofmann, tobias.hofmann@bioenv.gu.se
 
 import os

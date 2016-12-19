@@ -1,4 +1,3 @@
-#!/usr/local/anaconda/bin/python
 # encoding: utf-8
 
 """
