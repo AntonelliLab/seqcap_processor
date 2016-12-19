@@ -24,7 +24,7 @@ COMMANDS = [
         #'find_target_contigs',
         #'extract_contigs',
         #'align_contigs',
-        #'join_exons',
+        'join_exons',
         #'phase_alleles',
 ]
 
