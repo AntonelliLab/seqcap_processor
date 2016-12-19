@@ -43,7 +43,7 @@ def add_arguments(parser):
         '--read_min',
         type=int,
         default=200000,
-        help='Set the minimum read count threshold. Any read file containing fewer reads than this minimum threshold will not be processed further'
+        help='Set the minimum read count threshold. Any read file containing fewer reads than this minimum threshold will not be processed further. Default: %(default)s'
     )
     parser.add_argument(
         '--index',
