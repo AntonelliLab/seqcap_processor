@@ -20,12 +20,12 @@ __author__ = "Tobias Hofmann"
 
 COMMANDS = [
         'clean_reads',
-        'assemble_reads',
-        'find_target_contigs',
-        'extract_contigs',
-        'align_contigs',
-        'join_exons',
-        'phase_alleles',
+        #'assemble_reads',
+        #'find_target_contigs',
+        #'extract_contigs',
+        #'align_contigs',
+        #'join_exons',
+        #'phase_alleles',
 ]
 
 
@@ -34,6 +34,7 @@ def main(arguments=None):
 	parser = ArgumentParser(description=__doc__, prog='secapr')
 	parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 
+        
 	subparsers = parser.add_subparsers()
 	for command_name in COMMANDS:
 		module = importlib.import_module('.' + command_name, 'secapr')
@@ -41,7 +42,7 @@ def main(arguments=None):
 			help=module.__doc__.split('\n')[1], description=module.__doc__)
 		subparser.set_defaults(func=module.main)
 		module.add_arguments(subparser)
-
+        
 	args = parser.parse_args(arguments)
 	if not hasattr(args, 'func'):
 		parser.error('Please provide the name of a subcommand to run')

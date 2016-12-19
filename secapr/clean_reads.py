@@ -1,6 +1,12 @@
 #!/usr/local/opt/python/bin/python
 #author: Tobias Hofmann, tobiashofmann@gmx.net
 
+'''
+Clean and trim raw Illumina read files
+'''
+
+
+
 import os
 import sys
 import glob
@@ -20,92 +26,137 @@ class CompletePath(argparse.Action):
     """give the full path of an input file/folder"""
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+    
+        
+def add_arguments(parser):
+    parser.add_argument(
+        '--input',
+        required=True,
+        action=CompletePath,
+        default=None,
+        help='The directory containing the unzipped .fastq or .fq files (raw read files)'
+    )
+    parser.add_argument(
+        '--config',
+        required=True,
+        help='A configuration file containing the adapter information and the sample names'
+    )
+    parser.add_argument(
+        '--output',
+        required=True,
+        action=CompletePath,
+        default=None,
+        help='The output directory where results will be safed'
+    )
+    parser.add_argument(
+        '--read_min',
+        type=int,
+        default=200000,
+        help='Set the minimum read count threshold. Any read file containing fewer reads than this minimum threshold will not be processed further'
+    )
+    parser.add_argument(
+        '--index',
+        type=str,
+        choices=("single", "double"),
+        default="single",
+        help="Specify if single- or double-indexed adapters were used for the library preparation (essential information in order to interpret the control-file correctly).",
+    )
+    '''
+    parser.add_argument(
+        '--trimmomatic',
+        default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
+        action=CompletePath,
+        help='The path to the trimmomatic-0.XX.jar file.'
+    )
+    '''
 
-# Get arguments
-def get_args():
-	parser = argparse.ArgumentParser(
-		description="Clean and trim raw Illumina read files",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter
-	)
-	parser.add_argument(
-		'--input',
-		required=True,
-		action=CompletePath,
-		default=None,
-		help='The directory containing the unzipped .fastq or .fq files (raw read files)'
-	)
-	parser.add_argument(
-		'--config',
-		required=True,
-		help='A configuration file containing the adapter information and the sample names'
-	)
-	parser.add_argument(
-		'--output',
-		required=True,
-		action=CompletePath,
-		default=None,
-		help='The output directory where results will be safed'
-	)
-	parser.add_argument(
-		'--read_min',
-		type=int,
-		default=200000,
-		help='Set the minimum read count threshold. Any read file containing fewer reads than this minimum threshold will not be processed further'
-	)
-	parser.add_argument(
-		'--index',
-		type=str,
-		choices=("single", "double"),
-		default="single",
-		help="Specify if single- or double-indexed adapters were used for the library preparation (essential information in order to interpret the control-file correctly).",
-	)
-	parser.add_argument(
-		'--trimmomatic',
-		default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
-		action=CompletePath,
-		help='The path to the trimmomatic-0.XX.jar file.'
-	)
-	return parser.parse_args()
-
-# Get arguments
-args = get_args()
-# Set working directory
-work_dir = args.input
-out_dir = args.output
-# Return the user-set or default read-threshold
-read_threshold = args.read_min
-print "\n\n[Info:] Files with a read-count of less than %d are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold
-
-adapt_index = args.index
-
-# Set conf as variable
-conf = ConfigParser.ConfigParser()
-# Read the config argument and define input as string
-conf.optionxform = str
-conf.read(args.config)
-# Call a config element
-adapters = conf.items('adapters')
-barcodes = conf.items('barcodes')
-names = conf.items('names')
-
-# Read the sample name information from the config file
-names_id = []
-for element in names:
+def main(args):
+    # Set working directory
+    work_dir = args.input
+    out_dir = args.output
+    # Return the user-set or default read-threshold
+    read_threshold = args.read_min
+    print "\n\n[Info:] Files with a read-count of less than %d are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold
+    
+    adapt_index = args.index
+    
+    # Set conf as variable
+    conf = ConfigParser.ConfigParser()
+    # Read the config argument and define input as string
+    conf.optionxform = str
+    conf.read(args.config)
+    # Call a config element
+    #import ipdb; ipdb.set_trace()
+    adapters = conf.items('adapters')
+    barcodes = conf.items('barcodes')
+    names = conf.items('names')
+    
+    # Read the sample name information from the config file
+    names_id = []
+    for element in names:
 	names_id.append(element[0])
-delimiter = []
-for element in names:
-	delimiter.append(element[1])
-# Add delimiter after the sample-name
-name_pattern = []
-for i in range(len(names_id)):
-	name_pattern.append("%s%s" %(names_id[i],delimiter[i]))
+    delimiter = []
+    for element in names:
+        delimiter.append(element[1])
+    # Add delimiter after the sample-name
+    name_pattern = []
+    for i in range(len(names_id)):
+        name_pattern.append("%s%s" %(names_id[i],delimiter[i]))
+                
+
+    # Create the output directory
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Functions %%%
+    # Find samples for which both reads exist
+    read_pairs = find_fastq_pairs(name_pattern, work_dir)
 
 
-def find_barcode(direction,sample_id):
+    # For each pair execute the quality_trim command (trimmomatic)
+    for key, values in read_pairs.items():
+	if len(values) > 1:
+            list_values = list(values)
+            clean_list = []
+            for i in range(len(list_values)):
+                fq_path = "/".join((work_dir, list_values[i]))
+                if read_count(fq_path) >= read_threshold:
+                    clean_list.append(list_values[i])
+                else:
+                    print "\n***The file", list_values[i], "does not contain enough reads.***\n"
+                    pass
+            if len(clean_list) > 1:
+                r1 = ""
+                r2 = ""
+                for fq in clean_list:
+                    pattern_r1 = ["R1","READ1","Read1","read1"]
+                    pattern_r2 = ["R2","READ2","Read2","read2"]
+                    if any(pat in fq for pat in pattern_r1):
+                        r1 = fq
+                    elif any(pat in fq for pat in pattern_r2):
+                        r2 = fq
+                    else:
+                        print "#" * 50, "\n"
+                        print "No matching read designation (R1 or R2) found for %s" %fq
+                        print "#" * 50, "\n"
+                # Remove the delimiter after the sample name in case it is part of the key
+                if key.endswith(delimiter[0]):
+                    clean_key = rchop(key,delimiter[0])
+                    quality_trim(r1,r2,clean_key,work_dir,out_dir,barcodes,conf,adapt_index)
+                else:
+                    quality_trim(r1,r2,key,work_dir,out_dir,barcodes,conf,adapt_index)
+ 
+
+
+
+
+
+
+
+
+                
+                
+def find_barcode(direction,sample_id,barcodes):
 	for element in barcodes:
 		tag1, tag2 = element[0].split("-")
 		if direction == tag1 and sample_id == tag2:
@@ -114,16 +165,16 @@ def find_barcode(direction,sample_id):
 			pass
 
 
-def make_adapter_fasta(sample,sampledir):
+def make_adapter_fasta(sample,sampledir,barcodes,conf,adapt_index):
 	adapters = os.path.join(sampledir,"%s_adapters.fasta" %sample)
 	try:
-		i7_barcode = find_barcode("i7",sample)[1]
+		i7_barcode = find_barcode("i7",sample,barcodes)[1]
 		i7 = conf.get('adapters', 'i7')
 		i7 = i7.replace("*", i7_barcode)
 		i5 = conf.get('adapters', 'i5')
 		if adapt_index == "single":
 			try:
-				i5_barcode = find_barcode("i5",sample)[1]
+				i5_barcode = find_barcode("i5",sample,barcodes)[1]
 			except:
 				i5_barcode = None
 				pass
@@ -131,7 +182,7 @@ def make_adapter_fasta(sample,sampledir):
 				print "Reads are not single-indexed. Use '--index double' in your command."
 				sys.exit()
 		if adapt_index == "double":
-			i5_barcode = find_barcode("i5",sample)[1]
+			i5_barcode = find_barcode("i5",sample,barcodes)[1]
 			i5 = i5.replace("*", i5_barcode)
 		with open(adapters, 'w') as outf:
 			outf.write(">i5\n%s\n>i7\n%s\n" %(i5,i7))
@@ -199,16 +250,10 @@ def find_fastq_pairs(name_pattern,work_dir):
 	return rev_file_info
 
 
-def quality_trim(r1,r2,sample_id):
+def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index):
 	print "\n", "#" * 50
 	print "Processing %s...\n" %sample_id
-	# Trimmomatic path
-	trimmomatic = ""
-	#if trimmomatic_path() is not False:
-	#	trimmomatic = trimmomatic_path()
-	if args.trimmomatic:
-		trimmomatic = args.trimmomatic
-	# Forward and backward read file paths
+        # Forward and backward read file paths
 	R1 = "/".join((work_dir, r1))
 	R2 = "/".join((work_dir, r2))
 	# Names of output files
@@ -219,15 +264,13 @@ def quality_trim(r1,r2,sample_id):
 	for read in ["READ1", "READ1-single", "READ2", "READ2-single"]:
 		output.append(os.path.join(output_sample_dir, "%s_clean-%s.fastq" %(sample_id,read)))
 	# Adapters to trim
-	adapter_fasta = make_adapter_fasta(sample_id,output_sample_dir)
+	adapter_fasta = make_adapter_fasta(sample_id,output_sample_dir,barcodes,conf,adapt_index)
 	# Command for trimmomatic
 	if not adapter_fasta == None:
 		try:
 			with open(os.path.join(output_sample_dir, "%s_stats.txt" %sample_id), 'w') as log_err_file:
 				command1 = [
-					"java",
-					"-jar",
-					trimmomatic,
+                                    "trimmomatic",
 					"PE",
 					"-phred33",
 					R1,
@@ -276,47 +319,3 @@ def quality_trim(r1,r2,sample_id):
 
 
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Workflow %%%
-
-
-# Create the output directory
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
-
-
-# Find samples for which both reads exist
-read_pairs = find_fastq_pairs(name_pattern, work_dir)
-
-
-# For each pair execute the quality_trim command (trimmomatic)
-for key, values in read_pairs.items():
-	if len(values) > 1:
-		list_values = list(values)
-		clean_list = []
-		for i in range(len(list_values)):
-			fq_path = "/".join((work_dir, list_values[i]))
-			if read_count(fq_path) >= read_threshold:
-				clean_list.append(list_values[i])
-			else:
-				print "\n***The file", list_values[i], "does not contain enough reads.***\n"
-				pass
-		if len(clean_list) > 1:
-			r1 = ""
-			r2 = ""
-			for fq in clean_list:
-				pattern_r1 = ["R1","READ1","Read1","read1"]
-				pattern_r2 = ["R2","READ2","Read2","read2"]
-				if any(pat in fq for pat in pattern_r1):
-					r1 = fq
-				elif any(pat in fq for pat in pattern_r2):
-					r2 = fq
-				else:
-					print "#" * 50, "\n"
-					print "No matching read designation (R1 or R2) found for %s" %fq
-					print "#" * 50, "\n"
-			# Remove the delimiter after the sample name in case it is part of the key
-			if key.endswith(delimiter[0]):
-				clean_key = rchop(key,delimiter[0])
-				quality_trim(r1,r2,clean_key)
-			else:
-				quality_trim(r1,r2,key)
