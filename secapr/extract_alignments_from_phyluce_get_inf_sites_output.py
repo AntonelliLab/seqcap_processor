@@ -4,11 +4,8 @@ import argparse
 import csv
 import random
 
-# Complete path function
-class CompletePath(argparse.Action):
-	"""give the full path of an input file/folder"""
-	def __call__(self, parser, namespace, values, option_string=None):
-		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
+from .utils import CompletePath
+
 
 # Get arguments
 def get_args():

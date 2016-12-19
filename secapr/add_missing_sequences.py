@@ -9,16 +9,9 @@ import argparse
 import ConfigParser
 
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Input %%%
+from .utils import CompletePath
 
-# Complete path function
-class CompletePath(argparse.Action):
-    """give the full path of an input file/folder"""
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
-# Get arguments
 def get_args():
 	parser = argparse.ArgumentParser(
 		description="This script will add dummy sequences '?' for missing taxons in each alignments, making sure that all alignments in the input folder contain the same taxa (as required for e.g. *BEAST).",
