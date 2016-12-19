@@ -19,34 +19,12 @@ setup(
 	url = 'https://github.com/AntonelliLab/seqcap_processor',
 	description = 'Process sequence-capture fastq files into alignments for phylogenetic analyses',
 	long_description = long_description,
-	#license = 'BSD',
+	# license = 'BSD',
 	entry_points = {'console_scripts': ['secapr = secapr.__main__:main']},
 	packages = ['secapr'],
-	#package_data = {'igdiscover': ['igdiscover.yaml', 'Snakefile', 'empty.aux']},
-
-	#install_requires = [ 	#are these python packages?
-	#	'sqt>=0.8.0',
-	#	'pandas>=0.16.2',
-	#	'numpy',
-	#	'matplotlib>=1.5.0',
-	#	'snakemake>=3.9.0',
-	#	'cutadapt',
-	#	'seaborn>=0.6.0',
-	#	'scipy>=0.16.1',
-	#	'xopen>=0.1.1',
-	#	'PyYAML',
-	#],
-	
-
-        ## Estelle
-        install_requires = [ 
-                'Bio>=1.68 ',
-                'phyluce>=1.5.0',
-                'cogent>=0.7.7', #?
-                'sqlite3>=3.8.6',
-        ],
-                
-
+    install_requires = [
+	    # No dependencies listed here since we need to rely on conda anyway
+    ],
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",

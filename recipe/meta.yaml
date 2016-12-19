@@ -18,8 +18,12 @@ build:
 requirements:
   build:
     - python
+    - biopython
+    - phyluce
   run:
     - python
+    - biopython
+    - phyluce
 
 test:
   imports:
