@@ -46,16 +46,16 @@ import glob
 import copy
 import operator
 import itertools
+import logging
 import sqlite3
 import argparse
 from phyluce import lastz
 from phyluce.helpers import is_dir, is_file, FullPaths
-from phyluce.log import setup_logging
 from collections import defaultdict
 from Bio import SeqIO
 
 #import pdb
-
+log = logging.getLogger(__name__)
 
 def get_args():
 	parser = argparse.ArgumentParser(description="Match fasta-file with reference sequences " +
@@ -290,7 +290,6 @@ def new_get_probe_name(header, regex):
 
 def main():
 	args = get_args()
-	log, my_name = setup_logging(args)
 	pre_regex = args.regex
 	regex = re.compile("^(%s)(?:.*)" %pre_regex)
 	if not os.path.isdir(args.output):
@@ -421,7 +420,7 @@ def main():
 	log.info("{}".format("-" * 65))
 	log.info("The LASTZ alignments are in {}".format(args.output))
 	log.info("The exon match database is in {}".format(os.path.join(args.output, "probes.matches.sqlite")))
-	text = " Completed {} ".format(my_name)
+	text = " Completed {} ".format('my_name')
 	log.info(text.center(65, "="))
 
 	# Access the SQL file and export tab-separated text-file
