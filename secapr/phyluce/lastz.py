@@ -25,8 +25,6 @@ import subprocess
 from collections import namedtuple
 from collections import defaultdict
 
-#from phyluce.pth import get_user_path
-from .pth import get_user_path #Estelle
 
 import pdb
 
@@ -39,9 +37,9 @@ class SimpleAlign():
             os.close(fd)
         else:
             self.output = out
-        self.cli = '{3} {0}[multiple,nameparse=full] {1}[nameparse=full]\
+        self.cli = 'lastz {0}[multiple,nameparse=full] {1}[nameparse=full]\
                 --output={2} \
-                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, self.output, get_user_path("lastz", "lastz"))
+                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, self.output)
 
     def run(self):
         lastz_stdout, lastz_stderr = subprocess.Popen(
@@ -61,7 +59,7 @@ class Align():
         else:
             self.output = out
         if identity and not min_match:
-            self.cli = '{5} {0}[multiple,nameparse=full] {1}[nameparse=full]\
+            self.cli = 'lastz {0}[multiple,nameparse=full] {1}[nameparse=full]\
                 --strand=both \
                 --seed=12of19 \
                 --transition \
@@ -76,9 +74,9 @@ class Align():
                 --coverage={2} \
                 --identity={3} \
                 --output={4} \
-                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, coverage, identity, self.output, get_user_path("lastz", "lastz"))
+                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, coverage, identity, self.output)
         elif min_match:
-            self.cli = '{5} {0}[multiple,nameparse=full] {1}[nameparse=full]\
+            self.cli = 'lastz {0}[multiple,nameparse=full] {1}[nameparse=full]\
                 --strand=both \
                 --seed=12of19 \
                 --transition \
@@ -93,7 +91,7 @@ class Align():
                 --matchcount={2} \
                 --identity={3} \
                 --output={4} \
-                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, min_match, identity, self.output, get_user_path("lastz", "lastz"))
+                --format=general-:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'.format(target, query, min_match, identity, self.output)
 
     def run(self):
         lastz_stdout, lastz_stderr = subprocess.Popen(
