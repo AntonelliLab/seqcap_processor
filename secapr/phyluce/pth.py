@@ -16,22 +16,34 @@ import sys
 import ConfigParser
 
 
+
 def get_user_path(program, binary, package_only=False):
     config = ConfigParser.ConfigParser()
     # make case sensitive
     config.optionxform = str
+
+    '''
+    #Estelle modif
     if package_only:
         config.read(os.path.join(sys.prefix, 'config/phyluce.conf'))
     else:
         config.read([os.path.join(sys.prefix, 'config/phyluce.conf'), os.path.expanduser('~/.phyluce.conf')])
+    ''' 
+    config.read(os.path.join(os.getcwd(),'secapr/phyluce/config/phyluce.conf')) #Estelle
+
+
     # ensure program is in list
     pth = config.get(program, binary)
     # expand path as necessary - replace CONDA variable placeholder
     # with sys.prefix, otherwise default to normal path expansion
+    
+    
     if pth.startswith("$CONDA"):
         expand_pth = pth.replace("$CONDA", sys.prefix)
     else:
         expand_pth = os.path.abspath(os.path.expanduser(os.path.expandvars(pth)))
+    
+    
     return expand_pth
 
 
@@ -39,7 +51,8 @@ def get_user_param(section, param):
     config = ConfigParser.ConfigParser()
     # make case sensitive
     config.optionxform = str
-    config.read([os.path.join(sys.prefix, 'config/phyluce.conf'), os.path.expanduser('~/.phyluce.conf')])
+    #config.read([os.path.join(sys.prefix, 'config/phyluce.conf'), os.path.expanduser('~/.phyluce.conf')])
+    config.read(os.path.join(os.getcwd(),'secapr/phyluce/config/phyluce.conf')) #Estelle
     return config.get(section, param)
 
 
