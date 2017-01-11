@@ -109,8 +109,8 @@ def add_arguments(parser):
     
     
 
-def get_nodes_for_exons(c, organism, exons, extend=False, notstrict=False):
-    args = get_args()
+def get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=False):
+    #args = get_args()
     # get only those exons we know are in the set
     exons = [("\'{0}\'").format(u) for u in exons]
     if not extend:
@@ -161,8 +161,8 @@ def find_file(contigs, name):
     return reads
 
 
-def get_contig_name(header):
-    args = get_args()
+def get_contig_name(header, args):
+    #args = get_args()
     """parse the contig name from the header of either abyss/trinity assembled contigs"""
     match = ""
     if args.assembler == "trinity":
@@ -217,12 +217,12 @@ def main(args):
             name = organism.replace('_', '-')
             if not organism.endswith('*'):
                 reads = find_file(args.contigs, name)
-                node_dict, missing = get_nodes_for_exons(c, organism, exons, extend=False, notstrict=True)
+                node_dict, missing = get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=True)
             count = 0
             log.info("There are {} exon loci for {}".format(len(node_dict), organism))
             log.info("Parsing and renaming contigs for {}".format(organism))
             for seq in SeqIO.parse(open(reads, 'rU'), 'fasta'):
-                name = get_contig_name(seq.id).lower()
+                name = get_contig_name(seq.id,args).lower()
                 #print "name:", name
                 #print node_dict.keys()
                 
@@ -256,8 +256,8 @@ def main(args):
             #print written
             #print exons
             assert set(written) == set(exons), "exon names do not match"
-    text = " Completed {} ".format(my_name)
+    text = " Completed! "
     log.info(text.center(65, "="))
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
