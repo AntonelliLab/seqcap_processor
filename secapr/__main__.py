@@ -22,7 +22,7 @@ COMMANDS = [
         'assemble_reads',
         'find_target_contigs',
         'extract_contigs',
-        #'align_contigs',
+        'align_contigs',
         'join_exons',
         #'phase_alleles',
 ]
@@ -33,7 +33,6 @@ def main(arguments=None):
 	parser = ArgumentParser(description=__doc__, prog='secapr')
 	parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 
-        
 	subparsers = parser.add_subparsers()
 	for command_name in COMMANDS:
 		module = importlib.import_module('.' + command_name, 'secapr')
@@ -51,4 +50,3 @@ def main(arguments=None):
 
 if __name__ == '__main__':
 	main()
-

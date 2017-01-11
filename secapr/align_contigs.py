@@ -1,54 +1,52 @@
 # encoding: utf-8
-
 """
-Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-* Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-* Neither the name of the University of California, Los Angeles nor the names
-of its contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+Align and trim records in a monolothic FASTA file containing all loci for all taxa
 """
+# Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# * Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+# * Neither the name of the University of California, Los Angeles nor the names
+# of its contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Modified by Tobias Hofmann:
 # Modifications include: 	- Standardizing script for incomplete data 
 #							- Setting suitable alignment settings for standard palm contigs as default, to avoid discarding too many loci
 #							- Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
 
+from __future__ import print_function
+
 import os
 import sys
 import copy
-import argparse
 import tempfile
 import multiprocessing
+import logging
 from Bio import SeqIO
 from collections import defaultdict
 
 from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
-from phyluce.log import setup_logging
 
-#import pdb
 
-def get_args():
-    parser = argparse.ArgumentParser(
-        description="""Align and trim records in a monolothic FASTA file containing all loci for all taxa""",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+log = logging.getLogger(__name__)
+
+
+def add_arguments(parser):
     parser.add_argument(
         "--sequences",
         required=True,
@@ -73,20 +71,6 @@ def get_args():
         choices=["fasta", "nexus", "phylip", "clustal", "emboss", "stockholm"],
         default="fasta",
         help="""The output alignment format.""",
-    )
-    parser.add_argument(
-        "--verbosity",
-        type=str,
-        choices=["INFO", "WARN", "CRITICAL"],
-        default="INFO",
-        help="""The logging level to use."""
-    )
-    parser.add_argument(
-        "--log-path",
-        action=FullPaths,
-        type=is_dir,
-        default=None,
-        help="""The path to a directory to hold logs."""
     )
     parser.add_argument(
         "--no-trim",
@@ -139,7 +123,6 @@ def get_args():
         help="""Process alignments in parallel using --cores for alignment. """ +
         """This is the number of PHYSICAL CPUs."""
     )
-    return parser.parse_args()
 
 
 def build_locus_dict(log, loci, locus, record, ambiguous=False):
@@ -165,9 +148,9 @@ def align(params):
     locus, opts = params
     name, sequences = locus
     # get additional params from params tuple
-    window, threshold, notrim, proportion, divergence, min_len = opts
+    window, threshold, notrim, proportion, divergence, min_len, align_class = opts
     fasta = create_locus_specific_fasta(sequences)
-    aln = Align(fasta)
+    aln = align_class(fasta)
     aln.run_alignment()
     if notrim:
         aln.trim_alignment(
@@ -211,15 +194,19 @@ def get_fasta_dict(log, args):
     return loci
 
 
-
 def main(args):
-    # setup logging
-    log, my_name = setup_logging(args)
+    if args.aligner == "muscle":
+        from phyluce.muscle import Align as align_class
+    elif args.aligner == "mafft":
+        from phyluce.mafft import Align as align_class
+    elif args.aligner == "dialign":
+        from phyluce.dialign import Align as align_class
+
     # create the fasta dictionary
     loci = get_fasta_dict(log, args)
     log.info("Aligning with {}".format(str(args.aligner).upper()))
-    opts = [[args.window, args.threshold, args.no_trim, args.proportion, args.max_divergence, args.min_length] \
-            for i in range(len(loci))]
+    opts = [[args.window, args.threshold, args.no_trim, args.proportion, args.max_divergence, args.min_length, align_class] \
+            for _ in loci]
     # combine loci and options
     params = zip(loci.items(), opts)
     log.info("Alignment begins. 'X' indicates dropped alignments (these are reported after alignment)")
@@ -239,23 +226,12 @@ def main(args):
     # write the output files
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
     # end
-    text = " Completed {} ".format(my_name)
+    text = " Completed! "
     log.info(text.center(65, "="))
 
-
-if __name__ == '__main__':
-    args = get_args()
-    # globally import Align method
-    if args.aligner == "muscle":
-        from phyluce.muscle import Align
-    elif args.aligner == "mafft":
-        from phyluce.mafft import Align
-    elif args.aligner == "dialign":
-        from phyluce.dialign import Align
-    main(args)
-    print "Just one moment ....."
+    print("Just one moment .....")
     output_folder = args.output
     file_format = args.output_format
     cmd = "for file in $(ls %s/*.%s); do sed -i -e 's/>\w*_[0-9]*_[0-9]*_/>/g' $file; done" %(output_folder,file_format)
     os.system(cmd)
-    print "Done!!!"
+    print("Done!!!")
