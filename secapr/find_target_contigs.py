@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 				- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file
 
 
+from __future__ import print_function
 import re
 import os
 import sys
@@ -424,11 +425,21 @@ def main(args):
 
 	# Create the config file for the extraction of the desired loci
 	output_folder = args.output
-	create_conf_cmd = "echo \"[Organisms]\" > %s/config; ls %s/*.lastz | rev | cut -d/ -f1 | rev | cut -d \"_\" -f 1 >> %s/config; echo \"[Loci]\" >> %s/config; tail -n+2 %s/match_table.txt | cut -f 1 >> %s/config" %(output_folder,output_folder,output_folder,output_folder,output_folder,output_folder)
-	os.system(create_conf_cmd)
-	remove_lastz = "sed -i.bak 's/.lastz//g' %s/config" %output_folder     
-        os.system(remove_lastz)
-        os.remove("%s/config" % output_folder)
+	
+        with open(os.path.join(output_folder, 'config'), 'w') as f:
+		print('[Organisms]', file=f)
+		for aln in glob.glob(os.path.join(output_folder, '*.lastz')):
+			aln = os.path.basename(aln)
+			aln = aln.split('_')[0]
+			aln = aln.replace('.lastz', '')
+			print(aln, file=f)
+
+		print('\n[Loci]', file=f)
+		with open(os.path.join(output_folder, 'match_table.txt')) as match_table:
+			lines = match_table.readlines()
+		for line in lines[1:]:
+			print(line.split('\t')[0], file=f)
+
 
 
 

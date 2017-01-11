@@ -21,7 +21,7 @@ COMMANDS = [
         'clean_reads',
         'assemble_reads',
         'find_target_contigs',
-        #'extract_contigs',
+        'extract_contigs',
         #'align_contigs',
         'join_exons',
         #'phase_alleles',

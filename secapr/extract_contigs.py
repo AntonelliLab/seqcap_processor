@@ -36,17 +36,19 @@ import re
 import sqlite3
 import argparse
 import ConfigParser
+import logging #add
 from collections import defaultdict
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from phyluce.helpers import FullPaths, is_dir, is_file, get_names_from_config
-from phyluce.log import setup_logging
+#from phyluce.log import setup_logging
 
 #import pdb
+log = logging.getLogger(__name__)
 
-
-def get_args():
+def add_arguments(parser):
+    '''
     parser = argparse.ArgumentParser(
         description="Given an input SQL database of exon locus matches, a config file " +
         "containing the loci in your data matrix, and the contigs you have assembled, extract the fastas for each " +
@@ -56,6 +58,7 @@ def get_args():
         "parameters.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+    '''
     parser.add_argument(
         '--contigs',
         required=True,
@@ -103,7 +106,7 @@ def get_args():
         default="abyss",
         help="""Please specify which assembler was used to generate the input contigs"""
     )    
-    return parser.parse_args()
+    
     
 
 def get_nodes_for_exons(c, organism, exons, extend=False, notstrict=False):
@@ -151,7 +154,7 @@ def find_file(contigs, name):
         if reads is not None:
             break
     if reads is None:
-        raise ValueError("Cannot find the a fasta file for {} with any of the extensions ({}) ".format(
+        raise ValueError("Cannot find a fasta file for {} with any of the extensions ({}) ".format(
             name,
             ', '.join(extensions)
         ))
@@ -182,10 +185,10 @@ def replace_and_remove_bases(regex, seq, count):
     return new_seq_record, count
 
 
-def main():
-    args = get_args()
+def main(args):
+    #args = get_args()
     # setup logging
-    log, my_name = setup_logging(args)
+    #log, my_name = setup_logging(args)
     # parse the config file - allowing no values (e.g. no ":" in config file)
     config = ConfigParser.RawConfigParser(allow_no_value=True)
     config.optionxform = str
