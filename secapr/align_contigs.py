@@ -62,7 +62,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--aligner",
-        choices=["dialign", "muscle", "mafft"],
+        choices=["muscle", "mafft"],
         default="mafft",
         help="""The alignment engine to use."""
     )
@@ -199,9 +199,7 @@ def main(args):
         from phyluce.muscle import Align as align_class
     elif args.aligner == "mafft":
         from phyluce.mafft import Align as align_class
-    elif args.aligner == "dialign":
-        from phyluce.dialign import Align as align_class
-
+    
     # create the fasta dictionary
     loci = get_fasta_dict(log, args)
     log.info("Aligning with {}".format(str(args.aligner).upper()))
