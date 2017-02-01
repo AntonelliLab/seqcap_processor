@@ -1,4 +1,4 @@
-###### Bioinformatic pipeline for processing Sequence Capture data for Phylogenetics  
+### Bioinformatic pipeline for processing Sequence Capture data for Phylogenetics  
 # seqcap_processor
 
   
