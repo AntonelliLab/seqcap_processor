@@ -1,3 +1,8 @@
+'''
+Map raw reads against reference sequence and phase the reads into two separate alleles. Then produce consensus sequence for each allele.
+'''
+
+
 #author: Tobias Hofmann, tobiashofmann@gmx.net
 
 import os
@@ -15,12 +20,8 @@ from .utils import CompletePath
 
 
 # Get arguments
-def get_args():
-	parser = argparse.ArgumentParser(
-		description="Map raw reads against reference sequence and phase the reads into two separate alleles. Then produce consensus sequence for each allele.",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter
-	)
-	parser.add_argument(
+def add_arguments(parser):
+        parser.add_argument(
 		'--reads',
 		required=True,
 		action=CompletePath,
@@ -94,74 +95,12 @@ def get_args():
 		default=1,
 		help='For parallel processing you can choose the number of cores you want CLC to run on.'
 	)
-	return parser.parse_args()
-
-# Preparation for calling input variables and files
-args = get_args()
-conf = ConfigParser.ConfigParser()
-conf.optionxform = str
-conf.read(args.config)
-
-# Collect all program paths from control file
-paths = conf.items('paths')
-
-# Find each program name in list and define variable
-samtools = ""
-for i in paths:
-	if "samtools" in i:
-		samtools = i[1]
-bcftools = ""
-for i in paths:
-	if "bcftools" in i:
-		bcftools = i[1]
-vcfutils = ""
-for i in paths:
-	if "vcfutils" in i:
-		vcfutils = i[1]
-picard = ""
-for i in paths:
-	if "picard" in i:
-		picard = i[1]
-emboss = ""
-for i in paths:
-	if "emboss" in i:
-		emboss = i[1]
-seqtk = ""
-for i in paths:
-	if "seqtk" in i:
-		seqtk = i[1]
-clc = ""
-for i in paths:
-	if "clc" in i:
-		clc = i[1]
-bwa = ""
-for i in paths:
-	if "bwa" in i:
-		bwa = i[1]
+	
 
 
-# Specify the different CLC commands
-mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
-cons = os.path.join(emboss,"bin/cons")
-clc_mapper = os.path.join(clc,"clc_mapper")
-clc_cas_to_sam = os.path.join(clc,"clc_cas_to_sam")
-#clc_assembler = "%s/clc_assembler" %clc
 
-# Set working directory
-out_dir = args.output
-if not os.path.exists(out_dir):
-	os.makedirs(out_dir)
 
-# Get other input variables
-alignments = args.reference
-reads = args.reads
-length = args.l
-similarity = args.s
-min_length = args.k
-min_cov = args.min_coverage
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Functions %%%
 
 
 def create_reference_fasta(reference_folder):
@@ -181,7 +120,7 @@ def create_reference_fasta(reference_folder):
 	return reference
 
 
-def create_sample_reference_fasta(reference_folder,sample_id):
+def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 	print "Creating reference library for %s .........." %sample_id
 #	get the sequence header with the correct fasta id and extract sequence
 #	store these sequences in separate fasta file for each locus at out_dir/reference_seqs/sample_id
@@ -563,73 +502,139 @@ def assembly_clc(forward,backward):
 	os.system(command)
 
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Workflow %%%
 
-reference = ''
-reference_folder = "%s/reference_seqs" %out_dir
-if not os.path.exists(reference_folder):
-	os.makedirs(reference_folder)
-if args.reference_type == "user-ref-lib":
-	reference = args.reference
-	manage_reference = "cp %s %s" %(reference,reference_folder)
-	os.system(manage_reference)
-elif args.reference_type == "alignment-consensus":
-	reference = create_reference_fasta(reference_folder)
-for subfolder in os.listdir(reads):
-#	if not "A10" in subfolder:
-#		exit()
-	subfolder_path = os.path.join(reads,subfolder)
-	sample_folder = subfolder
-	sample_id = re.sub("_clean","",sample_folder)
-	if args.reference_type == "sample-specific":
-		reference = create_sample_reference_fasta(reference_folder,sample_id)
-	# Loop through each sample-folder and find read-files
-	sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
-	#if os.path.exists(sample_output_folder):
-	#	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
-	#	continue
-	if not os.path.exists(sample_output_folder):
-		os.makedirs(sample_output_folder)
 
-	forward = ""
-	backward = ""
-	for fastq in os.listdir(subfolder_path):
-		if fastq.endswith('.fastq') or fastq.endswith('.fq'):
-			if sample_id in fastq and "READ1.fastq" in fastq:
-				forward = os.path.join(subfolder_path,fastq)
-			elif sample_id in fastq and "READ2.fastq" in fastq:
-				backward = os.path.join(subfolder_path,fastq)
-	if forward != "" and backward != "":
-		print "\n", "#" * 50
-		print "Processing sample", sample_id, "\n"
-		sorted_bam = ""
-		if args.mapper == "bwa":
-			sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
-		elif args.mapper =="clc":
-			sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
-		if not args.keep_duplicates:
-			sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
-		allele_fastas = phase_bam(sorted_bam,sample_output_folder)
 
-## THIS iS STILL NOT WORKING PROPERLY WHEN ONLY SINGLE FILE PRESENT:
+def main(args):
+        # Preparation for calling input variables and files
+        #args = get_args()
+        conf = ConfigParser.ConfigParser()
+        conf.optionxform = str
+        conf.read(args.config)
+        
+        # Collect all program paths from control file
+        paths = conf.items('paths')
+        
+        # Find each program name in list and define variable
+        samtools = ""
+        for i in paths:
+                if "samtools" in i:
+                        samtools = i[1]
+        bcftools = ""
+        for i in paths:
+                if "bcftools" in i:
+                        bcftools = i[1]
+        vcfutils = ""
+        for i in paths:
+                if "vcfutils" in i:
+                        vcfutils = i[1]
+        picard = ""
+        for i in paths:
+                if "picard" in i:
+                        picard = i[1]
+        emboss = ""
+        for i in paths:
+                if "emboss" in i:
+                        emboss = i[1]
+        seqtk = ""
+        for i in paths:
+                if "seqtk" in i:
+                        seqtk = i[1]
+        clc = ""
+        for i in paths:
+                if "clc" in i:
+                        clc = i[1]
+        bwa = ""
+        for i in paths:
+                if "bwa" in i:
+                        bwa = i[1]
+
+
+        # Specify the different CLC commands
+        mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
+        cons = os.path.join(emboss,"bin/cons")
+        clc_mapper = os.path.join(clc,"clc_mapper")
+        clc_cas_to_sam = os.path.join(clc,"clc_cas_to_sam")
+        #clc_assembler = "%s/clc_assembler" %clc
+
+        # Set working directory
+        out_dir = args.output
+        if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+
+        # Get other input variables
+        alignments = args.reference
+        reads = args.reads
+        length = args.l
+        similarity = args.s
+        min_length = args.k
+        min_cov = args.min_coverage
+
+
+        reference = ''
+        reference_folder = "%s/reference_seqs" %out_dir
+        if not os.path.exists(reference_folder):
+                os.makedirs(reference_folder)
+        if args.reference_type == "user-ref-lib":
+                reference = args.reference
+                manage_reference = "cp %s %s" %(reference,reference_folder)
+                os.system(manage_reference)
+        elif args.reference_type == "alignment-consensus":
+                reference = create_reference_fasta(reference_folder)
+        for subfolder in os.listdir(reads):
+                #	if not "A10" in subfolder:
+                #		exit()
+                subfolder_path = os.path.join(reads,subfolder)
+                sample_folder = subfolder
+                sample_id = re.sub("_clean","",sample_folder)
+                if args.reference_type == "sample-specific":
+                        reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
+                # Loop through each sample-folder and find read-files
+                sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
+                #if os.path.exists(sample_output_folder):
+                #	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
+                #	continue
+                if not os.path.exists(sample_output_folder):
+                        os.makedirs(sample_output_folder)
+
+                forward = ""
+                backward = ""
+                for fastq in os.listdir(subfolder_path):
+                        if fastq.endswith('.fastq') or fastq.endswith('.fq'):
+                                if sample_id in fastq and "READ1.fastq" in fastq:
+                                        forward = os.path.join(subfolder_path,fastq)
+                                elif sample_id in fastq and "READ2.fastq" in fastq:
+                                        backward = os.path.join(subfolder_path,fastq)
+                if forward != "" and backward != "":
+                        print "\n", "#" * 50
+                        print "Processing sample", sample_id, "\n"
+                        sorted_bam = ""
+                        if args.mapper == "bwa":
+                                sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
+                        elif args.mapper =="clc":
+                                sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
+                        if not args.keep_duplicates:
+                                sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
+                        allele_fastas = phase_bam(sorted_bam,sample_output_folder)
+
+                                ## THIS iS STILL NOT WORKING PROPERLY WHEN ONLY SINGLE FILE PRESENT:
 
 				# The following is for the case that no phased bam files were created, i.e. the individual is homozygous for all loci (happens when only looking at one locus or a very few)
-		allele0 = ""
-		allele1 = ""
-		# testing if phasing files were created
-		for file in os.listdir(allele_fastas):
-			if file.endswith(".fasta"):
-				if "allele_0" in file:
-					allele0 = file
-				if "allele_1" in file:
-					allele1 = file
-		if allele0 == 0:
-			manage_homzygous_samples(allele_fastas,sample_id)
-			os.remove(os.path.join(allele_fastas,allele0))
-			os.remove(os.path.join(allele_fastas,allele1))
-		print "#" * 50
-join_fastas(out_dir)
+                        allele0 = ""
+                        allele1 = ""
+                        # testing if phasing files were created
+                        for file in os.listdir(allele_fastas):
+                                if file.endswith(".fasta"):
+                                        if "allele_0" in file:
+                                                allele0 = file
+                                        if "allele_1" in file:
+                                                allele1 = file
+                        if allele0 == 0:
+                                manage_homzygous_samples(allele_fastas,sample_id)
+                                os.remove(os.path.join(allele_fastas,allele0))
+                                os.remove(os.path.join(allele_fastas,allele1))
+                        print "#" * 50
+        join_fastas(out_dir)
 
 
 #			else:

@@ -222,14 +222,14 @@ def main(args):
     # drop back into logging
     log.info("Alignment ends")
     # write the output files
+    for name, alignment in alignments:
+        if alignment.trimmed:
+            for t in alignment.trimmed:
+                t.id = t.id.split('_', 3)[3]
+                t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
     # end
     text = " Completed! "
     log.info(text.center(65, "="))
 
-    print("Just one moment .....")
-    output_folder = args.output
-    file_format = args.output_format
-    cmd = "for file in $(ls %s/*.%s); do sed -i -e 's/>\w*_[0-9]*_[0-9]*_/>/g' $file; done" %(output_folder,file_format)
-    os.system(cmd)
-    print("Done!!!")
+  
