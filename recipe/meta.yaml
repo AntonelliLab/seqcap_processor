@@ -1,17 +1,21 @@
+# build with: conda build --python 2.7 .
+
 package:
   name: secapr
   version: '0.1'
 
 about:
-  home:
-  license:
-  summary: ''
+  home: 'https://github.com/AntonelliLab/seqcap_processor'
+  license: none
+  summary: 'Process sequence-capture fastq files into alignments for phylogenetic analyses'
 
 source:
-  url: ...tar.gz
-  md5:
+  path: ..
+  #url: https://github.com/Estel-Kitsune/palm_pipeline/archive/conda.zip
+#  md5:
 
 build:
+  skip: True  # [not py27]
   number: 0
   script: $PYTHON setup.py install
 
@@ -19,11 +23,22 @@ requirements:
   build:
     - python
     - biopython
-    - phyluce
   run:
     - python
     - biopython
-    - phyluce
+    - emboss
+    - bcftools
+    - samtools
+    - picard
+    - seqtk
+    - bwa
+    - lastz
+    - mafft
+    - muscle
+    - cogent
+    - trimmomatic
+    - trinity
+    - abyss
 
 test:
   imports:
