@@ -47,12 +47,7 @@ def add_arguments(parser):
 		default=None,
 		help='When choosing "alignment-consensus" or "sample-specific" as reference_type, this flag calls the folder containing the alignment files for your target loci (fasta-format). In case of "user-ref-lib" as reference_type, this flag calls one single fasta file that contains a user-prepared reference library which will be applied to all samples.'
 	)
-	parser.add_argument(
-		'--config',
-		required=True,
-		help='A configuration file containing the full paths to the following programs: samtools, bcftools, vcfutils, emboss, picard. Also the paths to either clc-assembly-cell or bwa, depending on which of these two mapping softwares is chosen (see --mapper)'
-	)
-	parser.add_argument(
+        parser.add_argument(
 		'--output',
 		required=True,
 		action=CompletePath,
@@ -137,7 +132,7 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 		outfile = open(sample_reference_fasta, 'w')
 		for fasta in fasta_sequences:
 			if fasta.id == sample_id:
-				sequence = re.sub('[-,?]','',fasta.seq)
+                                sequence = re.sub('[-,?]','',str(fasta.seq))
 				outfile.write(">%s\n%s\n" %(locus_id,sequence))
 		outfile.close()
 	reference = os.path.join(sample_reference_folder,"joined_fasta_library.fasta")
@@ -146,9 +141,9 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 	return reference
 
 
-def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
+def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, min_length):
 	#Indexing
-	command1 = [bwa,"index",reference]
+	command1 = ["bwa","index",reference]
 	bwa_out = os.path.join(sample_output_folder, "bwa_screen_out.txt")
 	try:
 		with open(bwa_out, 'w') as logfile:
@@ -159,7 +154,7 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
 		sys.exit()
 
 	#Mapping
-	command2 = [bwa,"mem","-k",str(min_length),reference,forward,backward]
+	command2 = ["bwa","mem","-k",str(min_length),reference,forward,backward]
 	sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
 	print "Mapping.........."
 	with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
@@ -169,19 +164,17 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder):
 	#Converting to bam-format with samtools
 	print "Converting to bam.........."
 	raw_bam = os.path.join(sample_output_folder,"%s_raw.bam" %sample_id)
-	command3 = [samtools,"view","-b","-o",raw_bam,"-S",sam_name]
+	command3 = ["samtools","view","-b","-o",raw_bam,"-S",sam_name]
 	sp3 = subprocess.Popen(command3,stderr=subprocess.PIPE)
 	sp3.wait()
-
-	bam_core = "%s/%s.sorted" %(sample_output_folder,sample_id)
-	command4 = [samtools,"sort",raw_bam,bam_core]
+        sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
+        command4 = ["samtools","sort", "-o", sorted_bam, raw_bam]
 	sp4 = subprocess.Popen(command4)
 	sp4.wait()
 
 	#Indexing bam files
 	print "Indexing bam.........."
-	sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
-	command5 = [samtools,"index",sorted_bam]
+        command5 = ["samtools","index",sorted_bam]
 	sp5 = subprocess.Popen(command5)
 	sp5.wait()
 	
@@ -204,13 +197,14 @@ def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
 	os.system(command2)
 
 	print "Sorting bam.........."
-	sorted = "%s/%s.sorted" %(sample_output_folder,sample_id)
-	command3 = "%s sort %s %s" %(samtools,bam,sorted)
+        sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
+	#sorted = "%s/%s.sorted" %(sample_output_folder,sample_id)
+	command3 = "samtools sort -o %s %s" %(sorted.bam,bam)
 	os.system(command3)
 
 	print "Indexing bam.........."
-	sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
-	command4 = "%s index %s" %(samtools,sorted_bam)
+	
+	command4 = "samtools index %s" %(sorted_bam)
 	os.system(command4)
 
 	print "Removing obsolete files.........."
@@ -230,54 +224,55 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam):
 	picard_out = "%s/%s_no_dupls_sorted.bam" %(picard_folder,sample_id)
 	dupl_log = "%s/%s_dupls.log" %(picard_log_folder,sample_id)
 	run_picard = [
-		"java",
-		"-jar",
-		mark_duplicates,
+                "picard",
+                "MarkDuplicates",
 		"I=%s" %sorted_bam,
 		"O=%s" %picard_out,
 		"M=%s" %dupl_log,
 		"REMOVE_DUPLICATES=true",
 		"VALIDATION_STRINGENCY=LENIENT"
 	]
-	try:
-		print "Removing duplicate reads with Picard.........."
-		with open(os.path.join(picard_log_folder, "picard_screen_out.txt"), 'w') as log_err_file:
-			pi = subprocess.Popen(run_picard, stderr=log_err_file)
-			pi.communicate()
-		print "Duplicates successfully removed."
-	except:
-		print "Running Picard caused an error. Please check your picard path specification in the control file."
-		sys.exit()
-
+        print "Removing duplicate reads with Picard.........."
+        with open(os.path.join(picard_log_folder, "picard_screen_out.txt"), 'w') as log_err_file:
+                pi = subprocess.Popen(run_picard, stderr=log_err_file)
+                pi.communicate()
+        print "Duplicates successfully removed."
+	
 	print "Indexing Picard-cleaned bam.........."
-	index_picard_bam = "%s index %s" %(samtools,picard_out)
+	index_picard_bam = "samtools index %s" %(picard_out)
 	os.system(index_picard_bam)
 	return picard_out
 
 
-def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
+def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,args):
 	# Creating consensus sequences from bam-files
 	mpileup = [
-		samtools,
+		"samtools",
 		"mpileup",
 		"-u",
 		"-f",
 		reference,
 		bam_file
 	]
-	mpileup_file = os.path.join(out_dir, "%s.mpileup" %name_base)
+        mpileup_file = os.path.join(out_dir, "%s.mpileup" %name_base)
 	with open(mpileup_file, 'w') as mpileupfile:
 		mp = subprocess.Popen(mpileup, stdout=mpileupfile, stderr=subprocess.PIPE)
 		mp.communicate()
 		mp.wait()
 	
 	vcf_file = os.path.join(out_dir, "%s.vcf" %name_base)
-	bcf_cmd = [
-		bcftools,
-		"view",
+	#bcf_cmd = [
+	#	"bcftools",
+	#	"view",
+	#	"-c",
+	#	"-g",
+	#	mpileup_file
+	#]
+        bcf_cmd = [
+		"bcftools",
+		"call",
 		"-c",
-		"-g",
-		mpileup_file
+                mpileup_file
 	]
 	with open(vcf_file, 'w') as vcffile:
 		vcf = subprocess.Popen(bcf_cmd, stdout=vcffile)
@@ -286,7 +281,7 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 
 	fq_file = os.path.join(out_dir, "%s.fq" %name_base)
 	vcfutils_cmd = [
-		vcfutils,
+		"vcfutils.pl",
 		"vcf2fq",
 		"-d",
 		str(min_cov),
@@ -300,7 +295,7 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 	# Converting fq into fasta files
 	fasta_file = os.path.join(out_dir,"%s_temp.fasta" %name_base)
 	make_fasta = [
-		seqtk,
+		"seqtk",
 		"seq",
 		"-a",
 		fq_file,
@@ -367,7 +362,7 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 	return final_fasta_file
 
 
-def phase_bam(sorted_bam_file,sample_output_folder):
+def phase_bam(sorted_bam_file,sample_output_folder,reference,min_cov,args):
 	# Phasing:
 	bam_basename = re.sub('.bam$', '', sorted_bam_file)
 	split_sample_path = re.split("/",sorted_bam_file)
@@ -378,7 +373,7 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 		os.makedirs(phasing_out_dir)
 	phasing_basename = "%s/%s_allele" %(phasing_out_dir,phasing_file_base_pre)
 	phasing_cmd = [
-		samtools,
+		"samtools",
 		"phase",
 		"-A",
 		"-F",
@@ -406,14 +401,16 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 	allele_1_sorted_file = "%s.bam" %allele_1_sorted_base
 
 	# Sorting phased bam files:
-	sort_phased_0 = "%s sort %s %s" %(samtools,allele_0_file,allele_0_sorted_base)
-	sort_phased_1 = "%s sort %s %s" %(samtools,allele_1_file,allele_1_sorted_base)
+	#sort_phased_0 = "samtools sort %s %s" %(allele_0_file,allele_0_sorted_base)
+        sort_phased_0 = "samtools sort -o %s %s" %(allele_0_sorted_file, allele_0_file)
+	#sort_phased_1 = "samtools sort %s %s" %(allele_1_file,allele_1_sorted_base)
+        sort_phased_1 = "samtools sort -o %s %s" %(allele_1_sorted_file,allele_1_file)
 	os.system(sort_phased_0)
 	os.system(sort_phased_1)
 
 	# Creating index file for phased bam-files:
-	index_allele0 = "%s index %s" %(samtools,allele_0_sorted_file)
-	index_allele1 = "%s index %s" %(samtools,allele_1_sorted_file)
+	index_allele0 = "samtools index %s" %(allele_0_sorted_file)
+	index_allele1 = "samtools index %s" %(allele_1_sorted_file)
 	os.system(index_allele0)
 	os.system(index_allele1)
 	
@@ -425,9 +422,9 @@ def phase_bam(sorted_bam_file,sample_output_folder):
 
 	allele1_stem = re.split("/", allele_1_sorted_base)[-1]
 	allele1_stem = re.sub('_sorted', '', allele1_stem)
-	fasta_unphased = bam_consensus(reference,sorted_bam_file,name_stem,sample_output_folder,min_cov)
-	fasta_allele0 = bam_consensus(reference,allele_0_sorted_file,allele0_stem,sample_output_folder,min_cov)
-	fasta_allele1 = bam_consensus(reference,allele_1_sorted_file,allele1_stem,sample_output_folder,min_cov)
+	fasta_unphased = bam_consensus(reference,sorted_bam_file,name_stem,sample_output_folder,min_cov,args)
+	fasta_allele0 = bam_consensus(reference,allele_0_sorted_file,allele0_stem,sample_output_folder,min_cov,args)
+	fasta_allele1 = bam_consensus(reference,allele_1_sorted_file,allele1_stem,sample_output_folder,min_cov,args)
 
 	# Cleaning up output directory	
 	output_files = [val for sublist in [[os.path.join(i[0], j) for j in i[2]] for i in os.walk(sample_output_folder)] for val in sublist]
@@ -508,53 +505,12 @@ def assembly_clc(forward,backward):
 def main(args):
         # Preparation for calling input variables and files
         #args = get_args()
-        conf = ConfigParser.ConfigParser()
-        conf.optionxform = str
-        conf.read(args.config)
         
-        # Collect all program paths from control file
-        paths = conf.items('paths')
-        
-        # Find each program name in list and define variable
-        samtools = ""
-        for i in paths:
-                if "samtools" in i:
-                        samtools = i[1]
-        bcftools = ""
-        for i in paths:
-                if "bcftools" in i:
-                        bcftools = i[1]
-        vcfutils = ""
-        for i in paths:
-                if "vcfutils" in i:
-                        vcfutils = i[1]
-        picard = ""
-        for i in paths:
-                if "picard" in i:
-                        picard = i[1]
-        emboss = ""
-        for i in paths:
-                if "emboss" in i:
-                        emboss = i[1]
-        seqtk = ""
-        for i in paths:
-                if "seqtk" in i:
-                        seqtk = i[1]
-        clc = ""
-        for i in paths:
-                if "clc" in i:
-                        clc = i[1]
-        bwa = ""
-        for i in paths:
-                if "bwa" in i:
-                        bwa = i[1]
-
-
         # Specify the different CLC commands
-        mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
-        cons = os.path.join(emboss,"bin/cons")
-        clc_mapper = os.path.join(clc,"clc_mapper")
-        clc_cas_to_sam = os.path.join(clc,"clc_cas_to_sam")
+        #mark_duplicates = os.path.join(picard,"MarkDuplicates.jar")
+        #cons = os.path.join(emboss,"bin/cons")
+        #clc_mapper = os.path.join(clc,"clc_mapper")
+        #clc_cas_to_sam = os.path.join(clc,"clc_cas_to_sam")
         #clc_assembler = "%s/clc_assembler" %clc
 
         # Set working directory
@@ -610,12 +566,12 @@ def main(args):
                         print "Processing sample", sample_id, "\n"
                         sorted_bam = ""
                         if args.mapper == "bwa":
-                                sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder)
-                        elif args.mapper =="clc":
-                                sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
+                                sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,min_length)
+                        #elif args.mapper =="clc":
+                        #        sorted_bam = mapping_clc(forward,backward,reference,sample_id,sample_output_folder)
                         if not args.keep_duplicates:
                                 sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
-                        allele_fastas = phase_bam(sorted_bam,sample_output_folder)
+                        allele_fastas = phase_bam(sorted_bam,sample_output_folder,reference,min_cov,args)
 
                                 ## THIS iS STILL NOT WORKING PROPERLY WHEN ONLY SINGLE FILE PRESENT:
 
