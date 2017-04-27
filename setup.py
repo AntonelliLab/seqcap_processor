@@ -21,7 +21,7 @@ setup(
 	long_description = long_description,
 	license = 'MIT',
 	entry_points = {'console_scripts': ['secapr = secapr.__main__:main']},
-	packages = ['secapr'],
+	packages = ['secapr', 'secapr.phyluce'],
     install_requires = [
 	    # No dependencies listed here since we need to rely on conda anyway
     ],
