@@ -2,7 +2,7 @@
 
 package:
   name: secapr
-  version: '0.1'
+  version: '1.0.0'
 
 about:
   home: 'https://github.com/AntonelliLab/seqcap_processor'
@@ -10,9 +10,7 @@ about:
   summary: 'Process sequence-capture fastq files into alignments for phylogenetic analyses'
 
 source:
-  path: ..
-  #url: https://github.com/Estel-Kitsune/palm_pipeline/archive/conda.zip
-#  md5:
+  url: https://github.com/AntonelliLab/seqcap_processor/archive/v1.0.0.tar.gz
 
 build:
   skip: True  # [not py27]
