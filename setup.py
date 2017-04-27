@@ -19,7 +19,7 @@ setup(
 	url = 'https://github.com/AntonelliLab/seqcap_processor',
 	description = 'Process sequence-capture fastq files into alignments for phylogenetic analyses',
 	long_description = long_description,
-	# license = 'BSD',
+	license = 'MIT',
 	entry_points = {'console_scripts': ['secapr = secapr.__main__:main']},
 	packages = ['secapr'],
     install_requires = [
