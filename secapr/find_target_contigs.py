@@ -1,4 +1,3 @@
-#!/usr/local/anaconda/bin/python
 # encoding: utf-8
 
 """
@@ -39,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 				- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file
 
 
+from __future__ import print_function
 import re
 import os
 import sys
@@ -46,25 +46,19 @@ import glob
 import copy
 import operator
 import itertools
+import logging
 import sqlite3
 import argparse
 from phyluce import lastz
 from phyluce.helpers import is_dir, is_file, FullPaths
-from phyluce.log import setup_logging
 from collections import defaultdict
 from Bio import SeqIO
 
 #import pdb
+log = logging.getLogger(__name__)
 
-
-def get_args():
-	parser = argparse.ArgumentParser(description="Match fasta-file with reference sequences " +
-		"(usually the probe order file) to assembled Trinity-contigs and store the data in a " +
-		"relational database.  The matching process is dependent on the probe names in the file. " +
-		"You will need to provide a regex pattern (use --regex flag) for the script to identify " +
-		"the naming pattern of the reference sequences in the fasta file."
-	)
-	parser.add_argument(
+def add_arguments(parser):
+        parser.add_argument(
 		'--contigs',
 		required=True,
 		type=is_dir,
@@ -139,8 +133,7 @@ def get_args():
 		default="abyss",
 		help="""Please specify which assembler was used to generate the input contigs"""
 	)
-	args = parser.parse_args()
-	return args
+	
 
 
 def create_probe_database(log, db, organisms, exons):
@@ -265,9 +258,9 @@ def pretty_log_output(log, critter, matches, contigs, pd, mc, exon_dupe_exons):
 	)
 
 
-def get_contig_name(header):
+def get_contig_name(header,args):
 	#parse the contig name from the header of Trinity assembled contigs"
-	args = get_args()
+	#args = get_args()
 	match = ""
 	if args.assembler == "trinity":
 		match = re.search("^(c\d+_g\d+_i\d+).*", header)
@@ -288,9 +281,8 @@ def new_get_probe_name(header, regex):
 	return match.groups()[0]
 
 
-def main():
-	args = get_args()
-	log, my_name = setup_logging(args)
+def main(args):
+	#args = get_args()
 	pre_regex = args.regex
 	regex = re.compile("^(%s)(?:.*)" %pre_regex)
 	if not os.path.isdir(args.output):
@@ -349,7 +341,7 @@ def main():
 		probe_dupes = set()
 		if not lztstderr:
 			for lz in lastz.Reader(output):
-				contig_name = get_contig_name(lz.name1)
+				contig_name = get_contig_name(lz.name1,args)
 				exon_name = new_get_probe_name(lz.name2, regex)
 				if args.dupefile and exon_name in dupes:
 					probe_dupes.add(exon_name)
@@ -421,7 +413,8 @@ def main():
 	log.info("{}".format("-" * 65))
 	log.info("The LASTZ alignments are in {}".format(args.output))
 	log.info("The exon match database is in {}".format(os.path.join(args.output, "probes.matches.sqlite")))
-	text = " Completed {} ".format(my_name)
+	text = "Completed"
+        
 	log.info(text.center(65, "="))
 
 	# Access the SQL file and export tab-separated text-file
@@ -432,13 +425,23 @@ def main():
 
 	# Create the config file for the extraction of the desired loci
 	output_folder = args.output
-	create_conf_cmd = "echo \"[Organisms]\" > %s/config; ls %s/*.lastz | rev | cut -d/ -f1 | rev | cut -d \"_\" -f 1 >> %s/config; echo \"[Loci]\" >> %s/config; tail -n+2 %s/match_table.txt | cut -f 1 >> %s/config" %(output_folder,output_folder,output_folder,output_folder,output_folder,output_folder)
-	os.system(create_conf_cmd)
-	remove_lastz = "sed -i 's/.lastz//g' %s/config" %output_folder
-	os.system(remove_lastz)
+	
+        with open(os.path.join(output_folder, 'config'), 'w') as f:
+		print('[Organisms]', file=f)
+		for aln in glob.glob(os.path.join(output_folder, '*.lastz')):
+			aln = os.path.basename(aln)
+			aln = aln.split('_')[0]
+			aln = aln.replace('.lastz', '')
+			print(aln, file=f)
+
+		print('\n[Loci]', file=f)
+		with open(os.path.join(output_folder, 'match_table.txt')) as match_table:
+			lines = match_table.readlines()
+		for line in lines[1:]:
+			print(line.split('\t')[0], file=f)
 
 
 
 
-if __name__ == '__main__':
-	main()
+#if __name__ == '__main__':
+#	main()

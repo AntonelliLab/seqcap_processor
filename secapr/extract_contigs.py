@@ -1,4 +1,3 @@
-#!/usr/local/anaconda/bin/python
 # encoding: utf-8
 
 """
@@ -37,17 +36,19 @@ import re
 import sqlite3
 import argparse
 import ConfigParser
+import logging #add
 from collections import defaultdict
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from phyluce.helpers import FullPaths, is_dir, is_file, get_names_from_config
-from phyluce.log import setup_logging
+#from phyluce.log import setup_logging
 
 #import pdb
+log = logging.getLogger(__name__)
 
-
-def get_args():
+def add_arguments(parser):
+    '''
     parser = argparse.ArgumentParser(
         description="Given an input SQL database of exon locus matches, a config file " +
         "containing the loci in your data matrix, and the contigs you have assembled, extract the fastas for each " +
@@ -57,6 +58,7 @@ def get_args():
         "parameters.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+    '''
     parser.add_argument(
         '--contigs',
         required=True,
@@ -104,11 +106,11 @@ def get_args():
         default="abyss",
         help="""Please specify which assembler was used to generate the input contigs"""
     )    
-    return parser.parse_args()
+    
     
 
-def get_nodes_for_exons(c, organism, exons, extend=False, notstrict=False):
-    args = get_args()
+def get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=False):
+    #args = get_args()
     # get only those exons we know are in the set
     exons = [("\'{0}\'").format(u) for u in exons]
     if not extend:
@@ -152,15 +154,15 @@ def find_file(contigs, name):
         if reads is not None:
             break
     if reads is None:
-        raise ValueError("Cannot find the a fasta file for {} with any of the extensions ({}) ".format(
+        raise ValueError("Cannot find a fasta file for {} with any of the extensions ({}) ".format(
             name,
             ', '.join(extensions)
         ))
     return reads
 
 
-def get_contig_name(header):
-    args = get_args()
+def get_contig_name(header, args):
+    #args = get_args()
     """parse the contig name from the header of either abyss/trinity assembled contigs"""
     match = ""
     if args.assembler == "trinity":
@@ -183,10 +185,10 @@ def replace_and_remove_bases(regex, seq, count):
     return new_seq_record, count
 
 
-def main():
-    args = get_args()
+def main(args):
+    #args = get_args()
     # setup logging
-    log, my_name = setup_logging(args)
+    #log, my_name = setup_logging(args)
     # parse the config file - allowing no values (e.g. no ":" in config file)
     config = ConfigParser.RawConfigParser(allow_no_value=True)
     config.optionxform = str
@@ -215,12 +217,12 @@ def main():
             name = organism.replace('_', '-')
             if not organism.endswith('*'):
                 reads = find_file(args.contigs, name)
-                node_dict, missing = get_nodes_for_exons(c, organism, exons, extend=False, notstrict=True)
+                node_dict, missing = get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=True)
             count = 0
             log.info("There are {} exon loci for {}".format(len(node_dict), organism))
             log.info("Parsing and renaming contigs for {}".format(organism))
             for seq in SeqIO.parse(open(reads, 'rU'), 'fasta'):
-                name = get_contig_name(seq.id).lower()
+                name = get_contig_name(seq.id,args).lower()
                 #print "name:", name
                 #print node_dict.keys()
                 
@@ -254,8 +256,8 @@ def main():
             #print written
             #print exons
             assert set(written) == set(exons), "exon names do not match"
-    text = " Completed {} ".format(my_name)
+    text = " Completed! "
     log.info(text.center(65, "="))
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()

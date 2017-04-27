@@ -1,4 +1,3 @@
-#!/usr/local/opt/python/bin/python
 #author: Tobias Hofmann, tobiashofmann@gmx.net
 
 import os
@@ -12,15 +11,8 @@ import subprocess
 import re
 from cogent import LoadSeqs, DNA
 
+from .utils import CompletePath
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Input %%%
-
-# Complete path function
-class CompletePath(argparse.Action):
-    """give the full path of an input file/folder"""
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
 # Get arguments
 def get_args():
@@ -44,24 +36,24 @@ def get_args():
 	)
 	return parser.parse_args()
 
-	
+
 # Get arguments
 args = get_args()
 # Set working directory
 work_dir = args.input
-out_dir = args.output	
+out_dir = args.output
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 
-	
-	
-	
-	
+
+
+
+
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #%%% Functions %%%
-	
-	
+
+
 def read_fasta(fasta):
 	name, seq = None, []
 	for line in fasta:
@@ -73,26 +65,23 @@ def read_fasta(fasta):
 			seq.append(line)
 	if name: yield (name, ''.join(seq))
 
-		
-		
+
+
 #XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Workflow %%%	
+#%%% Workflow %%%
 
 # Create a dictionary with the name-pattern as key and all file-names sharing that name-pattern
-fasta_dict = {}	
+fasta_dict = {}
 for fasta in os.listdir(work_dir):
 	if fasta.endswith(".fasta") or fasta.endswith(".fa"):
-		fasta_split = re.split("_",fasta)
-		name_pattern = "%s_%s" %(fasta_split[0],fasta_split[1])
+		name_pattern = 'all_fastas'
 		fasta_dict.setdefault(name_pattern,[]).append(fasta)
 
 	else:
 		print "didn't work for", fasta
 
-
 # Get the list of taxa names (headers) for each locus, key is out-file, values are in-files
 for key, value in fasta_dict.iteritems():
-	print key
 	list_headers=[]
 	# Each k is a separate fasta input file belonging to the same locus ()to be joined)
 	for k in sorted(value):
@@ -105,7 +94,7 @@ for key, value in fasta_dict.iteritems():
 	# Find the missing taxa in each fasta input file and simulate a sequence of correct length (only "?")
 	in_fasta = os.path.join(work_dir, fasta)
 	# Each k is a separate fasta input file belonging to the same locus ()to be joined)
-	all_seq_dict = {}	
+	all_seq_dict = {}
 	for k in sorted(value):
 		taxa_names_single = []
 		present_seq = []
@@ -125,15 +114,14 @@ for key, value in fasta_dict.iteritems():
 			fake_string = "?" * length_alignment
 			simulated_seq.append((mistax,fake_string))
 		all_seq = sorted(simulated_seq+present_seq)
-		
+
 		for seq_header, sequence in all_seq:
 			all_seq_dict.setdefault(seq_header,[]).append(sequence)
-			
+
 	out_fasta = open(os.path.join(out_dir, "%s.fasta" %key), 'w')
 	for seqname, sequences in all_seq_dict.iteritems():
 		final_sequence = "".join(sequences)
 		out_fasta.write(seqname+"\n")
 		out_fasta.write(final_sequence+"\n")
-	
+
 	out_fasta.close()
-	
