@@ -36,7 +36,7 @@ def add_arguments(parser):
 		required=True,
 		action=CompletePath,
 		default=None,
-		help='The output directory where results will be safed'
+		help='The output directory where results will be saved'
 	)
 	parser.add_argument(
 		'--assembler',
