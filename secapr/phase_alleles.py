@@ -30,9 +30,9 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		'--mapper',
-		choices=["clc", "bwa"],
+		choices=["bwa"],
 		default="bwa",
-		help='Choose your desired mapping software. Both mappers perform well in our experience, but you will need to purchase a licence for clc-assembly-cell in case you want to download it. We therefore recommend the cost-free alternative bwa.'
+		help='Choose your desired mapping software.' 
 	)
 	parser.add_argument(
 		'--reference_type',
