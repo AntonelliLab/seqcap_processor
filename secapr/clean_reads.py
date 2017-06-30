@@ -51,14 +51,14 @@ def add_arguments(parser):
         default="single",
         help="Specify if single- or double-indexed adapters were used for the library preparation (essential information in order to interpret the control-file correctly).",
     )
-    '''
+"""
     parser.add_argument(
         '--trimmomatic',
         default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
         action=CompletePath,
         help='The path to the trimmomatic-0.XX.jar file.'
     )
-    '''
+"""
 
 def main(args):
     # Set working directory
