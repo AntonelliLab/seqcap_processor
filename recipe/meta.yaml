@@ -37,6 +37,7 @@ requirements:
     - trimmomatic
     - trinity
     - abyss
+    - fastqc
 
 test:
   imports:
