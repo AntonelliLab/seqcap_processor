@@ -9,6 +9,7 @@ Clean and trim raw Illumina read files
 import os
 import sys
 import glob
+import csv
 import shutil
 import argparse
 import ConfigParser
@@ -51,19 +52,85 @@ def add_arguments(parser):
         default="single",
         help="Specify if single- or double-indexed adapters were used for the library preparation (essential information in order to interpret the control-file correctly).",
     )
-"""
     parser.add_argument(
-        '--trimmomatic',
-        default="/usr/local/packages/anaconda2/jar/trimmomatic.jar",
-        action=CompletePath,
-        help='The path to the trimmomatic-0.XX.jar file.'
+        '--seedMismatches',
+        type=int,
+        default=2,
+        help='Specifies the maximum mismatch count which will still allow a full match to be performed. For more information see trimmoatic tutorial. Default: %(default)s'
     )
-"""
+    parser.add_argument(
+        '--palindromeClipThreshold',
+        type=int,
+        default=30,
+        help='Specifies how accurate the match between the two "adapter ligated" reads must be for PE palindrome read alignment. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--simpleClipThreshold',
+        type=int,
+        default=10,
+        help='Specifies how accurate the match between any adapter etc. sequence must be against a read. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--windowSize',
+        type=int,
+        default=4,
+        help='Specifies the number of bases to average across. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--requiredQuality',
+        type=int,
+        default=15,
+        help='Specifies the average quality required. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--leadingQuality',
+        type=int,
+        default=20,
+        help='Specifies the minimum quality required to keep a base at the beginning of the read. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--trailingQuality',
+        type=int,
+        default=20,
+        help='Specifies the minimum quality required to keep a base at the end of a read. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--cropToLength',
+        type=int,
+        default=250,
+        help='The number of bases to keep, from the start of the read. Everything exceeding this length will be removed from the end of the read. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--headCrop',
+        type=int,
+        default=0,
+        help='The number of bases to remove from the start of the read. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--minLength',
+        type=int,
+        default=40,
+        help='Specifies the minimum length of reads to be kept. For more information see trimmoatic tutorial. Default: %(default)s'
+    )
+
 
 def main(args):
     # Set working directory
     work_dir = args.input
     out_dir = args.output
+
+	# Get all trimmomatic settings
+    seed_mismatches = args.seedMismatches
+    palindrome_clip_threshold = args.palindromeClipThreshold
+    simple_clip_threshold = args.simpleClipThreshold
+    window_size = args.windowSize
+    required_quality = args.requiredQuality
+    leading = args.leadingQuality
+    trailing = args.trailingQuality
+    tail_crop = args.cropToLength
+    head_crop = args.headCrop
+    min_length = args.minLength
+
     # Return the user-set or default read-threshold
     read_threshold = args.read_min
     print "\n\n[Info:] Files with a read-count of less than %d are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold
@@ -104,13 +171,18 @@ def main(args):
 
 
     # For each pair execute the quality_trim command (trimmomatic)
+    read_count_file = open("%s/read_count_overview.txt" %out_dir, "w")
+    countlog=csv.writer(read_count_file, delimiter='\t')
+    countlog.writerow(["file","readcount"])
     for key, values in read_pairs.items():
-	if len(values) > 1:
+        if len(values) > 1:
             list_values = list(values)
             clean_list = []
             for i in range(len(list_values)):
                 fq_path = "/".join((work_dir, list_values[i]))
-                if read_count(fq_path) >= read_threshold:
+                readcount = read_count(fq_path)
+                countlog.writerow([list_values[i],readcount])
+                if readcount >= read_threshold:
                     clean_list.append(list_values[i])
                 else:
                     print "\n***The file", list_values[i], "does not contain enough reads.***\n"
@@ -132,9 +204,9 @@ def main(args):
                 # Remove the delimiter after the sample name in case it is part of the key
                 if key.endswith(delimiter[0]):
                     clean_key = rchop(key,delimiter[0])
-                    quality_trim(r1,r2,clean_key,work_dir,out_dir,barcodes,conf,adapt_index)
+                    quality_trim(r1,r2,clean_key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length)
                 else:
-                    quality_trim(r1,r2,key,work_dir,out_dir,barcodes,conf,adapt_index)
+                    quality_trim(r1,r2,key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length)
  
 
 
@@ -240,7 +312,7 @@ def find_fastq_pairs(name_pattern,work_dir):
 	return rev_file_info
 
 
-def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index):
+def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length):
 	print "\n", "#" * 50
 	print "Processing %s...\n" %sample_id
         # Forward and backward read file paths
@@ -269,18 +341,20 @@ def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index):
 					output[1],
 					output[2],
 					output[3],
-					"ILLUMINACLIP:%s:2:30:10" %adapter_fasta,
-					"SLIDINGWINDOW:4:15",
-					"LEADING:20",
-					"TRAILING:20",
-					"MINLEN:40"
+					"ILLUMINACLIP:%s:%d:%d:%d" %(adapter_fasta,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold),
+					"SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
+					"LEADING:%d" %leading,
+					"TRAILING:%d" %trailing,
+					"CROP:%d" %tail_crop,
+					"HEADCROP:%d" %head_crop,
+					"MINLEN:%d" %min_length
 				]
 				p1 = subprocess.Popen(command1, stderr=log_err_file)
 				p1.communicate()
 				print "%s successfully cleaned and trimmed. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id))
 				print "#" * 50, "\n"
 		except:
-			print "Trimmomatic was interrupted or did not start properly. Use --trimmomatic flag in command to specify the correct path to trimmomatic."
+			print "Trimmomatic was interrupted or did not start properly. You may have entered impossible values in the trimmomatic settings. Rerun again with different values for the trimmomatic flags."
 			sys.exit()
 	else:
 		print "***********No barcodes for %s stored in config-file. Only quality trimming (no adapter trimming) will be performed***********" %sample_id
@@ -297,10 +371,12 @@ def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index):
 				output[1],
 				output[2],
 				output[3],
-				"SLIDINGWINDOW:4:15",
-				"LEADING:20",
-				"TRAILING:20",
-				"MINLEN:40"
+			    "SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
+			    "LEADING:%d" %leading,
+			    "TRAILING:%d" %trailing,
+			    "CROP:%d" %tail_crop,
+			    "HEADCROP:%d" %head_crop,
+			    "MINLEN:%d" %min_length
 			]
 			p2 = subprocess.Popen(command2, stderr=log_err_file)
 			p2.communicate()
