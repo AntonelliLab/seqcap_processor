@@ -18,13 +18,13 @@ import subprocess
 
 # Complete path function
 class CompletePath(argparse.Action):
-        """give the full path of an input file/folder"""
-        def __call__(self, parser, namespace, values, option_string=None):
+	"""give the full path of an input file/folder"""
+	def __call__(self, parser, namespace, values, option_string=None):
 		setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
 
 def add_arguments(parser):
-        parser.add_argument(
+	parser.add_argument(
 		'--input',
 		required=True,
 		action=CompletePath,
@@ -44,7 +44,7 @@ def add_arguments(parser):
 		default="abyss",
 		help="""The assembler to use."""
 	)
-        '''
+	'''
 	parser.add_argument(
 		'--trinity',
 		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
@@ -57,7 +57,7 @@ def add_arguments(parser):
 		action=CompletePath,
 		help='The path to the abyss-pe executable'
 	)
-        '''
+	'''
 	parser.add_argument(
 		'--kmer',
 		type=int,
@@ -68,7 +68,7 @@ def add_arguments(parser):
 		'--contig_length',
 		type=int,
 		default=200,
-		help='Set the minimum contig length for Trinity assembly. Contigs that are shorter than this threshold will be discarded.'
+		help='Set the minimum contig length for the assembly. Contigs that are shorter than this threshold will be discarded. [Only available for Trinity assembler]'
 	)
 	parser.add_argument(
 		'--single_reads',
@@ -80,7 +80,7 @@ def add_arguments(parser):
 		'--cores',
 		type=int,
 		default=1,
-		help='For parallel processing you can set the number of cores you want to run Trinity on.'
+		help='For parallel processing you can set the number of cores you want to run the assembly on.'
 	)
 
 
