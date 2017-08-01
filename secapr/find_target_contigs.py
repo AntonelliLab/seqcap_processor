@@ -30,12 +30,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 # Modified by Tobias Hofmann (tobiashofmann@gmx.net):
+# Additions include:		- automatic generation of config file including all recovered exon names for further processing in this pipeline
+#				- new section in config file containing the orientation of all contigs, for duplicates
+# 				- automatic generation of the match-table in tab-delimited text-format to be opened in e.g. Excel for match overview
+# 				- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file
+#				- automated correction of input sample names, to avoid annoying errors with sqlite.
 # Modifications include: 	- removal of unnecessary flag-options
 # 				- renaming of uce-related parameters into exon-terminology
 #				- modification of regex-patterns to match Trinity-contigs and palm-exon set probe-order file
-# Additions include:		- automatic generation of config file including all recovered exon names for further processing in this pipeline
-# 				- automatic generation of the match-table in tab-delimited text-format to be opened in e.g. Excel for match overview
-# 				- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file
+
 
 
 from __future__ import print_function
@@ -58,7 +61,7 @@ from Bio import SeqIO
 log = logging.getLogger(__name__)
 
 def add_arguments(parser):
-        parser.add_argument(
+	parser.add_argument(
 		'--contigs',
 		required=True,
 		type=is_dir,
@@ -111,7 +114,7 @@ def add_arguments(parser):
 	parser.add_argument(
 		"--regex",
 		type=str,
-		default="\w+_\d+_\d+",
+		default=".*",
 		help="A regular expression to apply to the reference sequence names as tags in the output table.",
 	)
 	parser.add_argument(
@@ -298,10 +301,15 @@ def main(args):
 	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
 	for f in fasta_files:
 		replace_bad_fasta_chars = "sed -i -e '/>/! s=[K,Y,R,S,M,W,B,D,H,V,k,y,r,s,m,w,b,d,h,v]=N=g' %s" %f
+		remove_os_sed_copies = "rm %s/*-e " %args.contigs
+		fasta_name = f.split('/')[-1]
+		if not fasta_name.startswith('sample'):
+			rename_samples = "mv %s %s/sample_%s" %(f,args.contigs,fasta_name)
+			os.system(rename_samples)
 		os.system(replace_bad_fasta_chars)
-	#print fasta_files
+		os.system(remove_os_sed_copies)
+	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
 	organisms = get_organism_names_from_fasta_files(fasta_files)
-	#print organisms
 	conn, c = create_probe_database(
 		log,
 		os.path.join(args.output, 'probe.matches.sqlite'),
@@ -367,6 +375,15 @@ def main(args):
 				for dupe in contigs_matching_mult_exons:
 					dupefile.write("{}:{}\n".format(dupe, ', '.join(matches[dupe])))
 				dupefile.write("\n")
+				dupefile.write("[{} - contig orientation]\n".format(critter))
+				for dupe in contigs_matching_mult_exons:
+					matches_list = list(matches[dupe])
+					for exon in matches_list:
+						dupefile.write("{}:{}\n".format(exon,list(orientation[exon])[0]))
+				dupefile.write("\n")
+
+
+
 
 		# remove dupe and/or dubious nodes/contigs
 		match_copy = copy.deepcopy(matches)
@@ -430,7 +447,7 @@ def main(args):
 		print('[Organisms]', file=f)
 		for aln in glob.glob(os.path.join(output_folder, '*.lastz')):
 			aln = os.path.basename(aln)
-			aln = aln.split('_')[0]
+			#aln = aln.split('_')[0]
 			aln = aln.replace('.lastz', '')
 			print(aln, file=f)
 

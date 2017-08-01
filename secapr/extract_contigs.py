@@ -29,12 +29,18 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 # Modified by Tobias Hofmann:
-# Modifications include: Regex patterns in script modified to match contigs created by Trinity and headers from the palm-locus-database
+# Additions include:
+# - function that allows to include duplicates (--include_duplicates). This enables to read the dupe-file created by the script find_target_contigs and include all those contigs that match several reference sequences.
+# 
+# Modifications include:
+# - Regex patterns in script modified to match contigs created by Trinity and Abyss
+# 
 
 import os
 import re
 import sqlite3
 import argparse
+import itertools
 import ConfigParser
 import logging #add
 from collections import defaultdict
@@ -48,17 +54,6 @@ from phyluce.helpers import FullPaths, is_dir, is_file, get_names_from_config
 log = logging.getLogger(__name__)
 
 def add_arguments(parser):
-    '''
-    parser = argparse.ArgumentParser(
-        description="Given an input SQL database of exon locus matches, a config file " +
-        "containing the loci in your data matrix, and the contigs you have assembled, extract the fastas for each " +
-        "locus for each taxon in the assembled contigs, and rename those to the appropriate exon loci, outputting " +
-        "the results as a single monolithic FASTA file containing all records. " +
-        "Can also incorporate data from genome-enabled taxa or other studies using the --extend-db and --extend-contigs " +
-        "parameters.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    '''
     parser.add_argument(
         '--contigs',
         required=True,
@@ -71,7 +66,7 @@ def add_arguments(parser):
         required=True,
         action=FullPaths,
         type=is_file,
-        help='The SQL database file holding probe matches to targeted loci (usually "lastz/probe.matches.sqlite").'
+        help='The SQL database file holding probe matches to targeted loci (usually "probe.matches.sqlite").'
     )
     parser.add_argument(
         '--config',
@@ -105,11 +100,24 @@ def add_arguments(parser):
         choices=["trinity", "abyss"],
         default="abyss",
         help="""Please specify which assembler was used to generate the input contigs"""
+    )
+    parser.add_argument(
+        '--include_duplicates',
+        type = str,
+        default = None,
+        help = "Use this flag and add the path to the duplicate-log file resulting from the 'find_target_contigs' function if you want to extract contigs which matched multiple probes. These kinds of duplicate may be of interest as they may represent long sequences spannign accross several target regions."
     )    
     
     
+def flatten(lst):
+    new_list = []
+    for element in lst:
+        element = element.split(', ')
+        for subelement in element:
+            new_list.append(subelement)
+    return new_list
 
-def get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=False):
+def get_nodes_for_exons(c, organism, exons, args, organism_dupe_dict, organism_orientation_dict, extend=False, notstrict=False):
     #args = get_args()
     # get only those exons we know are in the set
     exons = [("\'{0}\'").format(u) for u in exons]
@@ -119,18 +127,33 @@ def get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=False)
         query = "SELECT lower({0}), exon FROM extended.match_map where exon in ({1})".format(organism, ','.join(exons))
     c.execute(query)
     rows = c.fetchall()
+    #print(rows)
     node_dict = defaultdict()
     missing = []
     for node in rows:
+        dupe_loci = flatten(organism_dupe_dict.values())
         if node[0] is not None:
             match = ""
             if args.assembler == "trinity":
                 match = re.search('^(c\d+_g\d+_i\d+)\(([+-])\)', node[0])
             elif args.assembler == "abyss":
                 match = re.search('^(\d+)\(([+-])\)', node[0])
-            #print "match:", match.groups()[0]
+            #print "match:", match.groups()
             #print node[1]
             node_dict[match.groups()[0]] = (node[1], match.groups()[1])
+        elif node[0] is None and str(node[1]) in dupe_loci:
+            dupe_dict = {}
+            for contig, loci in organism_dupe_dict.iteritems():
+                if node[1] in loci:
+                    dupe_dict.setdefault(node[1],[])
+                    dupe_dict[node[1]].append(contig)
+            for key in dupe_dict:
+                if len(dupe_dict[key]) == 1:
+                    #print(str(key),dupe_dict[key][0])
+                    contig = unicode(dupe_dict[key][0], "utf-8")
+                    locus = unicode(str(key), "utf-8")
+                    orientation = unicode(organism_orientation_dict[str(key)], "utf-8")
+                    node_dict[contig] = (locus, orientation)
         elif notstrict:
             missing.append(node[1])
         else:
@@ -203,6 +226,16 @@ def main(args):
         os.path.basename(args.config)
     ))
     exons = get_names_from_config(config, 'Loci')
+
+    dupefile = None
+    if args.include_duplicates is not None:
+    	dupefile = args.include_duplicates
+
+    dupe_config = ConfigParser.RawConfigParser(allow_no_value=True)
+    dupe_config.optionxform = str
+    if args.include_duplicates is not None:
+        dupe_config.read(dupefile)
+
     log.info("There are {} exon loci in the matrix".format(len(exons)))
     regex = re.compile("[N,n]{1,21}")
     out_dir = '/'.join(args.output.split('/')[:-1])
@@ -210,6 +243,17 @@ def main(args):
     incomplete_outf = open(temp_conf, 'w')
     with open(args.output, 'w') as exon_fasta_out:
         for organism in organisms:
+            organism_dupe_dict = {}
+            if args.include_duplicates is not None:
+                dupes = dupe_config.items('%s - contigs hitting multiple probes' %organism)
+                for element in dupes:
+                    organism_dupe_dict.setdefault(element[0],element[1])
+            organism_orientation_dict = {}
+            if args.include_duplicates is not None:
+                locus_orientation = dupe_config.items('%s - contig orientation' %organism)
+                for element in locus_orientation:
+                    organism_orientation_dict.setdefault(element[0],element[1])            
+            #print (organism_dupe_dict)
             text = "Getting exon loci for {0}".format(organism)
             log.info(text.center(65, "-"))
             written = []
@@ -217,7 +261,7 @@ def main(args):
             name = organism.replace('_', '-')
             if not organism.endswith('*'):
                 reads = find_file(args.contigs, name)
-                node_dict, missing = get_nodes_for_exons(c, organism, exons, args, extend=False, notstrict=True)
+                node_dict, missing = get_nodes_for_exons(c, organism, exons, args, organism_dupe_dict, organism_orientation_dict, extend=False, notstrict=True)
             count = 0
             log.info("There are {} exon loci for {}".format(len(node_dict), organism))
             log.info("Parsing and renaming contigs for {}".format(organism))
@@ -225,7 +269,6 @@ def main(args):
                 name = get_contig_name(seq.id,args).lower()
                 #print "name:", name
                 #print node_dict.keys()
-                
                 if name in node_dict.keys():
                     seq.id = "{0}_{1} |{0}".format(node_dict[name][0], organism.rstrip('*'))
                     seq.name = ''
@@ -255,7 +298,8 @@ def main(args):
                     written.append(name)
             #print written
             #print exons
-            assert set(written) == set(exons), "exon names do not match"
+            # This test will result in an error if duplicates are included
+            #assert set(written) == set(exons), "exon names do not match"
     text = " Completed! "
     log.info(text.center(65, "="))
 
