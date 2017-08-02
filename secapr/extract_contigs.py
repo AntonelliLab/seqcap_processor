@@ -1,6 +1,8 @@
 # encoding: utf-8
 
 """
+Extract all contigs that were flagged by the find_target_contigs function. Enables to also include loci flagged as duplicates.
+
 Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,14 +29,17 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+________________________________________
+Modified by Tobias Hofmann (tobias.hofmann@bioenv.gu.se):
+Additions include:
+- function that allows to include duplicates (--include_duplicates). This enables to read the dupe-file created by the script find_target_contigs and include all those contigs that match several reference sequences.
+- Regex patterns in script modified to match contigs created by Trinity and Abyss
+- added --assembler flag for user to specify how contigs where created
+- compatibility with improved find_target_contigs function (output of that function will be directly compatible with this script, user is not required to alter any of the intermedate files)
+_________________________________________
 """
-# Modified by Tobias Hofmann:
-# Additions include:
-# - function that allows to include duplicates (--include_duplicates). This enables to read the dupe-file created by the script find_target_contigs and include all those contigs that match several reference sequences.
-# 
-# Modifications include:
-# - Regex patterns in script modified to match contigs created by Trinity and Abyss
-# 
 
 import os
 import re

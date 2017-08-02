@@ -1,36 +1,44 @@
 # encoding: utf-8
 """
-Align and trim records in a monolothic FASTA file containing all loci for all taxa
-"""
-# Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-# * Redistributions of source code must retain the above copyright notice, this
-# list of conditions and the following disclaimer.
-# * Redistributions in binary form must reproduce the above copyright notice,
-# this list of conditions and the following disclaimer in the documentation
-# and/or other materials provided with the distribution.
-# * Neither the name of the University of California, Los Angeles nor the names
-# of its contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Align sequences and produce separate alignment file for each locus, containing the seqeunces of all taxa.
 
-# Modified by Tobias Hofmann:
-# Modifications include: 	- Standardizing script for incomplete data 
-#							- Setting suitable alignment settings for standard palm contigs as default, to avoid discarding too many loci
-#							- Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
+Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+* Neither the name of the University of California, Los Angeles nor the names
+of its contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+________________________________________
+Modified by Tobias Hofmann (tobias.hofmann@bioenv.gu.se):
+Additions include:
+- Standardizing script for incomplete data 
+- More forgiving default options for non-UCE datasets
+- Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
+________________________________________
+"""
 
 from __future__ import print_function
-
 import os
 import sys
 import copy
@@ -39,7 +47,6 @@ import multiprocessing
 import logging
 from Bio import SeqIO
 from collections import defaultdict
-
 from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
 
 
@@ -217,6 +224,13 @@ def main(args):
         alignments = pool.map(align, params)
     else:
         alignments = map(align, params)
+
+    #import pickle
+    #with open('/Users/tobias/Desktop/alignments.pickle', 'wb') as handle:
+    #    pickle.dump(alignments, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    #with open('/Users/tobias/Desktop/alignments.pickle', 'rb') as handle:
+    #    alignments = pickle.load(handle)
+
     # kick the stdout down one line since we were using sys.stdout
     print("")
     # drop back into logging
@@ -226,6 +240,7 @@ def main(args):
         if alignment.trimmed:
             for t in alignment.trimmed:
                 t.id = t.id.split('_', 3)[3]
+                t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
     # end

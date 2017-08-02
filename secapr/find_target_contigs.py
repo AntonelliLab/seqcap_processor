@@ -1,6 +1,8 @@
 # encoding: utf-8
 
 """
+Find all contigs that match reference fasta file and flag them for subsequent extraction
+
 Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,18 +29,18 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+________________________________________
+Modified by Tobias Hofmann (tobias.hofmann@bioenv.gu.se):
+Additions include:
+- automatic generation of config file including all recovered exon names for further processing in this pipeline				- new section in config file containing the orientation of all contigs, for duplicates
+- automatic generation of the match-table in tab-delimited text-format to be opened in e.g. Excel for match overview
+- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file				- automated correction of input sample names, to avoid annoying errors with sqlite.
+- renaming of uce-related parameters into exon-terminology
+- modification of regex-patterns to match ABySS or Trinity contigs (can be specified with --assembler flag)
+________________________________________
+
 """
-
-# Modified by Tobias Hofmann (tobiashofmann@gmx.net):
-# Additions include:		- automatic generation of config file including all recovered exon names for further processing in this pipeline
-#				- new section in config file containing the orientation of all contigs, for duplicates
-# 				- automatic generation of the match-table in tab-delimited text-format to be opened in e.g. Excel for match overview
-# 				- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file
-#				- automated correction of input sample names, to avoid annoying errors with sqlite.
-# Modifications include: 	- removal of unnecessary flag-options
-# 				- renaming of uce-related parameters into exon-terminology
-#				- modification of regex-patterns to match Trinity-contigs and palm-exon set probe-order file
-
 
 
 from __future__ import print_function
