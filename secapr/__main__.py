@@ -24,7 +24,7 @@ COMMANDS = [
         'extract_contigs',
         'align_contigs',
         'join_exons',
-        'reference_based_assembly',
+        'reference_assembly',
         'phase_alleles',
         'add_missing_sequences',
 ]

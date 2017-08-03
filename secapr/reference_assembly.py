@@ -14,6 +14,7 @@ import argparse
 import ConfigParser
 import commands
 import subprocess
+import pickle
 from Bio import SeqIO
 
 from .utils import CompletePath
@@ -26,7 +27,7 @@ def add_arguments(parser):
 		required=True,
 		action=CompletePath,
 		default=None,
-		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_].'
+		help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_] (default output of clean_reads function).'
 	)
 	parser.add_argument(
 		'--reference_type',
@@ -247,6 +248,8 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
 def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 	print ("Generating a consensus sequence from bam-file..........")
 	# Creating consensus sequences from bam-files
+
+	# 1. mpilup__________
 	mpileup = [
 		"samtools",
 		"mpileup",
@@ -260,7 +263,8 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 		mp = subprocess.Popen(mpileup, stdout=mpileupfile, stderr=subprocess.PIPE)
 		mp.communicate()
 		mp.wait()
-	
+
+	# 2. bcftools__________
 	vcf_file = os.path.join(out_dir, "%s.vcf" %name_base)
 	#bcf_cmd = [
 	#	"bcftools",
@@ -276,10 +280,11 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 		mpileup_file
 	]
 	with open(vcf_file, 'w') as vcffile:
-		vcf = subprocess.Popen(bcf_cmd, stdout=vcffile)
+		vcf = subprocess.Popen(bcf_cmd, stdout=vcffile, stderr=subprocess.PIPE)
 		vcf.communicate()
 		vcf.wait()
 
+	# 3. vcfutils__________
 	fq_file = os.path.join(out_dir, "%s.fq" %name_base)
 	vcfutils_cmd = [
 		"vcfutils.pl",
@@ -292,7 +297,8 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 		fq = subprocess.Popen(vcfutils_cmd, stdout=fqfile)
 		fq.communicate()
 		fq.wait()
-
+	
+	# 4. seqtk__________
 	# Converting fq into fasta files
 	fasta_file = os.path.join(out_dir,"%s_temp.fasta" %name_base)
 	make_fasta = [
@@ -358,6 +364,38 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
 	return final_fasta_file
 
 
+def join_fastas(out_dir,sample_out_list):
+	allele_fastas = []
+	unphased_fastas = []
+	allele = False
+	for folder in sample_out_list:
+		for file in os.listdir(folder):
+			if file.endswith('.fasta'):
+				fasta = os.path.join(folder,file)
+				if "allele_0" in fasta:
+					allele_fastas.append(fasta)
+					allele = True
+				elif "allele_1" in fasta:
+					allele_fastas.append(fasta)
+					allele = True
+				elif fasta.endswith('bam_consensus.fasta'):
+					unphased_fastas.append(fasta)
+
+	if allele == True:
+		joined_allele_fastas = "%s/joined_allele_fastas.fasta" %out_dir
+		with open(joined_allele_fastas, 'w') as outfile:
+			for fname in allele_fastas:
+				with open(fname) as infile:
+					for line in infile:
+						outfile.write(line)
+	if not allele:
+		joined_unphased_fastas = "%s/joined_unphased_fastas.fasta" %out_dir
+		with open(joined_unphased_fastas, 'w') as outfile:
+			for fname in unphased_fastas:
+				with open(fname) as infile:
+					for line in infile:
+						outfile.write(line)	
+
 def main(args):
 	mapper = 'bwa'
 	# Set working directory
@@ -374,6 +412,7 @@ def main(args):
 	min_cov = args.min_coverage
 	reference = ''
 	reference_folder = "%s/reference_seqs" %out_dir
+	sample_out_list = []
 	if not os.path.exists(reference_folder):
 		os.makedirs(reference_folder)
 	if args.reference_type == "user-ref-lib":
@@ -390,13 +429,20 @@ def main(args):
 			sample_id = re.sub("_clean","",sample_folder)
 			if args.reference_type == "sample-specific":
 				reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
-			# Loop through each sample-folder and find read-files
+
+			
+			# Safe the smaple specific reference as a pickle file for downstream processing
 			sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
-			#if os.path.exists(sample_output_folder):
-			#	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
-			#	continue
+			sample_out_list.append(sample_output_folder)
 			if not os.path.exists(sample_output_folder):
 				os.makedirs(sample_output_folder)
+			tmp_folder = "%s/tmp" %sample_output_folder
+			if not os.path.exists(tmp_folder):
+				os.makedirs(tmp_folder)
+			pickle_path = os.path.join(tmp_folder,'%s_reference.pickle' %sample_id)
+			with open(pickle_path, 'wb') as handle:
+				pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+			# Loop through each sample-folder and find read-files
 			forward = ""
 			backward = ""
 			for fastq in os.listdir(subfolder_path):
@@ -422,3 +468,4 @@ def main(args):
 					dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
 					dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
 					bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
+	join_fastas(out_dir,sample_out_list)
