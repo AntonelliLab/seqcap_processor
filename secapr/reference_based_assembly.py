@@ -60,6 +60,12 @@ def add_arguments(parser):
 		default=80,
 		help='Reads with a length shorter than this threshold will not be used for mapping.'
 	)
+	parser.add_argument(
+		'--min_coverage',
+		type=int,
+		default=4,
+		help='Set the minimum read coverage. Only positions that are covered by this number of reads will be called in the consensus sequence, otherwise the program will add an ambiguity at this position.'
+	)
 #	parser.add_argument(
 #		'--mapper',
 #		choices=["bwa"],
@@ -222,7 +228,7 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
 	# Cleaning up a bit
 	has_duplicates = "%s/including_duplicate_reads" %sample_output_folder
 	if not os.path.exists(has_duplicates):
-		os.makedirs(has_duplicates)s
+		os.makedirs(has_duplicates)
 	mv_duplicates_1 = 'mv %s/*.bam %s' %(sample_output_folder,has_duplicates)
 	mv_duplicates_2 = 'mv %s/*.bam.bai %s' %(sample_output_folder,has_duplicates)
 	mv_final = 'mv %s/*_no_dupls_sorted.bam %s' %(has_duplicates,sample_output_folder)
@@ -233,7 +239,123 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
 	print ("Indexing Picard-cleaned bam..........")
 	index_picard_bam = "samtools index %s" %(picard_out)
 	os.system(index_picard_bam)
-	return picard_out
+	dupl_bam_name = sorted_bam.split('/')[-1]
+	dupl_out = os.path.join(has_duplicates,dupl_bam_name)
+	return picard_out, dupl_out
+
+
+def bam_consensus(reference,bam_file,name_base,out_dir,min_cov):
+	print ("Generating a consensus sequence from bam-file..........")
+	# Creating consensus sequences from bam-files
+	mpileup = [
+		"samtools",
+		"mpileup",
+		"-u",
+		"-f",
+		reference,
+		bam_file
+	]
+	mpileup_file = os.path.join(out_dir, "%s.mpileup" %name_base)
+	with open(mpileup_file, 'w') as mpileupfile:
+		mp = subprocess.Popen(mpileup, stdout=mpileupfile, stderr=subprocess.PIPE)
+		mp.communicate()
+		mp.wait()
+	
+	vcf_file = os.path.join(out_dir, "%s.vcf" %name_base)
+	#bcf_cmd = [
+	#	"bcftools",
+	#	"view",
+	#	"-c",
+	#	"-g",
+	#	mpileup_file
+	#]
+	bcf_cmd = [
+		"bcftools",
+		"call",
+		"-c",
+		mpileup_file
+	]
+	with open(vcf_file, 'w') as vcffile:
+		vcf = subprocess.Popen(bcf_cmd, stdout=vcffile)
+		vcf.communicate()
+		vcf.wait()
+
+	fq_file = os.path.join(out_dir, "%s.fq" %name_base)
+	vcfutils_cmd = [
+		"vcfutils.pl",
+		"vcf2fq",
+		"-d",
+		str(min_cov),
+		vcf_file
+	]
+	with open(fq_file, 'w') as fqfile:
+		fq = subprocess.Popen(vcfutils_cmd, stdout=fqfile)
+		fq.communicate()
+		fq.wait()
+
+	# Converting fq into fasta files
+	fasta_file = os.path.join(out_dir,"%s_temp.fasta" %name_base)
+	make_fasta = [
+		"seqtk",
+		"seq",
+		"-a",
+		fq_file,
+	]
+	with open(fasta_file, 'w') as fastafile:
+		fasta = subprocess.Popen(make_fasta, stdout=fastafile)
+		fasta.communicate()
+		fasta.wait()
+	
+	# Create a new fasta file for final fasta printing
+	final_fasta_file = os.path.join(out_dir,"%s.fasta" %name_base)
+
+	if "allele_0" in name_base:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, str(fasta.seq)
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s_0 |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+	
+	elif "allele_1" in name_base:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, str(fasta.seq)
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s_1 |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+
+	else:
+		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
+		sample_id = name_base.split("_")[0]
+		with open(final_fasta_file, "wb") as out_file:
+			for fasta in fasta_sequences:
+				name, sequence = fasta.id, str(fasta.seq)
+				name = re.sub('_consensus_sequence','',name)
+				name = re.sub('_\(modified\)','',name)
+				name = re.sub(r'(.*)',r'\1_%s |\1' %sample_id ,name)
+				sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
+				out_file.write(">%s\n%s\n" %(name,sequence))
+		tmp_folder = "%s/tmp" %out_dir
+		if not os.path.exists(tmp_folder):
+			os.makedirs(tmp_folder)
+		mpileup = glob.glob('%s/*.mpileup' %out_dir)[0]
+		vcf = glob.glob('%s/*.vcf' %out_dir)[0]
+		shutil.move(vcf,tmp_folder)
+		shutil.move(mpileup,tmp_folder)
+
+	os.remove(fasta_file)
+	os.remove(fq_file)
+
+	return final_fasta_file
 
 
 def main(args):
@@ -249,6 +371,7 @@ def main(args):
 	alignments = args.reference
 	reads = args.reads
 	min_length = args.k
+	min_cov = args.min_coverage
 	reference = ''
 	reference_folder = "%s/reference_seqs" %out_dir
 	if not os.path.exists(reference_folder):
@@ -292,4 +415,10 @@ def main(args):
 				if mapper == "bwa":
 					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,min_length,log)
 				if not args.keep_duplicates:
-					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam,log)
+					sorted_bam, dupl_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam,log)
+				name_stem = '%s_bam_consensus' %sample_id
+				bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
+				if not args.keep_duplicates:
+					dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
+					dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
+					bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
