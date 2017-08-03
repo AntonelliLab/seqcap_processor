@@ -104,7 +104,7 @@ def create_reference_fasta(reference_folder,alignments):
 
 
 def create_sample_reference_fasta(reference_folder,sample_id,alignments):
-	print ("Creating reference library for %s .........." %sample_id)
+	print "Creating reference library for %s .........." %sample_id
 #	get the sequence header with the correct fasta id and extract sequence
 #	store these sequences in separate fasta file for each locus at out_dir/reference_seqs/sample_id
 #	header of sequence remains the locus name
@@ -129,16 +129,16 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 	return reference
 
 
-def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, min_length):
+def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, min_length, log):
 	#Indexing
 	command1 = ["bwa","index",reference]
-	bwa_out = os.path.join(sample_output_folder, "bwa_screen_out.txt")
+	bwa_out = os.path.join(log, "bwa_screen_out.txt")
 	try:
 		with open(bwa_out, 'w') as logfile:
 			sp1 = subprocess.Popen(command1, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
 			sp1.wait()
 	except:
-		print ("Running bwa (%s) caused an error. Please check your bwa path specification and version in the control file." %bwa)
+		print ("Running bwa (%s) caused an error." %bwa)
 		sys.exit()
 
 	#Mapping
@@ -201,15 +201,10 @@ def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
 	return sorted_bam
 
 
-def clean_with_picard(sample_output_folder,sample_id,sorted_bam):
-	picard_folder = "%s/picard" %sample_output_folder
-	if not os.path.exists(picard_folder):
-		os.makedirs(picard_folder)
-	picard_log_folder = "%s/log" %picard_folder
-	if not os.path.exists(picard_log_folder):
-		os.makedirs(picard_log_folder)
-	picard_out = "%s/%s_no_dupls_sorted.bam" %(picard_folder,sample_id)
-	dupl_log = "%s/%s_dupls.log" %(picard_log_folder,sample_id)
+def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
+
+	picard_out = "%s/%s_no_dupls_sorted.bam" %(sample_output_folder,sample_id)
+	dupl_log = "%s/%s_dupls.log" %(log,sample_id)
 	run_picard = [
 		"picard",
 		"MarkDuplicates",
@@ -220,11 +215,21 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam):
 		"VALIDATION_STRINGENCY=LENIENT"
 	]
 	print ("Removing duplicate reads with Picard..........")
-	with open(os.path.join(picard_log_folder, "picard_screen_out.txt"), 'w') as log_err_file:
+	with open(os.path.join(log, "picard_screen_out.txt"), 'w') as log_err_file:
 		pi = subprocess.Popen(run_picard, stderr=log_err_file)
 		pi.communicate()
 	print ("Duplicates successfully removed.")
-	
+	# Cleaning up a bit
+	has_duplicates = "%s/including_duplicate_reads" %sample_output_folder
+	if not os.path.exists(has_duplicates):
+		os.makedirs(has_duplicates)s
+	mv_duplicates_1 = 'mv %s/*.bam %s' %(sample_output_folder,has_duplicates)
+	mv_duplicates_2 = 'mv %s/*.bam.bai %s' %(sample_output_folder,has_duplicates)
+	mv_final = 'mv %s/*_no_dupls_sorted.bam %s' %(has_duplicates,sample_output_folder)
+	os.system(mv_duplicates_1)
+	os.system(mv_duplicates_2)
+	os.system(mv_final)
+
 	print ("Indexing Picard-cleaned bam..........")
 	index_picard_bam = "samtools index %s" %(picard_out)
 	os.system(index_picard_bam)
@@ -237,6 +242,9 @@ def main(args):
 	out_dir = args.output
 	if not os.path.exists(out_dir):
 		os.makedirs(out_dir)
+	else:
+		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(out_dir))
+	
 	# Get other input variables
 	alignments = args.reference
 	reads = args.reads
@@ -252,31 +260,36 @@ def main(args):
 	elif args.reference_type == "alignment-consensus":
 		reference = create_reference_fasta(reference_folder,alignments)
 	for subfolder in os.listdir(reads):
-		subfolder_path = os.path.join(reads,subfolder)
-		sample_folder = subfolder
-		sample_id = re.sub("_clean","",sample_folder)
-		if args.reference_type == "sample-specific":
-			reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
-		# Loop through each sample-folder and find read-files
-		sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
-		#if os.path.exists(sample_output_folder):
-		#	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
-		#	continue
-		if not os.path.exists(sample_output_folder):
-			os.makedirs(sample_output_folder)
-		forward = ""
-		backward = ""
-		for fastq in os.listdir(subfolder_path):
-			if fastq.endswith('.fastq') or fastq.endswith('.fq'):
-				if sample_id in fastq and "READ1.fastq" in fastq:
-					forward = os.path.join(subfolder_path,fastq)
-				elif sample_id in fastq and "READ2.fastq" in fastq:
-					backward = os.path.join(subfolder_path,fastq)
-		if forward != "" and backward != "":
-			print ("\n", "#" * 50)
-			print ("Processing sample", sample_id, "\n")
-			sorted_bam = ""
-			if mapper == "bwa":
-				sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,min_length)
-			if not args.keep_duplicates:
-				sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam)
+		path = os.path.join(reads,subfolder)
+		if os.path.isdir(path):
+			subfolder_path = os.path.join(reads,subfolder)
+			sample_folder = subfolder
+			sample_id = re.sub("_clean","",sample_folder)
+			if args.reference_type == "sample-specific":
+				reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
+			# Loop through each sample-folder and find read-files
+			sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
+			#if os.path.exists(sample_output_folder):
+			#	print "\nOutput folder %s already exists. This sample (%s) will be skipped. Please delete or specify different output directory to rerun this sample\n" %(sample_output_folder,sample_id)
+			#	continue
+			if not os.path.exists(sample_output_folder):
+				os.makedirs(sample_output_folder)
+			forward = ""
+			backward = ""
+			for fastq in os.listdir(subfolder_path):
+				if fastq.endswith('.fastq') or fastq.endswith('.fq'):
+					if sample_id in fastq and "READ1.fastq" in fastq:
+						forward = os.path.join(subfolder_path,fastq)
+					elif sample_id in fastq and "READ2.fastq" in fastq:
+						backward = os.path.join(subfolder_path,fastq)
+			if forward != "" and backward != "":
+				print "\n", "#" * 50
+				print "Processing sample", sample_id, "\n"
+				sorted_bam = ""
+				log = os.path.join(sample_output_folder,'log')
+				if not os.path.exists(log):
+					os.makedirs(log)
+				if mapper == "bwa":
+					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,min_length,log)
+				if not args.keep_duplicates:
+					sorted_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam,log)
