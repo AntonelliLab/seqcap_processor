@@ -59,7 +59,7 @@ def add_arguments(parser):
         required=True,
         action=FullPaths,
         type=is_file,
-        help="""The fasta file containing the extracted contigs that match the target loci"""
+        help="""The fasta file containing individual sequences for several samples and loci"""
     )
     parser.add_argument(
         "--output",

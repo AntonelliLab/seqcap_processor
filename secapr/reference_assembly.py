@@ -1,3 +1,4 @@
+# encoding: utf-8
 '''
 Create new reference library and map raw reads against the library (reference-based assembly)
 '''
@@ -56,41 +57,77 @@ def add_arguments(parser):
 		help='Use this flag if you do not want to discard all duplicate reads with Picard.'
 	)
 	parser.add_argument(
-		'--k',
-		type=float,
-		default=80,
-		help='Reads with a length shorter than this threshold will not be used for mapping.'
-	)
-	parser.add_argument(
 		'--min_coverage',
 		type=int,
 		default=4,
 		help='Set the minimum read coverage. Only positions that are covered by this number of reads will be called in the consensus sequence, otherwise the program will add an ambiguity at this position.'
 	)
-#	parser.add_argument(
-#		'--mapper',
-#		choices=["bwa"],
-#		default="bwa",
-#		help='Choose your desired mapping software.' 
-#	)
-#	parser.add_argument(
-#		'--l',
-#		type=float,
-#		default=0.7,
-#		help='(only for CLC mapper): Define the fraction of the read that has to fulfil the similarity-threshold.'
-#	)
-#	parser.add_argument(
-#		'--s',
-#		type=float,
-#		default=0.9,
-#		help='(only for CLC mapper): Set a similarity threshold, defining how similar the read has to be to the reference in order to be a match.'
-#	)
-#	parser.add_argument(
-#		'--cores',
-#		type=int,
-#		default=1,
-#		help='For parallel processing you can choose the number of cores you want CLC to run on.'
-#	)
+	parser.add_argument(
+		'--k',
+		type=int,
+		default=50,
+		help='If the part of the read that sufficiently matches the reference is shorter than this threshold, it will be discarded (minSeedLen).'
+	)
+	parser.add_argument(
+		'--w',
+		type=int,
+		default=21,
+		help='Avoid introducing gaps in read that are longer than this threshold.'
+	)
+	parser.add_argument(
+		'--d',
+		type=int,
+		default=100,
+		help='Stop extension when the difference between the best and the current extension score is above |i-j|*A+INT, where i and j are the current positions of the query and reference, respectively, and A is the matching score.'
+	)
+	parser.add_argument(
+		'--r',
+		type=float,
+		default=1.5,
+		help='Trigger re-seeding for a MEM longer than minSeedLen*FLOAT.'
+	)
+	parser.add_argument(
+		'--c',
+		type=int,
+		default=10000,
+		help='Discard a match if it has more than INT occurence in the genome'
+	)
+	parser.add_argument(
+		'--A',
+		type=int,
+		default=1,
+		help='Matching score. Acts as a factor enhancing any match (higher value makes it less conservative = allows reads that have fewer matches, since every match is scored higher).'
+	)
+	parser.add_argument(
+		'--B',
+		type=int,
+		default=4,
+		help='Mismatch penalty. The accepted mismatch rate per read on length k is approximately: {.75 * exp[-log(4) * B/A]}'
+	)
+	parser.add_argument(
+		'--O',
+		type=int,
+		default=10,
+		help='Gap opening penalty'
+	)	
+	parser.add_argument(
+		'--E',
+		type=int,
+		default=5,
+		help='Gap extension penalty'
+	)	
+	parser.add_argument(
+		'--L',
+		type=int,
+		default=4,
+		help='Clipping penalty. During extension, the algorithm keeps track of the best score reaching the end of query. If this score is larger than the best extension score minus the clipping penalty, clipping will not be applied.'
+	)	
+	parser.add_argument(
+		'--U',
+		type=int,
+		default=2,
+		help='Penalty for an unpaired read pair. The lower the value, the more unpaired reads will be allowed in the mapping.'
+	)
 
 
 def create_reference_fasta(reference_folder,alignments):
@@ -136,7 +173,7 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 	return reference
 
 
-def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, min_length, log):
+def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args, log):
 	#Indexing
 	command1 = ["bwa","index",reference]
 	bwa_out = os.path.join(log, "bwa_screen_out.txt")
@@ -149,7 +186,22 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, min_l
 		sys.exit()
 
 	#Mapping
-	command2 = ["bwa","mem","-k",str(min_length),reference,forward,backward]
+	command2 = ["bwa","mem","-k",str(args.k),"-w",str(args.w),"-d",str(args.d),"-r",str(args.r),"-c",str(args.c),"-A",str(args.A),"-B",str(args.B),"-O",str(args.O),"-E",str(args.E),"-L",str(args.L),"-U",str(args.U),"-M",reference,forward,backward]
+	"""
+	Copied from bwa manual (http://bio-bwa.sourceforge.net/bwa.shtml#3):
+		-k INT Minimum seed length. Matches shorter than INT will be missed. The alignment speed is usually insensitive to this value unless it significantly deviates 20. [19]
+		-w INT Band width. Essentially, gaps longer than INT will not be found. Note that the maximum gap length is also affected by the scoring matrix and the hit length, not solely determined by this option. [100]
+		-d INT Off-diagonal X-dropoff (Z-dropoff). Stop extension when the difference between the best and the current extension score is above |i-j|*A+INT, where i and j are the current positions of the query and reference, respectively, and A is the matching score. Z-dropoff is similar to BLAST’s X-dropoff except that it doesn’t penalize gaps in one of the sequences in the alignment. Z-dropoff not only avoids unnecessary extension, but also reduces poor alignments inside a long good alignment. [100]
+		-r FLOAT Trigger re-seeding for a MEM longer than minSeedLen*FLOAT. This is a key heuristic parameter for tuning the performance. Larger value yields fewer seeds, which leads to faster alignment speed but lower accuracy. [1.5]
+		-c INT Discard a MEM if it has more than INT occurence in the genome. This is an insensitive parameter. [10000] 
+		-A INT Matching score. [1]
+		-B INT Mismatch penalty. The sequence error rate is approximately: {.75 * exp[-log(4) * B/A]}. [4] 
+		-O INT Gap open penalty. [6]
+		-E INT Gap extension penalty. A gap of length k costs O + k*E (i.e. -O is for opening a zero-length gap). [1] 
+		-L INT Clipping penalty. When performing SW extension, BWA-MEM keeps track of the best score reaching the end of query. If this score is larger than the best SW score minus the clipping penalty, clipping will not be applied. Note that in this case, the SAM AS tag reports the best SW score; clipping penalty is not deducted. [5]
+		-U INT Penalty for an unpaired read pair. BWA-MEM scores an unpaired read pair as scoreRead1+scoreRead2-INT and scores a paired as scoreRead1+scoreRead2-insertPenalty. It compares these two scores to determine whether we should force pairing. [9] 
+		-M Mark shorter split hits as secondary (for Picard compatibility). 
+	"""
 	sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
 	print ("Mapping..........")
 	with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
@@ -408,7 +460,6 @@ def main(args):
 	# Get other input variables
 	alignments = args.reference
 	reads = args.reads
-	min_length = args.k
 	min_cov = args.min_coverage
 	reference = ''
 	reference_folder = "%s/reference_seqs" %out_dir
@@ -459,7 +510,7 @@ def main(args):
 				if not os.path.exists(log):
 					os.makedirs(log)
 				if mapper == "bwa":
-					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,min_length,log)
+					sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,args,log)
 				if not args.keep_duplicates:
 					sorted_bam, dupl_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam,log)
 				name_stem = '%s_bam_consensus' %sample_id
