@@ -27,6 +27,7 @@ COMMANDS = [
         'reference_assembly',
         'phase_alleles',
         'add_missing_sequences',
+        'select_best_cov_loci',
 ]
 
 

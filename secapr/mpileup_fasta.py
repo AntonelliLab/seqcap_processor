@@ -6,7 +6,7 @@ from .utils import CompletePath
 
 # Get arguments
 def get_args():
-    parser = argparse.ArgumentParser(description="Convert a mpileup file generated with samtools into fasta format",		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="Convert a mpileup file generated with samtools into fasta format", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--input',required=True,action=CompletePath,default=None,help='The mpileup file that you want to transform into fasta format')
 
