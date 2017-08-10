@@ -7,6 +7,8 @@ import glob
 import argparse
 import subprocess
 import csv
+import pickle
+from Bio import SeqIO
 from .utils import CompletePath
 
 
@@ -120,7 +122,7 @@ def get_complete_loci_list(subfolder_file_dict):
 
 
 
-def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,locus_dict_all_samples,sample_list):
+def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,locus_dict_all_samples,sample_list,reference):
     # 1. get a list of all read_depth files
     # iterate through list and calculate the average per locus
     # make sure loci are in same order for all samples
@@ -129,7 +131,13 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
     sample_id = read_depth_file.split('/')[-1].split('_')[0]
     sample_list.append(sample_id)
     print ('Calculating coverage for all loci from bam files for %s.........' %sample_id)
-
+    reference_library = SeqIO.parse(reference, "fasta")
+    locus_original_length_dict = {}
+    for reference in reference_library:
+        reference_locus = reference.name
+        reference_sequence = reference.seq
+        locus_length = len(str(reference_sequence))
+        locus_original_length_dict.setdefault(reference_locus,locus_length)
     sample_loci_dict = {}
     with open(read_depth_file, 'r') as f:
         reader = csv.reader(f, delimiter='\t')
@@ -145,7 +153,7 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
     
     for locus_name in complete_locus_list:
         if locus_name in sample_loci_dict:
-            avg_read_depth = sum(sample_loci_dict[locus_name])/len(sample_loci_dict[locus_name])
+            avg_read_depth = float(sum(sample_loci_dict[locus_name]))/float(locus_original_length_dict[locus_name])#the len here does not include positions with no coverage! needs to be corrected in script (info can be drawn from reference library)
             locus_dict_all_samples.setdefault(locus_name,[])
             locus_dict_all_samples[locus_name].append(avg_read_depth)
         else:
@@ -160,18 +168,23 @@ def main(args):
     input_dir = args.input
     output_folder = args.output
     if not os.path.exists(output_folder):
-	    os.makedirs(output_folder)
+        os.makedirs(output_folder)
     else:
-	    raise IOError("The directory {} already exists.  Please check and remove by hand.".format(output_folder))
-
-
+        raise IOError("The directory {} already exists.  Please check and remove by hand.".format(output_folder))
     # Create a dictionary containing the bam-file paths for each sample and tell if data is phased or unphased
     sample_bam_dict, input_type = get_bam_path_dict(input_dir)
     if input_type == 'unphased':
         subfolder_list = []
         subfolder_file_dict = {}
+        reference_file_dict = {}
+        # iterating through samples
         for key in sample_bam_dict:
             if key.endswith('_remapped'):
+                sample = key.split('_')[0]
+                path = os.path.join(input_dir,key)
+                path2 = os.path.join(path,'tmp')
+                reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
+                reference_file_dict.setdefault(sample,reference_pickle)        
                 bam = sample_bam_dict[key][0]
                 sample_dir, read_depth_file = get_bam_read_cov(bam,output_folder)
                 subfolder_file_dict.setdefault(sample_dir,read_depth_file)
@@ -180,9 +193,14 @@ def main(args):
         locus_dict_all_samples = {}
         sample_id_list = []
         for subfolder in subfolder_file_dict:
+            sample = subfolder.split('/')[-1].split('_')[0]
+            reference = ''
+            reference_pickle = reference_file_dict[sample]
+            with open(reference_pickle, 'rb') as handle:
+                reference = pickle.load(handle)
             read_depth_file = subfolder_file_dict[subfolder]
-            locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list)
-        
+            locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
+
         output_dict = {}
         # Create a separate list for each column in the final csv file
         final_locus_list = ['locus']
@@ -200,21 +218,15 @@ def main(args):
                 output_dict[key_name].append(read_depth)
 
         final_data_list = []
-        for column in output_dict:
+        for column in sorted(output_dict):
             data = output_dict[column]
             final_data_list.append(data)
-        
+
         output = open("%s/average_cov_per_locus.csv" %output_folder, "w")
         outlog=csv.writer(output, delimiter='\t')
         transformed_data = zip(*final_data_list)
         for row in transformed_data:
             outlog.writerow(row)
-
-
-
-
-
-
 
 
 
