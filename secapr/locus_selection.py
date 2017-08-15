@@ -37,17 +37,6 @@ def add_arguments(parser):
 	)
 
 
-# find all subfolders in input folder
-# if subfolder ends with "_remapped" or "_phased" find the bam-file
-# run the function on the bam file
-# make output dict with subfolder for every sample (_locus_selection)
-# print a text file with an overview over the read-depth accross all loci
-# choose the top n loci that have best coverage accross all samples (sum of scores accross all loci)
-# store selected loci in separate bam file (if possible)
-# store the consensus sequences for selected loci in sample_subfolder
-# create a final_fasta_file with the selected sequences form all samples
-
-
 def get_bam_path_dict(input_dir):
     type_input = ''
     subdirs = os.listdir(input_dir)
@@ -120,7 +109,6 @@ def get_complete_loci_list(subfolder_file_dict):
                 if locus_name not in locus_list:
                     locus_list.append(locus_name)
     return sorted(locus_list)
-
 
 
 def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,locus_dict_all_samples,sample_list,reference):
