@@ -159,16 +159,21 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,input_
         sample_subfolder = '/'.join(sample_bam_dict[key][0].split('/')[0:-1])
         sample_subfolder_dict.setdefault(sample_id,sample_subfolder)
     # Read the coverage overview file and select the ebst loci
-    coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.csv" %output_folder, sep = '\t')
+    coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %output_folder, sep = '\t')
     data_cols = coverage_all_samples.ix[:,1:]
     sum_per_sample = data_cols.sum()
     no_of_loci = len(coverage_all_samples)
     avg_read_cov_across_all_loci = sum_per_sample/no_of_loci
-    avg_read_cov_across_all_loci.sort_values(ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample' %output_folder, sep = '\t', index = True,header=False)
+    avg_read_cov_across_all_loci.sort_values(ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
     
     coverage_all_samples['sum_per_locus'] = data_cols.sum(axis=1)
     sorted_cov_df = coverage_all_samples.sort_values(['sum_per_locus'],ascending=False).copy()
     selection = sorted_cov_df[0:n]
+
+    # Create output file with read-depth overview of only the selected loci
+    selection_out = selection.copy()
+    #selection_out.remove('sum_per_locus')
+    selection_out.to_csv('%s/overview_selected_loci.txt' %output_folder,index=False,sep='\t')
     target_loci = list(selection.locus)
     # Now iterate through samples
     for sample in sample_subfolder_dict:
@@ -253,11 +258,12 @@ def main(args):
                 output_dict[key_name].append(read_depth)
 
         final_data_list = []
+
         for column in sorted(output_dict):
             data = output_dict[column]
             final_data_list.append(data)
 
-        output = open("%s/average_cov_per_locus.csv" %output_folder, "w")
+        output = open("%s/average_cov_per_locus.txt" %output_folder, "w")
         outlog=csv.writer(output, delimiter='\t')
         transformed_data = zip(*final_data_list)
         for row in transformed_data:
