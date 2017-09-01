@@ -35,6 +35,12 @@ def add_arguments(parser):
 		default=30,
 		help='The n loci that are best represented accross all samples will be extracted.'
 	)
+	parser.add_argument(
+		'--read_cov',
+		type=int,
+		default=3,
+		help='The threshold for what average read coverage the selected target loci should at least have.'
+	)
 
 
 def get_bam_path_dict(input_dir):
@@ -148,7 +154,7 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
     return locus_dict_all_samples 
 
 
-def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,input_type):
+def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type):
     output_subfolder_dict = {}
     for key in subfolder_file_dict:
         sample_id = key.split('/')[-1].split('_')[0]
@@ -158,17 +164,46 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,input_
         sample_id = key.split('_')[0]
         sample_subfolder = '/'.join(sample_bam_dict[key][0].split('/')[0:-1])
         sample_subfolder_dict.setdefault(sample_id,sample_subfolder)
+    
     # Read the coverage overview file and select the ebst loci
     coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %output_folder, sep = '\t')
-    data_cols = coverage_all_samples.ix[:,1:]
-    sum_per_sample = data_cols.sum()
-    no_of_loci = len(coverage_all_samples)
-    avg_read_cov_across_all_loci = sum_per_sample/no_of_loci
-    avg_read_cov_across_all_loci.sort_values(ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
     
-    coverage_all_samples['sum_per_locus'] = data_cols.sum(axis=1)
-    sorted_cov_df = coverage_all_samples.sort_values(['sum_per_locus'],ascending=False).copy()
-    selection = sorted_cov_df[0:n]
+    # Return boolean for every field, depending on if its greater than the threshold
+    thres_test = coverage_all_samples.ix[:,1:]>threshold
+    # Extract only those rows for which all fields returned 'True' and store in new df
+    selected_rows = pd.DataFrame([])
+    for line in thres_test.iterrows():
+        line = line[1]
+        if line.all():
+            selected_rows = selected_rows.append(line)
+    # Store all indices of the selected data (selected_rows) in a list
+    indeces = list(selected_rows.index.get_values())
+    # Use indices to extract rows from oriignal df and create new one from it
+    loci_passing_test = coverage_all_samples.iloc[indeces,:].copy()
+    list_of_good_loci = list(loci_passing_test.locus)
+    # Calculate the read-depth sum across all samples for each locus and store as new column in df 
+    loci_passing_test['sum_per_locus'] = loci_passing_test.ix[:,1:].sum(axis=1)
+    # Sort the df by the 'sum' column to have the best covered loci on top
+    loci_passing_test.sort_values('sum_per_locus', axis=0, ascending=False, inplace=True)
+    # select best n rows
+    selection = pd.DataFrame([])
+    if len(loci_passing_test) >= n:
+        selection = loci_passing_test[:n].copy()
+    else:
+        selection = loci_passing_test[:].copy()
+    #***************************
+    # This was a previous solution, but not including a control for having at least [threshold] avg read coverage
+    #data_cols = coverage_all_samples.ix[:,1:]
+    #sum_per_sample = data_cols.sum()
+    #coverage_all_samples['sum_per_locus'] = data_cols.sum(axis=1)
+    #sorted_cov_df = coverage_all_samples.sort_values(['sum_per_locus'],ascending=False).copy()
+    #selection = sorted_cov_df[0:n]
+    #***************************
+
+    no_of_loci = len(coverage_all_samples)
+    # An output for knowing which samples worked best
+    avg_read_cov_across_all_loci = selection.sum_per_locus/no_of_loci
+    avg_read_cov_across_all_loci.sort_values(ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
 
     # Create output file with read-depth overview of only the selected loci
     selection_out = selection.copy()
@@ -205,6 +240,7 @@ def main(args):
     input_dir = args.input
     output_folder = args.output
     n = args.n
+    threshold = args.read_cov
 
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -268,7 +304,7 @@ def main(args):
         transformed_data = zip(*final_data_list)
         for row in transformed_data:
             outlog.writerow(row)
-        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,input_type)
+        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type)
 
     elif input_type == 'phased':
         phased = True

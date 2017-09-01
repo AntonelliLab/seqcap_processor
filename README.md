@@ -1,6 +1,9 @@
 # SEquence CApture PRocessor (SECAPR)
 
 ## See the [documentation](./documentation.ipynb)
+
+## Installation instructions are also found in the [documentation](./documentation.ipynb) or under [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/secapr/README.html)
+
 This semi-automated pipeline aims to make the processing and analysis of sequence capture data simple and straight forward for all users. The detailed workflow and simple installation setup makes this workflow accessible also for users with limited biofinformatic knowledge, while enabling user-defined processing options for the more experienced users. This workflow covers the processing from raw Illumina read data into different data-types and -formats, commonly used in phylogenetic analyses (e.g. SNPs, multiple sequence alignments, haplotype sequences, etc.).
 
 This workflow can be applied to any Illumina dataset, independently of the underlying bait set and organism group. All scripts are written in python2.7 and in some cases have to be run with that specific python version for proper functioning!

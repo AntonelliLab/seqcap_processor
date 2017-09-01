@@ -40,24 +40,10 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		'--assembler',
-		choices=["trinity", "abyss"],
+		choices=["abyss","trinity"],
 		default="abyss",
-		help="""The assembler to use."""
+		help="""The assembler to use (default = abyss)."""
 	)
-	'''
-	parser.add_argument(
-		'--trinity',
-		default="/usr/local/bin/trinityrnaseq_r20140717/Trinity",
-		action=CompletePath,
-		help='The path to the Trinity executable'
-	)
-	parser.add_argument(
-		'--abyss',
-		default="/usr/local/packages/anaconda2/bin/abyss-pe",
-		action=CompletePath,
-		help='The path to the abyss-pe executable'
-	)
-	'''
 	parser.add_argument(
 		'--kmer',
 		type=int,
