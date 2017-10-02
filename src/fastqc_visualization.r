@@ -34,7 +34,7 @@ inp <- list.files(opt$input_folder, pattern = ".zip")
 
 fastqc_results <- lapply(inp, function(k){
   unzip(paste(opt$input_folder, k, sep = "/"),exdir = opt$input_folder)
-  inpu <- read_delim(paste(paste(gsub(".zip", "", paste(opt$input_folder,k, sep = ""))), 
+  inpu <- read_delim(paste(paste(gsub(".zip", "", paste(opt$input_folder,k, sep = "/"))), 
                            "summary.txt", sep = "/"), delim = "\t")
   out <- as_data_frame(t(inpu[, 1])) %>%
     mutate(sample.id = names(inpu)[3])

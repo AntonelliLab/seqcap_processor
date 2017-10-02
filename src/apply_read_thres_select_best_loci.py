@@ -38,6 +38,9 @@ loci_passing_test['sum'] = loci_passing_test.ix[:,1:].sum(axis=1)
 # Sort the df by the 'sum' column to have the best covered loci on top
 loci_passing_test.sort_values('sum', axis=0, ascending=False, inplace=True)
 
+# select best n columns
+n=15
+selection = loci_passing_test[:15].copy()
+type(selection)
 # Write the sorted df to a csv file
-loci_passing_test.to_csv('/Users/tobias/GitHub/seqcap_processor/data/processed/selected_loci/loci_passing_threshold_%s' %str(threshold), sep = '\t', index = False)
-
+loci_passing_test.to_csv('/Users/tobias/GitHub/seqcap_processor/data/processed/selected_loci/loci_passing_threshold_%s.txt' %str(threshold), sep = '\t', index = False)
