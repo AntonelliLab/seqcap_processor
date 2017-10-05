@@ -72,7 +72,7 @@ qc.fail <- ggplot()+
 #plot which sample failed which test
 qc.samples <- ggplot()+
   geom_tile(data = ret, aes(y = ID, x = test, fill = as.factor(status)))+
-  scale_fill_discrete(name = "Test\nstatus")+
+  scale_fill_discrete(name = "status")+
   xlab("FastQC test")+
   ylab("Samples")+
   theme_bw()+
