@@ -14,9 +14,45 @@ import plotly.plotly as py
 import plotly.graph_objs as go
 plotly.tools.set_credentials_file(username='tobiashofmann', api_key='ghmgZgNORWKfmfW8rEWO')
 
-# Read the data as pandas dataframe
+
+
+# Get the data as pandas dataframe
 log_file = 'data/processed/selected_loci/average_cov_per_locus.txt'
 data_input = pd.read_csv(log_file, sep = '\t')
+
+
+def calculate_percent_increase(a,b):
+    x=(b-a)/a
+    return x
+
+calculate_percent_increase(45,97)
+
+# print stats how many loci per taxon are covered by more than 3 reads
+count_of_well_covered_loci_per_sample = []
+for sample in data_input:
+    column = data_input[sample]
+    if column.dtype == 'float64':
+        count_of_well_covered_loci_per_sample.append(len(column[column>=3.]))
+mean_well_covered_loci = np.mean(count_of_well_covered_loci_per_sample)
+std_well_covered_loci = np.std(count_of_well_covered_loci_per_sample)
+
+contigs_matching_target_loci = [329,323,329,332,329,321,335,296,351,305,317,309,335,323,299,329,337]
+np.mean(contigs_matching_target_loci)
+np.std(contigs_matching_target_loci)
+
+contigs_matching_multiple_exons = [111,108,102,110,116,98,88,113,103,117,110,127,92,98,118,73,11]
+np.mean(contigs_matching_multiple_exons)
+np.std(contigs_matching_multiple_exons)
+
+# Get stats how many loci are well covered across all samples
+all_loci = list(data_input.iloc[:,0])
+for locus in data_input.iterrows():
+    locus_name = locus[1][0]
+    for sample in locus[1][1:]:
+        if sample < 3.:
+            if locus_name in all_loci:
+                all_loci.remove(locus_name)
+len(all_loci)
 
 # Sort the data
 # Sort the column locus alphabetically
@@ -79,7 +115,7 @@ layout = go.Layout(
     yaxis = dict(nticks=len(x_axis)),
 )
 figure1 = go.Figure(data=data, layout=layout)
-#py.plot(figure)
+py.plot(figure1)
 py.image.save_as(figure1, format = 'pdf', filename='./data/processed/selected_loci/read_coverage_per_locus_all_loci.pdf', width = 1080, height = 1000)
 
 
