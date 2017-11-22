@@ -123,16 +123,20 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
 	return invalid_exon_loci, exons_with_multiple_hits, contigs_matching_multiple_exons
 
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,invalid_exon_loci,exons_with_multiple_hits,contigs_matching_multiple_exons,keep_duplicates_boolean,outdir):
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,outdir):
 	# summarize all exons that should be excluded form further processing (duplicates)
 	if keep_duplicates_boolean:
-		#then only mark the list exons_with_multiple_hits as bad exons
+		# then only mark the list exons_with_multiple_hits as bad exons
 		invalid_exons_unique = list(set(exons_with_multiple_hits))
-		dupl_info = pd.DataFrame.from_dict(contigs_matching_multiple_exons, orient='index')
+		valid_contigs_matching_multiple_exon_dict = {}
+		for exon in contigs_matching_multiple_exon_dict.keys():
+			if not exon in invalid_exons_unique:
+				valid_contigs_matching_multiple_exon_dict.setdefault(exon,contigs_matching_multiple_exon_dict[exon])
+		dupl_info = pd.DataFrame.from_dict(valid_contigs_matching_multiple_exon_dict, orient='index')
 		dupl_info.to_csv(os.path.join(outdir,'info_contigs_matching_multiple_exons.txt'),header=False,sep="\t")
 	else:
-		#remove all duplicates
-		invalid_exons_unique = list(set(invalid_exon_loci))
+		# remove all duplicates
+		invalid_exons_unique = list(set(duplicate_loci))
 	print(len(invalid_exons_unique), 'possibly paralogous exons detected - excluded from processing')
 	# get list of valid contig names
 	valid_contig_names = []
@@ -144,6 +148,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,invalid_exon_loci,exons
 
 
 def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_exon_dict,contig_orientation_dict,subfolder):
+	printed_contigs_counter = 0
 	# define the output file where extracted contigs will be stored
 	global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
 	global_match_output_file = os.path.join('/'.join(subfolder.split('/')[:-1]),global_match_output_name)
@@ -160,10 +165,20 @@ def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_
 					else:
 						seq = fasta.seq
 					# get the corresponding exon locus name from the dictionary
-					header = '%s_%s' %(contig_exon_dict[fasta.id][0],sample_id)
-					new_fasta = SeqRecord(seq, id=header, name='', description='')
-					out_file.write(new_fasta.format('fasta'))
-					sample_file.write(new_fasta.format('fasta'))
+					if len(contig_exon_dict[fasta.id])>1:
+						for matching_locus in contig_exon_dict[fasta.id]:
+							header = '%s_%s |%s' %(matching_locus,sample_id,matching_locus)
+							new_fasta = SeqRecord(seq, id=header, name='', description='')
+							out_file.write(new_fasta.format('fasta'))
+							sample_file.write(new_fasta.format('fasta'))
+							printed_contigs_counter += 1 						
+					else:		
+						header = '%s_%s |%s' %(contig_exon_dict[fasta.id][0],sample_id,contig_exon_dict[fasta.id][0])
+						new_fasta = SeqRecord(seq, id=header, name='', description='')
+						out_file.write(new_fasta.format('fasta'))
+						sample_file.write(new_fasta.format('fasta'))
+						printed_contigs_counter += 1 
+	return printed_contigs_counter
 
 
 def main(args):
@@ -187,9 +202,9 @@ def main(args):
 	log.info("Processing contig data")
 	log.info("{}".format("-" * 65))
 	# Start processing by iterating through contig files (=samples)
-	for contig in sorted(fasta_files):
+	for contig_file in sorted(fasta_files):
 		# Get the name of the sample
-		critter = os.path.basename(contig).split('.')[0]#.replace('-', "_")
+		critter = os.path.basename(contig_file).split('.')[0]#.replace('-', "_")
 		# Make subfolder for each sample
 		subfolder = os.path.join(args.output,critter)
 		if not os.path.isdir(subfolder):
@@ -197,13 +212,13 @@ def main(args):
 		# Define sample-specific lastz output file
 		lastz_output = os.path.join(subfolder,'%s.lastz'%critter)
 		# Print some stats to screen
-		total_count_of_contig = contig_count(contig)
+		total_count_of_contig = contig_count(contig_file)
 		print('%s:\n'%critter,'Total contigs: %i\nSearching for contigs with matches in reference database.'%total_count_of_contig)
 		# Blast the the contigs against the reference file
 		with open(lastz_output, 'w') as lastz_out_file:
 			lastz_command = [
 				'lastz',
-				'%s[multiple,nameparse=full]'%contig,
+				'%s[multiple,nameparse=full]'%contig_file,
 				'%s[nameparse=full]'%args.reference,
                 '--strand=both',
                 '--seed=12of19',
@@ -232,20 +247,37 @@ def main(args):
 		# remove duplicate loci from the list of targeted loci and contigs
 		target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,subfolder)
 		# load the actual contig sequences
-		contig_sequences = SeqIO.parse(open(contig),'fasta')
+		contig_sequences = SeqIO.parse(open(contig_file),'fasta')
 		# write those contigs that match the reference library to the file
-		extract_target_contigs(critter,contig_sequences,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
+		extracted_contig_counter = extract_target_contigs(critter,contig_sequences,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
 		# Fill the extracted target contig into the dataframe
 		for contig in target_contigs:
 			for exon in contig_exon_dict[contig]:
 				contig_match_df.loc[exon,critter] = 1		
-		print('Extracted %i contigs matching reference exons\n' %len(target_contigs))
+		print('Extracted %i contigs matching reference exons\n' %extracted_contig_counter)
 		log.info("{}".format("-" * 65))
+	
 	contig_match_df.to_csv(os.path.join(args.output,'match_table.txt'),sep='\t',index=True,encoding='utf-8')
-	# Get the data from the df
-	sample_labels = contig_match_df.columns
-	locus_labels = np.array(contig_match_df.index)
-	data = np.matrix(contig_match_df).T
+	# Print summary stats
+	table = pd.read_csv(os.path.join(args.output,'match_table.txt'), delimiter = '\t',index_col=0)
+	with open(os.path.join(args.output,'summary_stats.txt'), "w") as out_file:
+		out_file.write('Total number of samples: %i\nTotal number of targeted exons: %i\n\n'%(len(table.columns),len(table)))
+		complete_loci_counter = 0
+		for locus in table.iterrows():
+			if sum(locus[1]) == len(locus[1]):
+				complete_loci_counter += 1
+		out_file.write('%i exons are shared by all samples.\n\n'%complete_loci_counter)
+		count_list = []
+		for column in table.columns:
+			count_list.append(sum(table[column]))
+			out_file.write('%s: %i extracted contigs\n'%(column,sum(table[column])))
+		out_file.write('mean: %f stdev: %f'%(np.mean(count_list),np.std(count_list)))
+
+#	# Make plot of match table
+#	# Get the data from the df
+#	sample_labels = contig_match_df.columns
+#	locus_labels = np.array(contig_match_df.index)
+#	data = np.matrix(contig_match_df).T
 #	# Define the figure and plot to png file
 #	fig, ax = plt.subplots()
 #	mat = ax.imshow(data, cmap='GnBu', interpolation='nearest')
@@ -256,7 +288,3 @@ def main(args):
 #	plt.xlabel('exon',fontsize=3)
 #	plt.ylabel('sample',fontsize=3)
 #	fig.savefig(os.path.join(args.output,'contig_exon_matrix.png'), dpi = 500)
-
-
-# how many contigs matching exons were extracted for each sample?
-# print table with match output
