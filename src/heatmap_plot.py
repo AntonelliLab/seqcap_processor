@@ -169,7 +169,7 @@ data2 = go.Heatmap(z=trans_z_axis,
                    x=y_axis,
                    y=x_axis,
                    xaxis='x2',
-                   yaxis='y2'
+                   yaxis='y2',
                    zmin = 1.0,
                    zmax = 20.0,
                    #colorscale='Viridis',

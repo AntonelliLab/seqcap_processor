@@ -21,7 +21,6 @@ COMMANDS = [
         'clean_reads',
         'assemble_reads',
         'find_target_contigs',
-        'extract_contigs',
         'align_sequences',
         'join_exons',
         'reference_assembly',

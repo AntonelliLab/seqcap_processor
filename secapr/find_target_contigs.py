@@ -1,63 +1,22 @@
 # encoding: utf-8
-
-"""
-Find all contigs that match reference fasta file and flag them for subsequent extraction
-
-Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-
-* Neither the name of the University of California, Los Angeles nor the names
-of its contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-________________________________________
-Modified by Tobias Hofmann (tobias.hofmann@bioenv.gu.se):
-Additions include:
-- automatic generation of config file including all recovered exon names for further processing in this pipeline				- new section in config file containing the orientation of all contigs, for duplicates
-- automatic generation of the match-table in tab-delimited text-format to be opened in e.g. Excel for match overview
-- user-input choice for path to sqlite3, which is necesarry to access the database and generate the match-text-file				- automated correction of input sample names, to avoid annoying errors with sqlite.
-- renaming of uce-related parameters into exon-terminology
-- modification of regex-patterns to match ABySS or Trinity contigs (can be specified with --assembler flag)
-________________________________________
-
-"""
-
+'''
+Extract the contigs that match the reference database
+'''
 
 from __future__ import print_function
 import re
 import os
 import sys
 import glob
-import copy
-import operator
-import itertools
 import logging
-import sqlite3
 import argparse
-from phyluce import lastz
+import subprocess
+import numpy as np
+import pandas as pd
+#import pylab as plt
 from phyluce.helpers import is_dir, is_file, FullPaths
-from collections import defaultdict
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
 #import pdb
 log = logging.getLogger(__name__)
@@ -81,21 +40,7 @@ def add_arguments(parser):
 		'--output',
 		required=True,
 		action=FullPaths,
-		help="The directory in which to store the resulting SQL database and LASTZ files."
-	)
-	parser.add_argument(
-		"--verbosity",
-		type=str,
-		choices=["INFO", "WARN", "CRITICAL"],
-		default="INFO",
-		help="The logging level to use."
-	)
-	parser.add_argument(
-		"--log-path",
-		action=FullPaths,
-		type=is_dir,
-		default=None,
-		help="The path to a directory to hold logs."
+		help="The directory in which to store the extracted target contigs and lastz results."
 	)
 	parser.add_argument(
 		'--min-coverage',
@@ -110,10 +55,6 @@ def add_arguments(parser):
 		help="The minimum percent identity required for a match [default=80]."
 	)
 	parser.add_argument(
-		'--dupefile',
-		help="Path to self-to-self lastz results for baits to remove potential duplicate probes."
-	)
-	parser.add_argument(
 		"--regex",
 		type=str,
 		default=".*",
@@ -121,163 +62,15 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		"--keep-duplicates",
-		type=str,
-		default=None,
-		help="A optional output file in which to store those loci that appear to be duplicates.",
+		action='store_true',
+		default=False,
+		help="Use this flag in case you want to keep those contigs that span across multiple exons.",
 	)
-	parser.add_argument(
-		'--sqlite3',
-		type=str,
-		default="/usr/bin/sqlite3",
-		action=FullPaths,
-		help="The complete path to sqlite3"
-	)
-	parser.add_argument(
-		'--assembler',
-		choices=["trinity", "abyss"],
-		default="abyss",
-		help="""Please specify which assembler was used to generate the input contigs"""
-	)
-	
-
-
-def create_probe_database(log, db, organisms, exons):
-	"""Create the exon-match database"""
-	log.info("Creating the exon-match database")
-	conn = sqlite3.connect(db)
-	c = conn.cursor()
-	c.execute("PRAGMA foreign_keys = ON")
-	try:
-		create_string = [org + ' text' for org in organisms]
-		query = "CREATE TABLE matches (exon text primary key, {0})".format(','.join(create_string))
-		c.execute(query)
-		query = "CREATE TABLE match_map (exon text primary key, {0})".format(','.join(create_string))
-		c.execute(query)
-		# convert exons to list of tuples for executemany
-		all_exons = [(exon,) for exon in exons]
-		c.executemany("INSERT INTO matches(exon) values (?)", all_exons)
-		c.executemany("INSERT INTO match_map(exon) values (?)", all_exons)
-	except sqlite3.OperationalError, e:
-		log.critical("Database already exists")
-		if e[0] == 'table matches already exists':
-			answer = raw_input("Database already exists.  Overwrite [Y/n]? ")
-			if answer == "Y" or "YES":
-				os.remove(db)
-				conn, c = create_probe_database(db, organisms, exons)
-			else:
-				sys.exit(2)
-		else:
-			log.critical("Cannot create database")
-			raise sqlite3.OperationalError("Cannot create database")
-	return conn, c
-
-
-def store_lastz_results_in_db(c, matches, orientation, critter):
-	"""enter matched loci in database"""
-	for key, match in matches.iteritems():
-		# We should have dropped all duplicates at this point
-		assert len(match) == 1, "More than one match"
-		item = list(match)[0]
-		insert_string = "UPDATE matches SET {0} = 1 WHERE exon = '{1}'".format(critter, item)
-		c.execute(insert_string)
-		#pdb.set_trace()
-		orient_key = "{0}({1})".format(key, list(orientation[item])[0])
-		insert_string = "UPDATE match_map SET {0} = '{1}' WHERE exon = '{2}'".format(critter, orient_key, item)
-		c.execute(insert_string)
-
-
-def get_dupes(log, lastz_file, regex):
-	"""Given a lastz_file of probes aligned to themselves, get duplicates"""
-	log.info("Checking probe/bait sequences for duplicates")
-	matches = defaultdict(list)
-	dupes = set()
-	# get names and strip probe designation since loci are the same
-	for lz in lastz.Reader(lastz_file):
-		target_name = new_get_probe_name(lz.name1, regex)
-		query_name = new_get_probe_name(lz.name2, regex)
-		matches[target_name].append(query_name)
-	# see if one probe matches any other probes
-	# other than the children of the locus
-	for k, v in matches.iteritems():
-		# if the probe doesn't match itself, we have
-		# problems
-		if len(v) > 1:
-			for i in v:
-				if i != k:
-					dupes.add(k)
-					dupes.add(i)
-		elif k != v[0]:
-			dupes.add(k)
-	# make sure all names are lowercase
-	return set([d.lower() for d in dupes])
 
 
 def contig_count(contig):
 	"""Return a count of contigs from a fasta file"""
 	return sum([1 for line in open(contig, 'rU').readlines() if line.startswith('>')])
-
-
-def get_organism_names_from_fasta_files(ff):
-	"""Given a fasta file name, parse taxon name from file name"""
-	return [os.path.basename(f).split('.')[0] for f in ff]
-
-
-def check_contigs_for_dupes(matches):
-	"""check for contigs that match more than 1 exon locus"""
-	node_dupes = defaultdict(list)
-	for node in matches:
-		node_dupes[node] = len(set(matches[node]))
-	dupe_set = set([node for node in node_dupes if node_dupes[node] > 1])
-	return dupe_set
-
-
-def check_loci_for_dupes(revmatches):
-	"""Check for exon probes that match more than one contig"""
-	dupe_contigs = []
-	dupe_exons = []
-	for exon, node in revmatches.iteritems():
-		if len(node) > 1:
-			dupe_contigs.extend(node)
-			dupe_exons.append(exon)
-	#dupe_contigs = set([i for exon, node in revmatches.iteritems() if len(node) > 1 for i in list(node)])
-	#pdb.set_trace()
-	return set(dupe_contigs), set(dupe_exons)
-
-
-def pretty_log_output(log, critter, matches, contigs, pd, mc, exon_dupe_exons):
-	"""Write some nice output to the logfile/stdout"""
-	unique_matches = sum([1 for node, exon in matches.iteritems()])
-	out = "{0}: {1} ({2:.2f}%) uniques of {3} contigs, {4} dupe probe matches, " + \
-		"{5} exon loci removed for matching multiple contigs, {6} contigs " + \
-		"removed for matching multiple exon loci"
-	log.info(
-		out.format(
-			critter,
-			unique_matches,
-			float(unique_matches) / contigs * 100,
-			contigs,
-			len(pd),
-			len(exon_dupe_exons),
-			len(mc)
-		)
-	)
-
-
-def get_contig_name(header,args):
-	#parse the contig name from the header of Trinity assembled contigs"
-	#args = get_args()
-	match = ""
-	if args.assembler == "trinity":
-		match = re.search("^(c\d+_g\d+_i\d+).*", header)
-	elif args.assembler == "abyss":
-		match = re.search("^(\d+).*", header)
-	#print "match:", match
-	return match.groups()[0]
-
-
-def get_kmer_value(header):
-	match = re.search("^\d*\s\d*\s(\d*).*", header)
-	return match.groups()[0]
 
 
 def new_get_probe_name(header, regex):
@@ -286,181 +79,184 @@ def new_get_probe_name(header, regex):
 	return match.groups()[0]
 
 
+def contigs_matching_exons(lastz_df):
+	# make a dictionary with all contig names that match a exon locus
+	exon_contig_dict = {}
+	contig_exon_dict = {}
+	contig_orientation_dict = {}
+	contig_multi_exon_dict = {}
+	for row in lastz_df.iterrows():
+		locus = row[1].name2
+		locus_name = re.sub('\_p[0-9]* \|.*', '', locus)
+		locus_name = re.sub('^>', '', locus_name)
+		contig_header = row[1].name1
+		#print(contig_header)
+		contig_name = re.sub('^\>([0-9]*) .*', '\\1', contig_header)
+		#print(contig_name)
+		exon_contig_dict.setdefault(locus_name,[])
+		exon_contig_dict[locus_name].append(contig_name)
+		contig_exon_dict.setdefault(contig_name,[])
+		contig_exon_dict[contig_name].append(locus_name)
+		orientation = row[1].strand2
+		contig_orientation_dict.setdefault(contig_name,orientation)
+	for contig in contig_exon_dict.keys():
+		if len(contig_exon_dict[contig]) > 1:
+			contig_multi_exon_dict.setdefault(contig,contig_exon_dict[contig])
+	return exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict
+
+
+def find_duplicates(exon_contig_dict,contig_exon_dict):
+	# get exons that have multiple contigs matching them
+	invalid_exon_loci = []
+	exons_with_multiple_hits = []
+	for exon in exon_contig_dict.keys():
+		if len(exon_contig_dict[exon]) > 1:
+			exons_with_multiple_hits.append(exon)
+			invalid_exon_loci.append(exon)
+	# get exons that match on multiple contigs
+	contigs_matching_multiple_exons = []
+	for contig in contig_exon_dict.keys():
+		if len(contig_exon_dict[contig]) > 1:
+			contigs_matching_multiple_exons.append(contig)
+			for exon in contig_exon_dict[contig]:
+				invalid_exon_loci.append(exon)
+	return invalid_exon_loci, exons_with_multiple_hits, contigs_matching_multiple_exons
+
+
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,invalid_exon_loci,exons_with_multiple_hits,contigs_matching_multiple_exons,keep_duplicates_boolean,outdir):
+	# summarize all exons that should be excluded form further processing (duplicates)
+	if keep_duplicates_boolean:
+		#then only mark the list exons_with_multiple_hits as bad exons
+		invalid_exons_unique = list(set(exons_with_multiple_hits))
+		dupl_info = pd.DataFrame.from_dict(contigs_matching_multiple_exons, orient='index')
+		dupl_info.to_csv(os.path.join(outdir,'info_contigs_matching_multiple_exons.txt'),header=False,sep="\t")
+	else:
+		#remove all duplicates
+		invalid_exons_unique = list(set(invalid_exon_loci))
+	print(len(invalid_exons_unique), 'possibly paralogous exons detected - excluded from processing')
+	# get list of valid contig names
+	valid_contig_names = []
+	for exon in exon_contig_dict:
+		if exon not in invalid_exons_unique:
+			contig_name = exon_contig_dict[exon]
+			valid_contig_names.append(contig_name[0])
+	return valid_contig_names
+
+
+def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_exon_dict,contig_orientation_dict,subfolder):
+	# define the output file where extracted contigs will be stored
+	global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
+	global_match_output_file = os.path.join('/'.join(subfolder.split('/')[:-1]),global_match_output_name)
+	sample_match_output_name = 'extracted_target_contigs%s.fasta'%sample_id
+	sample_match_output_file = os.path.join(subfolder,sample_match_output_name)
+	# extract valid contigs form contig file and print to fasta file with exon-names+ sample_id as headers
+	with open(global_match_output_file, "a") as out_file:
+		with open(sample_match_output_file, "w") as sample_file:
+			for fasta in contig_sequences:
+				if fasta.id in valid_contig_names:
+					orientation = contig_orientation_dict[fasta.id]
+					if orientation == '-':
+						seq = fasta.seq.reverse_complement()
+					else:
+						seq = fasta.seq
+					# get the corresponding exon locus name from the dictionary
+					header = '%s_%s' %(contig_exon_dict[fasta.id][0],sample_id)
+					new_fasta = SeqRecord(seq, id=header, name='', description='')
+					out_file.write(new_fasta.format('fasta'))
+					sample_file.write(new_fasta.format('fasta'))
+
+
 def main(args):
-	#args = get_args()
-	pre_regex = args.regex
-	regex = re.compile("^(%s)(?:.*)" %pre_regex)
 	if not os.path.isdir(args.output):
 		os.makedirs(args.output)
 	else:
 		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(args.output))
+	# Get the list of exons from reference file
+	pre_regex = args.regex
+	regex = re.compile("^(%s)(?:.*)" %pre_regex)
 	exons = set(new_get_probe_name(seq.id, regex) for seq in SeqIO.parse(open(args.reference, 'rU'), 'fasta'))
-	#print exons
-	if args.dupefile:
-		dupes = get_dupes(log, args.dupefile, regex)
-	else:
-		dupes = set()
+	sorted_exon_list = sorted(list(exons))
+	# Get the paths to the contig fasta files for all samples
 	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
-	for f in fasta_files:
-		replace_bad_fasta_chars = "sed -i -e '/>/! s=[K,Y,R,S,M,W,B,D,H,V,k,y,r,s,m,w,b,d,h,v]=N=g' %s" %f
-		remove_os_sed_copies = "rm %s/*-e " %args.contigs
-		fasta_name = f.split('/')[-1]
-		if not fasta_name.startswith('sample'):
-			rename_samples = "mv %s %s/sample_%s" %(f,args.contigs,fasta_name)
-			os.system(rename_samples)
-		os.system(replace_bad_fasta_chars)
-		os.system(remove_os_sed_copies)
-	fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
-	organisms = get_organism_names_from_fasta_files(fasta_files)
-	conn, c = create_probe_database(
-		log,
-		os.path.join(args.output, 'probe.matches.sqlite'),
-		organisms,
-		exons
-	)
+	sample_ids = [os.path.basename(fasta).split('.')[0] for fasta in fasta_files]
+	# Create a dataframe filled with 0's
+	contig_match_df = pd.DataFrame(index=sorted_exon_list,columns=sample_ids)
+	for locus in sorted_exon_list:
+		contig_match_df.loc[locus] = [0]*len(sample_ids)
+	# Print some log screen output
 	log.info("Processing contig data")
-	# open a file for duplicate writing, if we're interested
-	if args.keep_duplicates is not None:
-		dupefile = open(args.keep_duplicates, 'w')
-	else:
-		dupefile = None
 	log.info("{}".format("-" * 65))
-	kmers = {}
+	# Start processing by iterating through contig files (=samples)
 	for contig in sorted(fasta_files):
-		critter = os.path.basename(contig).split('.')[0].replace('-', "_")
-		output = os.path.join(
-			args.output,
-			os.path.splitext(os.path.basename(contig))[0] + '.lastz'
-		)
-		contigs = contig_count(contig)
-		# align the probes to the contigs
-		alignment = lastz.Align(
-			contig,
-			args.reference,
-			args.min_coverage,
-			args.min_identity,
-			output
-		)
-		lzstdout, lztstderr = alignment.run()
-		if lztstderr:
-			raise EnvironmentError("lastz: {}".format(lztstderr))
-		# parse the lastz results of the alignment
-		matches = defaultdict(set)
-		orientation = defaultdict(set)
-		revmatches = defaultdict(set)
-		probe_dupes = set()
-		if not lztstderr:
-			for lz in lastz.Reader(output):
-				contig_name = get_contig_name(lz.name1,args)
-				exon_name = new_get_probe_name(lz.name2, regex)
-				if args.dupefile and exon_name in dupes:
-					probe_dupes.add(exon_name)
-				else:
-					matches[contig_name].add(exon_name)
-					orientation[exon_name].add(lz.strand2)
-					revmatches[exon_name].add(contig_name)
-
-		# we need to check nodes for dupe matches to the same probes
-		contigs_matching_mult_exons = check_contigs_for_dupes(matches)
-		exon_dupe_contigs, exon_dupe_exons = check_loci_for_dupes(revmatches)
-		nodes_to_drop = contigs_matching_mult_exons.union(exon_dupe_contigs)
-		# write out duplicates if requested
-		if dupefile is not None:
-			log.info("Writing duplicates file for {}".format(critter))
-			if len(exon_dupe_exons) != 0:
-				dupefile.write("[{} - probes hitting multiple contigs]\n".format(critter))
-				for exon in exon_dupe_exons:
-					dupefile.write("{}:{}\n".format(exon, ', '.join(revmatches[exon])))
-				dupefile.write("\n")
-			if len(contigs_matching_mult_exons) != 0:
-				dupefile.write("[{} - contigs hitting multiple probes]\n".format(critter))
-				for dupe in contigs_matching_mult_exons:
-					dupefile.write("{}:{}\n".format(dupe, ', '.join(matches[dupe])))
-				dupefile.write("\n")
-				dupefile.write("[{} - contig orientation]\n".format(critter))
-				for dupe in contigs_matching_mult_exons:
-					matches_list = list(matches[dupe])
-					for exon in matches_list:
-						dupefile.write("{}:{}\n".format(exon,list(orientation[exon])[0]))
-				dupefile.write("\n")
-
-
-
-
-		# remove dupe and/or dubious nodes/contigs
-		match_copy = copy.deepcopy(matches)
-		for k in match_copy.keys():
-			if k in nodes_to_drop:
-				del matches[k]
-		#print matches
-		#print lz.name1
-		#get contig id
-		#contig_id = re.search("^(\d*)\s\d*\s\d*.*", lz.name1).groups()[0]
-		#print matches
-
-		#added function to return the kmer count (sum of all kmers of target contigs)
-		for lz in lastz.Reader(output):
-			for element in matches:
-				#print element, "has to match", lz[1]
-				if re.search("^(\d*)\s\d*\s\d*.*", lz[1]).groups()[0] == element:
-					kmer_value = get_kmer_value(lz.name1)
-					kmers.setdefault(contig,[])
-					kmers[contig].append(kmer_value)
-		store_lastz_results_in_db(c, matches, orientation, critter)
-		conn.commit()
-		pretty_log_output(
-			log,
-			critter,
-			matches,
-			contigs,
-			probe_dupes,
-			contigs_matching_mult_exons,
-			exon_dupe_exons
-		)
-
-	kmerfile = open(os.path.join(args.output,'kmer_count.txt'), 'w')
-
-	for key in kmers:
-		count = 0
-		for element in kmers[key]:
-			count += int(element)
-		kmerfile.write("%s : %d\n" %(os.path.basename(key).split('.')[0],count))
+		# Get the name of the sample
+		critter = os.path.basename(contig).split('.')[0]#.replace('-', "_")
+		# Make subfolder for each sample
+		subfolder = os.path.join(args.output,critter)
+		if not os.path.isdir(subfolder):
+			os.makedirs(subfolder)		
+		# Define sample-specific lastz output file
+		lastz_output = os.path.join(subfolder,'%s.lastz'%critter)
+		# Print some stats to screen
+		total_count_of_contig = contig_count(contig)
+		print('%s:\n'%critter,'Total contigs: %i\nSearching for contigs with matches in reference database.'%total_count_of_contig)
+		# Blast the the contigs against the reference file
+		with open(lastz_output, 'w') as lastz_out_file:
+			lastz_command = [
+				'lastz',
+				'%s[multiple,nameparse=full]'%contig,
+				'%s[nameparse=full]'%args.reference,
+                '--strand=both',
+                '--seed=12of19',
+                '--transition',
+                '--nogfextend',
+                '--nochain',
+                '--gap=400,30',
+                '--xdrop=910',
+                '--ydrop=8370',
+                '--hspthresh=3000',
+                '--gappedthresh=3000',
+                '--noentropy',
+				'--coverage=%i'%args.min_coverage,
+				'--identity=%i'%args.min_identity,
+				'--ambiguous=iupac',
+				'--format=general:score,name1,strand1,zstart1,end1,length1,name2,strand2,zstart2,end2,length2,diff,cigar,identity,continuity'
+			]
+			run_lastz = subprocess.Popen(lastz_command, stdout=lastz_out_file, stderr=None)
+			run_lastz.communicate()
+		# load the lastz matches from the previous command
+		lastz_df = pd.read_csv(lastz_output,sep='\t')
+		# store the data in dictionaries for convenience
+		exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict = contigs_matching_exons(lastz_df)
+		# mark duplicate loci
+		duplicate_loci, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
+		# remove duplicate loci from the list of targeted loci and contigs
+		target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,subfolder)
+		# load the actual contig sequences
+		contig_sequences = SeqIO.parse(open(contig),'fasta')
+		# write those contigs that match the reference library to the file
+		extract_target_contigs(critter,contig_sequences,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
+		# Fill the extracted target contig into the dataframe
+		for contig in target_contigs:
+			for exon in contig_exon_dict[contig]:
+				contig_match_df.loc[exon,critter] = 1		
+		print('Extracted %i contigs matching reference exons\n' %len(target_contigs))
+		log.info("{}".format("-" * 65))
+	contig_match_df.to_csv(os.path.join(args.output,'match_table.txt'),sep='\t',index=True,encoding='utf-8')
+	# Get the data from the df
+	sample_labels = contig_match_df.columns
+	locus_labels = np.array(contig_match_df.index)
+	data = np.matrix(contig_match_df).T
+#	# Define the figure and plot to png file
+#	fig, ax = plt.subplots()
+#	mat = ax.imshow(data, cmap='GnBu', interpolation='nearest')
+#	plt.xticks(range(data.shape[1])[::20], locus_labels[::20],fontsize=3)
+#	plt.yticks([0],fontsize=0)
+#	#plt.yticks(range(data.shape[0])[::3], sample_labels[::3],fontsize=3)
+#	plt.xticks(rotation=90)
+#	plt.xlabel('exon',fontsize=3)
+#	plt.ylabel('sample',fontsize=3)
+#	fig.savefig(os.path.join(args.output,'contig_exon_matrix.png'), dpi = 500)
 
 
-	if dupefile is not None:
-		dupefile.close()
-	log.info("{}".format("-" * 65))
-	log.info("The LASTZ alignments are in {}".format(args.output))
-	log.info("The exon match database is in {}".format(os.path.join(args.output, "probes.matches.sqlite")))
-	text = "Completed"
-        
-	log.info(text.center(65, "="))
-
-	# Access the SQL file and export tab-separated text-file
-	sql_file = os.path.join(args.output, 'probe.matches.sqlite')
-	tsf_out = os.path.join(args.output, 'match_table.txt')
-	sql_cmd = "%s -header -nullvalue '.' -separator '\t' %s \"select * from matches;\" > %s" %(args.sqlite3,sql_file,tsf_out)
-	os.system(sql_cmd)
-
-	# Create the config file for the extraction of the desired loci
-	output_folder = args.output
-	
-        with open(os.path.join(output_folder, 'config'), 'w') as f:
-		print('[Organisms]', file=f)
-		for aln in glob.glob(os.path.join(output_folder, '*.lastz')):
-			aln = os.path.basename(aln)
-			#aln = aln.split('_')[0]
-			aln = aln.replace('.lastz', '')
-			print(aln, file=f)
-
-		print('\n[Loci]', file=f)
-		with open(os.path.join(output_folder, 'match_table.txt')) as match_table:
-			lines = match_table.readlines()
-		for line in lines[1:]:
-			print(line.split('\t')[0], file=f)
-
-
-
-
-#if __name__ == '__main__':
-#	main()
+# how many contigs matching exons were extracted for each sample?
+# print table with match output
