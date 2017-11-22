@@ -91,7 +91,8 @@ def contigs_matching_exons(lastz_df):
 		locus_name = re.sub('^>', '', locus_name)
 		contig_header = row[1].name1
 		#print(contig_header)
-		contig_name = re.sub('^\>([0-9]*) .*', '\\1', contig_header)
+		#contig_name = re.sub('^\>([0-9]*) .*', '\\1', contig_header)
+		contig_name = re.sub('^\>([^\s]*) .*', '\\1', contig_header)
 		#print(contig_name)
 		exon_contig_dict.setdefault(locus_name,[])
 		exon_contig_dict[locus_name].append(contig_name)
