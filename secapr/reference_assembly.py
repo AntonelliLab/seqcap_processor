@@ -451,7 +451,10 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 
 	if "allele_0" in name_base:
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
-		sample_id = name_base.split("_")[0]
+		if '_no_dupls' in name_base:
+			sample_id = name_base.split("_no_dupls_allele_0")[0]
+		else:
+			sample_id = name_base.split("_allele_0")[0]
 		with open(final_fasta_file, "wb") as out_file:
 			for fasta in fasta_sequences:
 				name, sequence = fasta.id, str(fasta.seq)
@@ -463,7 +466,10 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 	
 	elif "allele_1" in name_base:
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
-		sample_id = name_base.split("_")[0]
+		if '_no_dupls' in name_base:
+			sample_id = name_base.split("_no_dupls_allele_1")[0]
+		else:
+			sample_id = name_base.split("_allele_1")[0]
 		with open(final_fasta_file, "wb") as out_file:
 			for fasta in fasta_sequences:
 				name, sequence = fasta.id, str(fasta.seq)
@@ -475,7 +481,10 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 
 	else:
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
-		sample_id = name_base.split("_")[0]
+		if '_no_dupls' in name_base:
+			sample_id = name_base.split("_no_dupls_bam_consensus")[0]
+		else:
+			sample_id = name_base.split("_bam_consensus")[0]
 		with open(final_fasta_file, "wb") as out_file:
 			for fasta in fasta_sequences:
 				name, sequence = fasta.id, str(fasta.seq)

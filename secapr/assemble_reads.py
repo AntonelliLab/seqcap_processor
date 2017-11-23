@@ -93,7 +93,7 @@ def main(args):
                 subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
                 if subfolder_path_elements[-1] != input_folder:
                         sample_folder = subfolder_path_elements[-1]
-                        sample_id = re.split("_", sample_folder)[0]
+                        sample_id = re.split("_clean", sample_folder)[0]
                         # Loop through each sample-folder and find read-files
                         sample_output_folder = "%s/%s" %(out_dir,sample_id)
                         if not os.path.exists(sample_output_folder):
@@ -138,7 +138,7 @@ def main(args):
                                                 os.system(mv_cmd2)
 
                                 else:
-                                        print "\nError: Read-files for sample %s could not be found. Please check if subfolders/sample-folders are named in this pattern: 'sampleID_clean' and if the cleaned fastq files in the sample-folder end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
+                                        print "\nError: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id
                                         raise SystemExit
 
 

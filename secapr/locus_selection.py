@@ -50,7 +50,7 @@ def get_bam_path_dict(input_dir):
     for subd in subdirs:
         if subd.endswith('_remapped'):
             type_input = 'unphased'
-            sample_id = subd.split('_')[0]
+            sample_id = subd.split('_remapped')[0]
             bam = '%s/%s/%s*sorted.bam' %(input_dir,subd,sample_id)
             target_files = glob.glob(bam)
             unphased_bam = target_files[0]
@@ -65,7 +65,7 @@ def get_bam_path_dict(input_dir):
 
         elif subd.endswith('_phased'):
             type_input = 'phased'
-            sample_id = subd.split('_')[0]
+            sample_id = subd.split('_phased')[0]
             bam = '%s/%s/phased_bam_files/%s*sorted_allele_[0,1].bam' %(input_dir,subd,sample_id)
             target_files = glob.glob(bam)
             allele_0_bam = target_files[0]
@@ -84,7 +84,12 @@ def get_bam_path_dict(input_dir):
 def get_bam_read_cov(bam,output_folder):
     bam_name = bam.split("/")[-1]
     sample_base = bam_name.split(".bam")[0]
-    sample_base = sample_base.split("_")[0]
+    if sample_base.endswith('_no_dupls_sorted'):
+        sample_base = sample_base.split("_no_dupls_sorted")[0]
+    elif sample_base.endswith('_sorted'):
+        sample_base = sample_base.split("_sorted")[0]
+    else:
+        sample_base = sample_base.split("_")[0]
     sample_base = sample_base.split(".")[0]
     print ('Reading read-depth info for %s.........' %sample_base)
     sample_dir = os.path.join(output_folder,'%s_locus_selection' %sample_base)
@@ -106,7 +111,6 @@ def get_complete_loci_list(subfolder_file_dict):
     locus_list = []
     for subfolder in subfolder_file_dict:
         read_depth_file = subfolder_file_dict[subfolder]
-        #sample_id = read_depth_file.split('/')[-1].split('_')[0]
         with open(read_depth_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             reader = list(reader)
@@ -118,7 +122,7 @@ def get_complete_loci_list(subfolder_file_dict):
 
 
 def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,locus_dict_all_samples,sample_list,reference):
-    sample_id = read_depth_file.split('/')[-1].split('_')[0]
+    sample_id = read_depth_file.split('/')[-1].split('_read_depth_per_position.txt')[0]
     sample_list.append(sample_id)
     print ('Calculating coverage for all loci from bam files for %s.........' %sample_id)
     reference_library = SeqIO.parse(reference, "fasta")
@@ -157,11 +161,11 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
 def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type):
     output_subfolder_dict = {}
     for key in subfolder_file_dict:
-        sample_id = key.split('/')[-1].split('_')[0]
+        sample_id = key.split('/')[-1].split('_locus_selection')[0]
         output_subfolder_dict.setdefault(sample_id,key)
     sample_subfolder_dict = {}
     for key in sample_bam_dict:
-        sample_id = key.split('_')[0]
+        sample_id = key.split('_remapped')[0]
         sample_subfolder = '/'.join(sample_bam_dict[key][0].split('/')[0:-1])
         sample_subfolder_dict.setdefault(sample_id,sample_subfolder)
     
@@ -256,7 +260,7 @@ def main(args):
         # iterating through samples
         for key in sample_bam_dict:
             if key.endswith('_remapped'):
-                sample = key.split('_')[0]
+                sample = key.split('_remapped')[0]
                 path = os.path.join(input_dir,key)
                 path2 = os.path.join(path,'tmp')
                 reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
@@ -269,7 +273,7 @@ def main(args):
         locus_dict_all_samples = {}
         sample_id_list = []
         for subfolder in subfolder_file_dict:
-            sample = subfolder.split('/')[-1].split('_')[0]
+            sample = subfolder.split('/')[-1].split('_locus_selection')[0]
             reference = ''
             reference_pickle = reference_file_dict[sample]
             with open(reference_pickle, 'rb') as handle:
