@@ -9,6 +9,7 @@ Create new reference library and map raw reads against the library (reference-ba
 import os
 import sys
 import re
+import csv
 import glob
 import shutil
 import argparse
@@ -165,6 +166,7 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 		for fasta in fasta_sequences:
 			if fasta.id == sample_id:
 				sequence = re.sub('[-,?]','',str(fasta.seq))
+				sequence = sequence.upper()
 				outfile.write(">%s\n%s\n" %(locus_id,sequence))
 		outfile.close()
 	reference = os.path.join(sample_reference_folder,"joined_fasta_library.fasta")
@@ -366,7 +368,7 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 	if cons_method == 'custom':
 		mpileup = [
 			"samtools",
-			 "mpileup",
+			"mpileup",
 			"-A",
 			"-f",
 			reference,
@@ -545,6 +547,115 @@ def join_fastas(out_dir,sample_out_list):
 					for line in infile:
 						outfile.write(line)	
 
+
+def get_bam_path_dict(input_dir):
+    type_input = ''
+    subdirs = os.listdir(input_dir)
+    sample_bam_dict = {}
+    for subd in subdirs:
+        if subd.endswith('_remapped'):
+            type_input = 'unphased'
+            sample_id = subd.split('_remapped')[0]
+            bam = '%s/%s/%s*sorted.bam' %(input_dir,subd,sample_id)
+            target_files = glob.glob(bam)
+            unphased_bam = target_files[0]
+            if len(target_files) > 1:
+                print('Found multiple files matching the search, but there should only be one bam file containing the re-mapped reads. Please remove any non-relevant bam-files from target directory and run this function again.')
+                print(target_files)
+                exit()
+            else:
+                sample_bam_dict.setdefault(subd,[])
+                sample_bam_dict[subd].append(unphased_bam)
+        elif subd.endswith('_phased'):
+            type_input = 'phased'
+            sample_id = subd.split('_phased')[0]
+            bam = '%s/%s/phased_bam_files/%s*sorted_allele_[0,1].bam' %(input_dir,subd,sample_id)
+            target_files = glob.glob(bam)
+            allele_0_bam = target_files[0]
+            allele_1_bam = target_files[1]
+            if len(target_files) > 2:
+                print('Found multiple files matching the search, but there should only be one bam file per allele containing the re-mapped reads. Please remove any non-relevant bam-files from target directory and run this function again.')
+                print(target_files)
+                exit()
+            else:
+                sample_bam_dict.setdefault(subd,[])
+                sample_bam_dict[subd].append(allele_0_bam)
+                sample_bam_dict[subd].append(allele_1_bam)
+    return sample_bam_dict, type_input
+
+
+def get_bam_read_cov(bam,output_folder):
+    bam_name = bam.split("/")[-1]
+    sample_base = bam_name.split(".bam")[0]
+    if sample_base.endswith('_no_dupls_sorted'):
+        sample_base = sample_base.split("_no_dupls_sorted")[0]
+    elif sample_base.endswith('_sorted'):
+        sample_base = sample_base.split("_sorted")[0]
+    else:
+        sample_base = sample_base.split("_")[0]
+    sample_base = sample_base.split(".")[0]
+    print ('Reading read-depth info for %s.........' %sample_base)
+    sample_dir = '/'.join(bam.split("/")[:-1])
+    if not os.path.exists(sample_dir):
+        os.makedirs(sample_dir)
+    get_read_depth = ["samtools", "depth", bam]
+    read_depth_file = os.path.join(sample_dir,"%s_read_depth_per_position.txt" %sample_base)
+    with open(read_depth_file, 'w') as logfile:
+        sp1 = subprocess.Popen(get_read_depth, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
+        sp1.wait()
+    return sample_dir,read_depth_file
+
+
+def get_complete_loci_list(subfolder_file_dict):
+    print('Generating locus database.........')
+    locus_list = []
+    for subfolder in subfolder_file_dict:
+        read_depth_file = subfolder_file_dict[subfolder]
+        with open(read_depth_file, 'r') as f:
+            reader = csv.reader(f, delimiter='\t')
+            reader = list(reader)
+            for row in reader:
+                locus_name = row[0]
+                if locus_name not in locus_list:
+                    locus_list.append(locus_name)
+    return sorted(locus_list)
+
+
+def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,locus_dict_all_samples,sample_list,reference):
+    sample_id = read_depth_file.split('/')[-1].split('_read_depth_per_position.txt')[0]
+    sample_list.append(sample_id)
+    print ('Calculating coverage for all loci from bam files for %s.........' %sample_id)
+    reference_library = SeqIO.parse(reference, "fasta")
+    locus_original_length_dict = {}
+    for reference in reference_library:
+        reference_locus = reference.name
+        reference_sequence = reference.seq
+        locus_length = len(str(reference_sequence))
+        locus_original_length_dict.setdefault(reference_locus,locus_length)
+    sample_loci_dict = {}
+    with open(read_depth_file, 'r') as f:
+        reader = csv.reader(f, delimiter='\t')
+        reader = list(reader)
+        for row in reader:
+            locus = row[0]
+            locus_list = locus.split("_")[:3]
+            locus_name = "_".join(locus_list)
+            position = row[1]
+            coverage = int(row[2])
+            sample_loci_dict.setdefault(locus_name,[])
+            sample_loci_dict[locus_name].append(coverage)
+    for locus_name in complete_locus_list:
+        if locus_name in sample_loci_dict:
+            avg_read_depth = float(sum(sample_loci_dict[locus_name]))/float(locus_original_length_dict[locus_name])
+            locus_dict_all_samples.setdefault(locus_name,[])
+            locus_dict_all_samples[locus_name].append(avg_read_depth)
+        else:
+            avg_read_depth = 0.0
+            locus_dict_all_samples.setdefault(locus_name,[])
+            locus_dict_all_samples[locus_name].append(avg_read_depth)
+    return locus_dict_all_samples 
+
+
 def main(args):
 	mapper = 'bwa'
 	# Set working directory
@@ -553,7 +664,6 @@ def main(args):
 		os.makedirs(out_dir)
 	else:
 		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(out_dir))
-	
 	# Get other input variables
 	alignments = args.reference
 	reads = args.reads
@@ -577,8 +687,6 @@ def main(args):
 			sample_id = re.sub("_clean","",sample_folder)
 			if args.reference_type == "sample-specific":
 				reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
-
-			
 			# Safe the smaple specific reference as a pickle file for downstream processing
 			sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
 			sample_out_list.append(sample_output_folder)
@@ -617,3 +725,55 @@ def main(args):
 					dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
 					bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
 	join_fastas(out_dir,sample_out_list)
+	# create file with read-coverage overview
+	sample_bam_dict, input_type = get_bam_path_dict(out_dir)
+	# currently only available for unphased data
+	if input_type == 'unphased':
+	    subfolder_list = []
+	    subfolder_file_dict = {}
+	    reference_file_dict = {}
+	    # iterating through samples
+	    for key in sample_bam_dict:
+	        if key.endswith('_remapped'):
+	            sample = key.split('_remapped')[0]
+	            path = os.path.join(out_dir,key)
+	            path2 = os.path.join(path,'tmp')
+	            reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
+	            reference_file_dict.setdefault(sample,reference_pickle)        
+	            bam = sample_bam_dict[key][0]
+	            sample_dir, read_depth_file = get_bam_read_cov(bam,out_dir)
+	            subfolder_file_dict.setdefault(sample_dir,read_depth_file)
+	    locus_list = get_complete_loci_list(subfolder_file_dict)
+	    locus_dict_all_samples = {}
+	    sample_id_list = []
+	    for subfolder in subfolder_file_dict:
+	        sample = subfolder.split('/')[-1].split('_remapped')[0]
+	        reference = ''
+	        reference_pickle = reference_file_dict[sample]
+	        with open(reference_pickle, 'rb') as handle:
+	            reference = pickle.load(handle)
+	        read_depth_file = subfolder_file_dict[subfolder]
+	        locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
+	    output_dict = {}
+	    # Create a separate list for each column in the final csv file
+	    final_locus_list = ['locus']
+	    for locus in locus_dict_all_samples:
+	        final_locus_list.append(locus)
+	    output_dict.setdefault('column1',final_locus_list)
+	    for sample in sample_id_list:
+	        index = sample_id_list.index(sample)
+	        key_int = 2+index
+	        key_name = 'column%i' %key_int
+	        output_dict.setdefault(key_name,[sample])
+	        for locus in locus_dict_all_samples:
+	            read_depth = locus_dict_all_samples[locus][index]
+	            output_dict[key_name].append(read_depth)
+	    final_data_list = []
+	    for column in sorted(output_dict):
+	        data = output_dict[column]
+	        final_data_list.append(data)
+	    output = open("%s/average_cov_per_locus.txt" %out_dir, "w")
+	    outlog=csv.writer(output, delimiter='\t')
+	    transformed_data = zip(*final_data_list)
+	    for row in transformed_data:
+	        outlog.writerow(row)

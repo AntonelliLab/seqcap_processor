@@ -15,7 +15,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # Get data for axes
-contig_input_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/target_contigs/match_table.txt'
+contig_input_file = '/Users/tobias/Desktop/target_contigs/match_table.txt'
 workdir = '/'.join(contig_input_file.split('/')[:-1])
 contig_matrix = pd.read_csv(contig_input_file,sep='\t',index_col=0)
 
@@ -33,7 +33,7 @@ data_1_y_labels = np.core.defchararray.replace(np.array(data_1_y_labels,dtype=st
 
 #_______________________________Contig Alignment Data__________________________
 # Get the alignment files and make list of loci with alignments
-alignment_folder = '/Users/tobias/GitHub/seqcap_processor/data/processed/alignments/contig_alignments'
+alignment_folder = '/Users/tobias/Desktop/target_contigs/msa_alignments'
 alignment_files = glob.glob(os.path.join(alignment_folder, '*.fa*'))
 list_of_loci_with_alignments = [re.sub('.fasta','',al.split('/')[-1]) for al in alignment_files]
 # Create 1-dimensional matrix and fill with info which loci have alignment data 
@@ -48,7 +48,7 @@ data_2_y_labels = np.array('contig alignment')
 
 #_______________________________Reference-assembly Data__________________________
 # Get the data as pandas dataframe
-read_cov_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/selected_loci_100/average_cov_per_locus.txt'
+read_cov_file = '/Users/tobias/GitHub/target_contigs/remapped_reads/average_cov_per_locus.txt'
 unsorted_read_cov_data = pd.read_csv(read_cov_file, sep = '\t',index_col=0)
 # sort columns in df
 temp_read_cov_data = unsorted_read_cov_data[sorted(unsorted_read_cov_data.columns)].sort_index()

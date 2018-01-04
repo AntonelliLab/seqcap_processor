@@ -61,8 +61,6 @@ def get_bam_path_dict(input_dir):
             else:
                 sample_bam_dict.setdefault(subd,[])
                 sample_bam_dict[subd].append(unphased_bam)
-            
-
         elif subd.endswith('_phased'):
             type_input = 'phased'
             sample_id = subd.split('_phased')[0]
@@ -95,11 +93,8 @@ def get_bam_read_cov(bam,output_folder):
     sample_dir = os.path.join(output_folder,'%s_locus_selection' %sample_base)
     if not os.path.exists(sample_dir):
         os.makedirs(sample_dir)
-
-
     get_read_depth = ["samtools", "depth", bam]
     read_depth_file = os.path.join(sample_dir,"%s_read_depth_per_position.txt" %sample_base)
-
     with open(read_depth_file, 'w') as logfile:
         sp1 = subprocess.Popen(get_read_depth, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
         sp1.wait()
@@ -144,7 +139,6 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
             coverage = int(row[2])
             sample_loci_dict.setdefault(locus_name,[])
             sample_loci_dict[locus_name].append(coverage)
-    
     for locus_name in complete_locus_list:
         if locus_name in sample_loci_dict:
             avg_read_depth = float(sum(sample_loci_dict[locus_name]))/float(locus_original_length_dict[locus_name])
@@ -154,11 +148,10 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
             avg_read_depth = 0.0
             locus_dict_all_samples.setdefault(locus_name,[])
             locus_dict_all_samples[locus_name].append(avg_read_depth)
-
     return locus_dict_all_samples 
 
 
-def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type):
+def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir):
     output_subfolder_dict = {}
     for key in subfolder_file_dict:
         sample_id = key.split('/')[-1].split('_locus_selection')[0]
@@ -168,10 +161,8 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         sample_id = key.split('_remapped')[0]
         sample_subfolder = '/'.join(sample_bam_dict[key][0].split('/')[0:-1])
         sample_subfolder_dict.setdefault(sample_id,sample_subfolder)
-    
-    # Read the coverage overview file and select the ebst loci
-    coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %output_folder, sep = '\t')
-    
+    # Read the coverage overview file and select the best loci
+    coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %input_dir, sep = '\t')
     # Return boolean for every field, depending on if its greater than the threshold
     thres_test = coverage_all_samples.ix[:,1:]>threshold
     # Extract only those rows for which all fields returned 'True' and store in new df
@@ -195,6 +186,8 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         selection = loci_passing_test[:n].copy()
     else:
         selection = loci_passing_test[:].copy()
+        print('Not sufficiently many loci (%i) were found that have an average read-coverage of %i for all samples. Extracting all %i loci that fulfil this requirement.' %(n,threshold,len(selection)))
+    
     #***************************
     # This was a previous solution, but not including a control for having at least [threshold] avg read coverage
     #data_cols = coverage_all_samples.ix[:,1:]
@@ -204,11 +197,16 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
     #selection = sorted_cov_df[0:n]
     #***************************
 
-    no_of_loci = len(coverage_all_samples)
     # An output for knowing which samples worked best
-    avg_read_cov_across_all_loci = selection.sum_per_locus/no_of_loci
-    avg_read_cov_across_all_loci.sort_values(ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
-
+    no_of_loci = len(selection)
+    new_dict = {}
+    for column in selection:
+        if not column in ['sum_per_locus','locus']:
+            average = sum(selection[column])/no_of_loci
+            new_dict.setdefault(column,average)
+    avg_read_cov_across_all_loci = pd.DataFrame.from_dict(new_dict, orient='index', dtype=None)
+    avg_read_cov_across_all_loci.columns = ['average']
+    avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_selected_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
     # Create output file with read-depth overview of only the selected loci
     selection_out = selection.copy()
     #selection_out.remove('sum_per_locus')
@@ -228,7 +226,6 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
             if locus_name_corrected in target_loci:
                 sequence_collection.append(sequence)
         SeqIO.write(sequence_collection, "%s/%s_%s_selected_sequences.fasta" %(output_subfolder_dict[sample],sample,input_type), "fasta")
-        
         # Now produce a new bam-file
         bam = '%s/%s*.bam' %(sample_subfolder_dict[sample],sample)
         target_files = glob.glob(bam)
@@ -245,14 +242,12 @@ def main(args):
     output_folder = args.output
     n = args.n
     threshold = args.read_cov
-
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     else:
         raise IOError("The directory {} already exists.  Please check and remove by hand.".format(output_folder))
     # Create a dictionary containing the bam-file paths for each sample and tell if data is phased or unphased
     sample_bam_dict, input_type = get_bam_path_dict(input_dir)
-
     if input_type == 'unphased':
         subfolder_list = []
         subfolder_file_dict = {}
@@ -268,7 +263,6 @@ def main(args):
                 bam = sample_bam_dict[key][0]
                 sample_dir, read_depth_file = get_bam_read_cov(bam,output_folder)
                 subfolder_file_dict.setdefault(sample_dir,read_depth_file)
-
         locus_list = get_complete_loci_list(subfolder_file_dict)
         locus_dict_all_samples = {}
         sample_id_list = []
@@ -280,14 +274,12 @@ def main(args):
                 reference = pickle.load(handle)
             read_depth_file = subfolder_file_dict[subfolder]
             locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
-
         output_dict = {}
         # Create a separate list for each column in the final csv file
         final_locus_list = ['locus']
         for locus in locus_dict_all_samples:
             final_locus_list.append(locus)
         output_dict.setdefault('column1',final_locus_list)
-
         for sample in sample_id_list:
             index = sample_id_list.index(sample)
             key_int = 2+index
@@ -296,19 +288,16 @@ def main(args):
             for locus in locus_dict_all_samples:
                 read_depth = locus_dict_all_samples[locus][index]
                 output_dict[key_name].append(read_depth)
-
-        final_data_list = []
-
-        for column in sorted(output_dict):
-            data = output_dict[column]
-            final_data_list.append(data)
-
-        output = open("%s/average_cov_per_locus.txt" %output_folder, "w")
-        outlog=csv.writer(output, delimiter='\t')
-        transformed_data = zip(*final_data_list)
-        for row in transformed_data:
-            outlog.writerow(row)
-        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type)
+        #final_data_list = []
+        #for column in sorted(output_dict):
+        #    data = output_dict[column]
+        #    final_data_list.append(data)
+        #output = open("%s/average_cov_per_locus.txt" %output_folder, "w")
+        #outlog=csv.writer(output, delimiter='\t')
+        #transformed_data = zip(*final_data_list)
+        #for row in transformed_data:
+        #    outlog.writerow(row)
+        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir)
 
     elif input_type == 'phased':
         phased = True
