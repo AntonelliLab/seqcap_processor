@@ -49,6 +49,8 @@ def phase_bam(sorted_bam_file,sample_output_folder,min_cov,reference):
 	split_sample_path = re.split("/",sorted_bam_file)
 	split_file_name = split_sample_path[-1]
 	phasing_file_base_pre = re.sub('.sorted.bam$', '', split_file_name)
+	if 'unphased' in phasing_file_base_pre:
+		phasing_file_base_pre = re.sub('_unphased','',phasing_file_base_pre)
 	phasing_out_dir = "%s/phased_bam_files" %(sample_output_folder)
 	if not os.path.exists(phasing_out_dir):
 		os.makedirs(phasing_out_dir)
@@ -155,7 +157,7 @@ def main(args):
 		path = os.path.join(input_folder,subfolder)
 		if os.path.isdir(path):
 			subfolder_path = os.path.join(input_folder,subfolder)
-			if subfolder_path.endswith('_remapped'):
+			if subfolder_path.endswith('_remapped') or subfolder_path.endswith('_locus_selection'):
 				sample = subfolder.split('_')[0]
 				sample_output_folder = os.path.join(out_dir,'%s_phased' %sample)
 				if not os.path.exists(sample_output_folder):

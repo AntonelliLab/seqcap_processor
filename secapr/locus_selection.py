@@ -15,32 +15,32 @@ from .utils import CompletePath
 
 # Get arguments
 def add_arguments(parser):
-	parser.add_argument(
-		'--input',
-		required=True,
-		action=CompletePath,
-		default=None,
-		help='The folder with the results of the reference based assembly or the phasing results.'
-	)
-	parser.add_argument(
-		'--output',
-		required=True,
-		action=CompletePath,
-		default=None,
-		help='The output directory where results will be safed.'
-	)
-	parser.add_argument(
-		'--n',
-		type=int,
-		default=30,
-		help='The n loci that are best represented accross all samples will be extracted.'
-	)
-	parser.add_argument(
-		'--read_cov',
-		type=float,
-		default=3,
-		help='The threshold for what average read coverage the selected target loci should at least have.'
-	)
+    parser.add_argument(
+        '--input',
+        required=True,
+        action=CompletePath,
+        default=None,
+        help='The folder with the results of the reference based assembly or the phasing results.'
+    )
+    parser.add_argument(
+        '--output',
+        required=True,
+        action=CompletePath,
+        default=None,
+        help='The output directory where results will be safed.'
+    )
+    parser.add_argument(
+        '--n',
+        type=int,
+        default=30,
+        help='The n loci that are best represented accross all samples will be extracted.'
+    )
+    parser.add_argument(
+        '--read_cov',
+        type=float,
+        default=3,
+        help='The threshold for what average read coverage the selected target loci should at least have.'
+    )
 
 
 def get_bam_path_dict(input_dir):
@@ -231,10 +231,35 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         target_files = glob.glob(bam)
         bam_file = target_files[0]
         target_loci_string = ' '.join(target_loci)
-        bam_output_file = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci.bam" %(sample,input_type))
-        select_from_bam = 'samtools view %s %s > %s' %(bam_file,target_loci_string,bam_output_file)
+        sam_output_file = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci.sam" %(sample,input_type))
+        select_from_bam = 'samtools view -h %s %s > %s' %(bam_file,target_loci_string,sam_output_file)
         os.system(select_from_bam)
+        bam_output_file = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci.bam" %(sample,input_type))
+        convert_to_bam = 'samtools view -Sb %s > %s' %(sam_output_file,bam_output_file)
+        os.system(convert_to_bam)
+        sorted_bam_out = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci_sorted.bam" %(sample,input_type))
+        sort_bam = 'samtools sort %s > %s' %(bam_output_file,sorted_bam_out)
+        os.system(sort_bam)
     return target_loci
+
+
+def join_fastas(out_dir):
+    # get all fasta files from the subfolders of the output-dir and join them in one joined fasta file
+    print('Extracting all fasta sequences and merging them.')
+    subfolder_list = [x[0] for x in os.walk(out_dir)]
+    fasta_files = []
+    for folder in subfolder_list:
+        if folder.endswith('_locus_selection'):
+            for file in os.listdir(folder):
+                if file.endswith('.fasta'):
+                    fasta = os.path.join(folder,file)
+                    fasta_files.append(fasta)
+        joined_fastas = "%s/joined_fastas_selected_loci.fasta" %out_dir
+        with open(joined_fastas, 'w') as outfile:
+            for fname in fasta_files:
+                with open(fname) as infile:
+                    for line in infile:
+                        outfile.write(line)
 
 
 def main(args):
@@ -272,6 +297,12 @@ def main(args):
             reference_pickle = reference_file_dict[sample]
             with open(reference_pickle, 'rb') as handle:
                 reference = pickle.load(handle)
+            # store reference as pickle in new subfolder
+            tmp_folder = os.path.join(subfolder,'tmp')
+            os.makedirs(tmp_folder)
+            reference_pickle_out = os.path.join(tmp_folder,'%s_reference.pickle'%sample)
+            with open(reference_pickle_out, 'wb') as handle:
+                pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
             read_depth_file = subfolder_file_dict[subfolder]
             locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
         output_dict = {}
@@ -298,7 +329,8 @@ def main(args):
         #for row in transformed_data:
         #    outlog.writerow(row)
         target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir)
+        join_fastas(output_folder)
 
     elif input_type == 'phased':
         phased = True
-        exit("This function does currently not support phased data. Will be upgraded soon!")
+        exit("This function does currently not support phased data. Use on unphased data (results of reference-based assembly) and phase the selected loci subsequently.")

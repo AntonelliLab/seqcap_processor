@@ -150,7 +150,7 @@ def create_reference_fasta(reference_folder,alignments):
 
 
 def create_sample_reference_fasta(reference_folder,sample_id,alignments):
-	print "Creating reference library for %s .........." %sample_id
+	print("Creating reference library for %s .........." %sample_id)
 #	get the sequence header with the correct fasta id and extract sequence
 #	store these sequences in separate fasta file for each locus at out_dir/reference_seqs/sample_id
 #	header of sequence remains the locus name
@@ -354,7 +354,7 @@ def bcf_cons(pileup,out_fasta,cov):
 		concat_basecalls[key] = "".join(value)
 	#print concat_basecalls
 
-	with open(out_fasta, "wb") as f:
+	with open(out_fasta, "w") as f:
 		for k, v in concat_basecalls.items():
 			f.write(">" + k+ "\n")
 			f.write(v+ "\n")
@@ -456,6 +456,8 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
 		if '_no_dupls' in name_base:
 			sample_id = name_base.split("_no_dupls_allele_0")[0]
+		elif '_selected_loci' in name_base:
+			sample_id = name_base.split("_selected_loci")[0]
 		else:
 			sample_id = name_base.split("_allele_0")[0]
 		with open(final_fasta_file, "wb") as out_file:
@@ -471,6 +473,8 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
 		if '_no_dupls' in name_base:
 			sample_id = name_base.split("_no_dupls_allele_1")[0]
+		elif '_selected_loci' in name_base:
+			sample_id = name_base.split("_selected_loci")[0]
 		else:
 			sample_id = name_base.split("_allele_1")[0]
 		with open(final_fasta_file, "wb") as out_file:
@@ -486,6 +490,8 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
 		fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
 		if '_no_dupls' in name_base:
 			sample_id = name_base.split("_no_dupls_bam_consensus")[0]
+		elif '_selected_loci' in name_base:
+			sample_id = name_base.split("_selected_loci")[0]		
 		else:
 			sample_id = name_base.split("_bam_consensus")[0]
 		with open(final_fasta_file, "wb") as out_file:
