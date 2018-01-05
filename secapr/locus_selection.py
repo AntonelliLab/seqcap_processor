@@ -37,7 +37,7 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		'--read_cov',
-		type=int,
+		type=float,
 		default=3,
 		help='The threshold for what average read coverage the selected target loci should at least have.'
 	)
@@ -186,7 +186,7 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         selection = loci_passing_test[:n].copy()
     else:
         selection = loci_passing_test[:].copy()
-        print('Not sufficiently many loci (%i) were found that have an average read-coverage of %i for all samples. Extracting all %i loci that fulfil this requirement.' %(n,threshold,len(selection)))
+        print('Not sufficiently many loci (%i) were found that have an average read-coverage of %f for all samples. Extracting all %i loci that fulfil this requirement.' %(n,threshold,len(selection)))
     
     #***************************
     # This was a previous solution, but not including a control for having at least [threshold] avg read coverage

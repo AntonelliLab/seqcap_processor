@@ -17,6 +17,7 @@ import ConfigParser
 import commands
 import subprocess
 import pickle
+import pandas as pd
 from Bio import SeqIO
 
 from .utils import CompletePath
@@ -777,3 +778,13 @@ def main(args):
 	    transformed_data = zip(*final_data_list)
 	    for row in transformed_data:
 	        outlog.writerow(row)
+		final_overview = pd.read_csv("%s/average_cov_per_locus.txt"%out_dir, sep='\t')
+		no_of_loci = len(final_overview)
+		new_dict = {}
+		for column in final_overview:
+		    if not column in ['sum_per_locus','locus']:
+		        average = sum(final_overview[column])/no_of_loci
+		        new_dict.setdefault(column,average)
+		avg_read_cov_across_all_loci = pd.DataFrame.from_dict(new_dict, orient='index', dtype=None)
+		avg_read_cov_across_all_loci.columns = ['average']
+		avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
