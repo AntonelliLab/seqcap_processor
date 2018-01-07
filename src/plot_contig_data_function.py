@@ -408,3 +408,30 @@ def slice_data_columns_per_row(combined_data,columns_per_row):
         data_chunk = combined_data[:,b:n]
         subset_dict.setdefault('%i,%i' %(b,n),data_chunk)
 
+
+def plot_multiple_plots_in_one_ipython_cell():
+    import glob
+    import os
+    import numpy as np
+    import scipy.misc
+    import matplotlib.pyplot as plt
+    #%matplotlib inline
+
+    # get all subplot files:
+    work_dir = "../../data/processed/remapped_reads/"
+    images = []
+    for file in glob.glob(os.path.join(work_dir,"*.png")):
+        images.append(file)
+
+    # convert images into data objects
+    img_data = []
+    for img in images:
+        img_data.append(scipy.misc.imread(img))
+
+    # plot all images in one window
+    plt.figure(figsize=(200,100))
+    columns = 1
+    for i, image in enumerate(np.array(img_data)):
+        plt.subplot(len(images) / columns + 1, columns, i + 1)
+        plt.axis('off')
+        plt.imshow(image)
