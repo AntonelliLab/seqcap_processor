@@ -20,7 +20,7 @@ def add_arguments(parser):
         required=True,
         action=CompletePath,
         default=None,
-        help='The folder with the results of the reference based assembly or the phasing results.'
+        help='The folder with the results of the reference based assembly.'
     )
     parser.add_argument(
         '--output',
@@ -41,7 +41,12 @@ def add_arguments(parser):
         default=3,
         help='The threshold for what average read coverage the selected target loci should at least have.'
     )
-
+    parser.add_argument(
+        '--reference',
+        type=str,
+        default=None,
+        help='Path to reference library fasta file (secapr will find it by itself if the reference assembly was executed with secapr).'
+    )
 
 def get_bam_path_dict(input_dir):
     type_input = ''
@@ -133,8 +138,10 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
         reader = list(reader)
         for row in reader:
             locus = row[0]
-            locus_list = locus.split("_")[:3]
-            locus_name = "_".join(locus_list)
+            # this might be problematic if exons are named differently, so let's keep the locus name
+            #locus_list = locus.split("_")[:3]
+            #locus_name = "_".join(locus_list)
+            locus_name = locus
             position = row[1]
             coverage = int(row[2])
             sample_loci_dict.setdefault(locus_name,[])
@@ -151,7 +158,7 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
     return locus_dict_all_samples 
 
 
-def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir):
+def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir,new_file_plot):
     output_subfolder_dict = {}
     for key in subfolder_file_dict:
         sample_id = key.split('/')[-1].split('_locus_selection')[0]
@@ -162,7 +169,10 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         sample_subfolder = '/'.join(sample_bam_dict[key][0].split('/')[0:-1])
         sample_subfolder_dict.setdefault(sample_id,sample_subfolder)
     # Read the coverage overview file and select the best loci
-    coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %input_dir, sep = '\t')
+    if new_file_plot:
+        coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %output_folder, sep = '\t')
+    else:
+        coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %input_dir, sep = '\t')
     # Return boolean for every field, depending on if its greater than the threshold
     thres_test = coverage_all_samples.ix[:,1:]>threshold
     # Extract only those rows for which all fields returned 'True' and store in new df
@@ -283,8 +293,11 @@ def main(args):
                 sample = key.split('_remapped')[0]
                 path = os.path.join(input_dir,key)
                 path2 = os.path.join(path,'tmp')
-                reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
-                reference_file_dict.setdefault(sample,reference_pickle)        
+                if args.reference:
+                    reference_file_dict.setdefault(sample,args.reference)
+                else:
+                    reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
+                    reference_file_dict.setdefault(sample,reference_pickle)        
                 bam = sample_bam_dict[key][0]
                 sample_dir, read_depth_file = get_bam_read_cov(bam,output_folder)
                 subfolder_file_dict.setdefault(sample_dir,read_depth_file)
@@ -295,8 +308,11 @@ def main(args):
             sample = subfolder.split('/')[-1].split('_locus_selection')[0]
             reference = ''
             reference_pickle = reference_file_dict[sample]
-            with open(reference_pickle, 'rb') as handle:
-                reference = pickle.load(handle)
+            if args.reference:
+                reference = args.reference
+            else:
+                with open(reference_pickle, 'rb') as handle:
+                    reference = pickle.load(handle)
             # store reference as pickle in new subfolder
             tmp_folder = os.path.join(subfolder,'tmp')
             os.makedirs(tmp_folder)
@@ -319,16 +335,19 @@ def main(args):
             for locus in locus_dict_all_samples:
                 read_depth = locus_dict_all_samples[locus][index]
                 output_dict[key_name].append(read_depth)
-        #final_data_list = []
-        #for column in sorted(output_dict):
-        #    data = output_dict[column]
-        #    final_data_list.append(data)
-        #output = open("%s/average_cov_per_locus.txt" %output_folder, "w")
-        #outlog=csv.writer(output, delimiter='\t')
-        #transformed_data = zip(*final_data_list)
-        #for row in transformed_data:
-        #    outlog.writerow(row)
-        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir)
+        # this is in case that the input folder does not already contain an average_cov_per_locus.txt file
+        new_file_plot=False
+        if new_file_plot:
+            final_data_list = []
+            for column in sorted(output_dict):
+                data = output_dict[column]
+                final_data_list.append(data)
+            output = open("%s/average_cov_per_locus.txt" %output_folder, "w")
+            outlog=csv.writer(output, delimiter='\t')
+            transformed_data = zip(*final_data_list)
+            for row in transformed_data:
+                outlog.writerow(row)
+        target_loci = extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,threshold,input_type,input_dir,new_file_plot)
         join_fastas(output_folder)
 
     elif input_type == 'phased':
