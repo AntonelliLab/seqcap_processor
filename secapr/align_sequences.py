@@ -239,7 +239,7 @@ def main(args):
     for name, alignment in alignments:
         if alignment.trimmed:
             for t in alignment.trimmed:
-                t.id = t.description.split('|')[-1]
+                t.id = t.description.split('|')[0].split('_')[-1]
                 t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
