@@ -129,42 +129,47 @@ def main(args):
                         mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
                         os.system(mv_cmd)
                     elif assembler == "abyss":
-                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
-                        files = glob.glob(os.path.join(home_dir,'*'))
-                        links = [f for f in files if os.path.islink(f)]
-                        for l in links:
-                            if l.endswith("-contigs.fa"):
-                                contig_file = os.path.realpath(l)
-                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
-                                os.system(mv_contig)
-                        mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
-                        os.system(mv_cmd1)
-                        mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
-                        os.system(mv_cmd2)
+#___________________________this is the assembly code block, can be deactivated if only stats shall be printed_________________________
+#                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
+#                        files = glob.glob(os.path.join(home_dir,'*'))
+#                        links = [f for f in files if os.path.islink(f)]
+#                        for l in links:
+#                            if l.endswith("-contigs.fa"):
+#                                contig_file = os.path.realpath(l)
+#                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
+#                                os.system(mv_contig)
+#                        mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+#                        os.system(mv_cmd1)
+#                        mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+#                        os.system(mv_cmd2)
+#_______________________________________________________________________________________________________________________________________
                         contig_count_df = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
                 else:
                     print ("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id)
                     raise SystemExit
-    previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_overview.txt'),sep='\t')
-    counter = 0
-    for index,row in previous_stats_df.iterrows():
-        sample_name = str(row['sample'])
-        if sample_name in list(contig_count_df['sample']):
-            new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
-            new_value = new_info.values[0]
-            new_name = new_info.name
-            headers = np.array(row.index)
-            old_values = row.values
-            new_index = np.append(headers,new_name)
-            new_values = np.append(old_values,new_value)
-            if counter == 0:
-                new_values_previous = new_values
-            else:
-                new_values_previous = np.stack((new_values_previous, new_values), axis=0)
-            counter += 1
-    new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
-    new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
-
+    if not args.disable_stats:
+        try:
+            previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')
+            counter = 0
+            for index,row in previous_stats_df.iterrows():
+                sample_name = str(row['sample'])
+                if sample_name in list(contig_count_df['sample']):
+                    new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
+                    new_value = new_info.values[0]
+                    new_name = new_info.name
+                    headers = np.array(row.index)
+                    old_values = row.values
+                    new_index = np.append(headers,new_name)
+                    new_values = np.append(old_values,new_value)
+                    if counter == 0:
+                        new_values_previous = new_values
+                    else:
+                        new_values_previous = np.vstack([new_values_previous, new_values])
+                    counter += 1
+            new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
+            new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
+        except:
+            print('INFO: Stats could NOT be appended to %s. Maybe file does not excist? If contig files were not created, try using the --disable_stats flag and run again' %(os.path.join(input_folder,'sample_stats.txt')))
 
 def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
     print ("De-novo assembly with Trinity of sample %s:" %id_sample)
@@ -235,10 +240,16 @@ def get_stats(sample_output_folder,sample_id):
         stat_file.write("Reads assembled into contigs : %s\n" %assembled_reads_count)
         stat_file.write("Assembled contigs : %s\n" %contig_count)
 
+def count_contigs(contig):
+    """Return a count of contigs from a fasta file"""
+    return sum([1 for line in open(contig, 'rU').readlines() if line.startswith('>')])
+
 def get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict):
-    contig_count_cmd = subprocess.Popen(["tail", "-n", "2", "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)], stdout=subprocess.PIPE)
-    contig_count_pre = contig_count_cmd.communicate()[0]
-    contig_count = contig_count_pre.split(' ')[0].replace('>','')
+    #contig_count_cmd = subprocess.Popen(["tail", "-n", "2", "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)], stdout=subprocess.PIPE)
+    #contig_count_pre = contig_count_cmd.communicate()[0]
+    contig_file = "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)
+    contig_count = count_contigs(contig_file)
+    #contig_count = contig_count_pre.split(' ')[0].replace('>','')
     sample_contig_count_dict.setdefault(sample_id,contig_count)
     stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
     stats_df.columns = ['sample', 'total_contig_count']

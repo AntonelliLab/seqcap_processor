@@ -45,6 +45,7 @@ import copy
 import tempfile
 import multiprocessing
 import logging
+import pickle
 from Bio import SeqIO
 from collections import defaultdict
 from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
@@ -243,8 +244,16 @@ def main(args):
                 t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
-    # end
-    text = " Completed! "
-    log.info(text.center(65, "="))
-
+    try:
+        #input_folder = '/'.join(args.sequences.split('/')[:-2])
+        pickle_path = os.path.join(args.output,'.secapr_files')
+        if not os.path.exists(pickle_path):
+            os.makedirs(pickle_path)
+        with open(os.path.join(pickle_path,'sequence_origin.pickle'), 'wb') as handle:
+            pickle.dump(args.sequences, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # end
+        text = " Completed! "
+        log.info(text.center(65, "="))
+    except:
+        print('Could not pass origin of sequences to %s'%pickle_path)
   

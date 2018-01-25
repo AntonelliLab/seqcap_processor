@@ -198,7 +198,7 @@ def main(args):
                     stats_df = quality_trim(r1,r2,clean_key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length,stats_dict)
                 else:
                     stats_df = quality_trim(r1,r2,key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length,stats_dict)
-    stats_df.to_csv(os.path.join(out_dir,'sample_overview.txt'),sep = '\t',index=False)
+    stats_df.to_csv(os.path.join(out_dir,'sample_stats.txt'),sep = '\t',index=False)
 
 def find_barcode(direction,sample_id,barcodes):
     for element in barcodes:

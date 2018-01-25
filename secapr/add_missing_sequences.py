@@ -9,6 +9,7 @@ import sys
 import glob
 import shutil
 import ConfigParser
+import pickle
 from .utils import CompletePath
 
 def add_arguments(parser):
@@ -92,3 +93,12 @@ def main(args):
                 out_fasta.write(seqname+"\n")
                 out_fasta.write(sequence+"\n")
             out_fasta.close()
+    try:        
+        pickle_in = os.path.join(args.input,'.secapr_files/sequence_origin.pickle')
+        with open(pickle_in, 'rb') as handle:
+            sequence_origin = pickle.load(handle)
+        pickle_path = os.path.join(args.output,'.secapr_files/sequence_origin.pickle')
+        with open(pickle_path, 'wb') as handle:
+            pickle.dump(sequence_origin, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    except:
+        print('INFO: Origin path of sequences could NOT be identified.')

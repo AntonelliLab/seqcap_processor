@@ -612,6 +612,19 @@ def get_bam_read_cov(bam,output_folder):
         sp1.wait()
     return sample_dir,read_depth_file
 
+def get_bam_read_count(bam_path):
+    read_count_cmd = ['samtools',
+                      'view',
+                      '-F',
+                      '0x904',
+                      '-c',
+                      bam_path
+                      ]
+    fasta = subprocess.Popen(read_count_cmd,stdout=subprocess.PIPE)
+    read_count = fasta.stdout.read()
+    read_count = int(read_count.strip().decode('ascii'))
+    return(read_count)
+
 
 def get_complete_loci_list(subfolder_file_dict):
     print('Generating locus database.........')
@@ -678,6 +691,7 @@ def main(args):
     reference = ''
     reference_folder = "%s/reference_seqs" %out_dir
     sample_out_list = []
+    total_read_count_dict = {}
     if not os.path.exists(reference_folder):
         os.makedirs(reference_folder)
     if args.reference_type == "user-ref-lib":
@@ -715,8 +729,8 @@ def main(args):
                     elif sample_id in fastq and "READ2.fastq" in fastq:
                         backward = os.path.join(subfolder_path,fastq)
             if forward != "" and backward != "":
-                print("\n", "#" * 50)
-                print("Processing sample", sample_id, "\n")
+                print("#" * 50)
+                print("Processing sample %s" %sample_id)
                 sorted_bam = ""
                 log = os.path.join(sample_output_folder,'log')
                 if not os.path.exists(log):
@@ -748,6 +762,8 @@ def main(args):
                 reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
                 reference_file_dict.setdefault(sample,reference_pickle)        
                 bam = sample_bam_dict[key][0]
+                total_read_count = get_bam_read_count(bam)
+                total_read_count_dict.setdefault(sample,total_read_count)
                 sample_dir, read_depth_file = get_bam_read_cov(bam,out_dir)
                 subfolder_file_dict.setdefault(sample_dir,read_depth_file)
         locus_list = get_complete_loci_list(subfolder_file_dict)
@@ -793,4 +809,21 @@ def main(args):
                 new_dict.setdefault(column,average)
         avg_read_cov_across_all_loci = pd.DataFrame.from_dict(new_dict, orient='index', dtype=None)
         avg_read_cov_across_all_loci.columns = ['average']
-        avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %output_folder, sep = '\t', index = True,header=False)
+        avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %out_dir, sep = '\t', index = True,header=False)
+        #print(total_read_count_dict)
+        try:
+            pickle_in = os.path.join(args.reference,'.secapr_files/sequence_origin.pickle')
+            with open(pickle_in, 'rb') as handle:
+                sequence_origin = pickle.load(handle)
+            stats_file_path = '/'.join(sequence_origin.split('/')[:-1])
+            stats_file = os.path.join(stats_file_path,'sample_stats.txt')
+            stats_df = pd.read_csv(stats_file,sep='\t')
+            new_df = stats_df.copy()
+            new_df['reads_on_target'] = [0]*len(new_df)
+            for key in total_read_count_dict.keys():
+                index_row = new_df[new_df['sample'] == int(key)].index 
+                new_df.iloc[index_row,-1] = int(total_read_count_dict[key])
+            new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
+        except:
+            alternative_stats_file = 'NONE'
+            print('INFO: Stats file for samples could not be found (not available when using --reference_type user-ref-lib). Stats about read_coverage are instead written to file %s' %alternative_stats_file)
