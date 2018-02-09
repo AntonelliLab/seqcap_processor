@@ -1,4 +1,4 @@
-# SEquence CApture PRocessor (SECAPR) https://anaconda.org/bioconda/secapr/badges/downloads.svg
+# SEquence CApture PRocessor (SECAPR) ![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)
 
 ## Installation instructions and documentation [click here](./documentation.ipynb)
 
