@@ -1,8 +1,8 @@
 # SEquence CApture PRocessor (SECAPR) [![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
 
+___
 
-<div class="alert alert-block alert-success">
-We are now teaching a 1-week intensive course on target enrichment, including practical tutorials of all functionalities of the SECAPR pipeline. Check it out and apply! http://www.forbio.uio.no/events/courses/2018/target_capture.html </div>
+*We are now teaching a 1-week intensive course on target enrichment, including practical tutorials of all functionalities of the SECAPR pipeline. Check it out and apply!* http://www.forbio.uio.no/events/courses/2018/target_capture.html
 
 
 ## Installation instructions and documentation [click here](./documentation.ipynb)
