@@ -800,16 +800,18 @@ def main(args):
         transformed_data = zip(*final_data_list)
         for row in transformed_data:
             outlog.writerow(row)
-        final_overview = pd.read_csv("%s/average_cov_per_locus.txt"%out_dir, sep='\t')
-        no_of_loci = len(final_overview)
-        new_dict = {}
-        for column in final_overview:
-            if not column in ['sum_per_locus','locus']:
-                average = sum(final_overview[column])/no_of_loci
-                new_dict.setdefault(column,average)
-        avg_read_cov_across_all_loci = pd.DataFrame.from_dict(new_dict, orient='index', dtype=None)
-        avg_read_cov_across_all_loci.columns = ['average']
-        avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %out_dir, sep = '\t', index = True,header=False)
+# The following lines don't work because of some strange issue with reading the text file with pandas:
+#        txt_path = os.path.join(out_dir,"average_cov_per_locus.txt")
+#        final_overview = pd.read_csv(txt_path, sep='\t')
+#        no_of_loci = len(final_overview)
+#        new_dict = {}
+#        for column in final_overview:
+#            if not column in ['sum_per_locus','locus']:
+#                average = sum(final_overview[column])/no_of_loci
+#                new_dict.setdefault(column,average)
+#        avg_read_cov_across_all_loci = pd.DataFrame.from_dict(new_dict, orient='index', dtype=None)
+#        avg_read_cov_across_all_loci.columns = ['average']
+#        avg_read_cov_across_all_loci.sort_values(by='average',ascending=False).to_csv('%s/average_read_coverage_across_all_loci_per_sample.txt' %out_dir, sep = '\t', index = True,header=False)
         #print(total_read_count_dict)
         try:
             pickle_in = os.path.join(args.reference,'.secapr_files/sequence_origin.pickle')
