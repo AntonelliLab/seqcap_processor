@@ -1,4 +1,4 @@
-# <img src="images/secapr_logo.png" width="50"> SEquence CApture PRocessor (SECAPR)
+# <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
 
 [![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
 
