@@ -1,7 +1,5 @@
 # <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
 
-[![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
-
 **Original Publication: https://doi.org/10.7287/peerj.preprints.26477v3**
 
 ___
@@ -13,6 +11,9 @@ http://www.forbio.uio.no/events/courses/2018/target_capture.html
 ___
 
 ## Installation instructions and documentation [click here](./documentation.ipynb)
+
+[![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
+
 
 This semi-automated pipeline aims to make the processing and analysis of sequence capture (= target enrichment) data simple and straight forward for all users. The detailed documentation and simple installation makes this pipeline accessible also for users with limited biofinformatic knowledge, while enabling user-defined processing options for the more experienced users.
 
