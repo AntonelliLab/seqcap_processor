@@ -39,12 +39,12 @@ def add_arguments(parser):
         default=None,
         help='The output directory where results will be saved'
     )
-#    parser.add_argument(
-#        '--assembler',
-#        choices=["abyss","trinity"],
-#        default="abyss",
-#        help="""The assembler to use (default = abyss)."""
-#    )
+    parser.add_argument(
+        '--assembler',
+        choices=["abyss","trinity"],
+        default="abyss",
+        help="""The assembler to use (default = abyss)."""
+    )
     parser.add_argument(
         '--kmer',
         type=int,
@@ -89,8 +89,8 @@ def main(args):
     cores = args.cores
     #abyss = args.abyss
     kmer = args.kmer
-    #assembler = args.assembler
-    assembler = 'abyss'
+    assembler = args.assembler
+    #assembler = 'abyss'
     home_dir = os.getcwd()
     sample_contig_count_dict = {}
     if cores > 1:
@@ -102,6 +102,8 @@ def main(args):
             sample_id = re.split("_clean", sample_folder)[0]
             # Loop through each sample-folder and find read-files
             sample_output_folder = "%s/%s" %(out_dir, sample_id)
+            #if assembler == "trinity":
+            #    sample_output_folder = '%s_trinity'%sample_output_folder            
             if not os.path.exists(sample_output_folder):
                 os.makedirs(sample_output_folder)
             for misc1, misc2, fastq in os.walk(subfolder):
@@ -123,25 +125,25 @@ def main(args):
                     print ("Processing sample %s" %sample_id)
                     if assembler == "trinity":
                         assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length)
-                        get_stats(sample_output_folder,sample_id)
+                        contig_count_df = get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict)
                         cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
                         print ("#" * 50)
-                        mv_cmd = "mv %s/Trinity.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
+                        mv_cmd = "mv %s/Trinity_formatted.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
                         os.system(mv_cmd)
                     elif assembler == "abyss":
 #___________________________this is the assembly code block, can be deactivated if only stats shall be printed_________________________
-#                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
-#                        files = glob.glob(os.path.join(home_dir,'*'))
-#                        links = [f for f in files if os.path.islink(f)]
-#                        for l in links:
-#                            if l.endswith("-contigs.fa"):
-#                                contig_file = os.path.realpath(l)
-#                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
-#                                os.system(mv_contig)
-#                        mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
-#                        os.system(mv_cmd1)
-#                        mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
-#                        os.system(mv_cmd2)
+                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
+                        files = glob.glob(os.path.join(home_dir,'*'))
+                        links = [f for f in files if os.path.islink(f)]
+                        for l in links:
+                            if l.endswith("-contigs.fa"):
+                                contig_file = os.path.realpath(l)
+                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
+                                os.system(mv_contig)
+                        mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+                        os.system(mv_cmd1)
+                        mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+                        os.system(mv_cmd2)
 #_______________________________________________________________________________________________________________________________________
                         contig_count_df = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
                 else:
@@ -173,6 +175,7 @@ def main(args):
 
 def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
     print ("De-novo assembly with Trinity of sample %s:" %id_sample)
+    print(output_folder)
     command = [
         "Trinity",
         "--seqType",
@@ -185,19 +188,21 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
         str(cores),
         "--min_contig_length",
         str(min_length),
-        #"--JM",
-        #"20G",
+        #"--max_memory",
+        #"10G", 
+        #"--bypass_java_version_check",
+        #"--normalize_reads",
         "--output",
         output_folder
     ]
-    try:
-        print ("Building contigs........")
-        with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
-            p = subprocess.Popen(command, stdout=log_err_file)
-            p.communicate()
-        print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %sample_id)))
-    except:
-        print ("Could not assemble %s" %id_sample)
+    #try:
+    print ("Building contigs........")
+    with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
+        p = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file)
+        p.communicate()
+    print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)))
+    #except:
+    #    print ("Could not assemble %s" %id_sample)
 
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
     print ("De-novo assembly with abyss of sample %s:" %id_sample)
@@ -219,26 +224,32 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
     except:
         print ("Could not assemble %s" %id_sample)
 
-def get_stats(sample_output_folder,sample_id):
-    print ("Extracting statistics for", sample_id)
-    # Read counts
-    read_count_cmd = subprocess.Popen(["cat", "%s/both.fa.read_count" %sample_output_folder], stdout=subprocess.PIPE)
-    read_count = read_count_cmd.communicate()[0]
-    # Assembled read counts
-    assembled_reads_cmd = subprocess.Popen(["wc", "-l", "%s/chrysalis/readsToComponents.out.sort" %sample_output_folder], stdout=subprocess.PIPE)
-    assembled_reads = assembled_reads_cmd.communicate()[0]
-    assembled_reads_count, file = assembled_reads.split(" ")
-    # Contig count
-    unimportant = ""
-    contig_count_cmd = subprocess.Popen(["tail", "-n", "1", "%s/chrysalis/readsToComponents.out.sort" %sample_output_folder], stdout=subprocess.PIPE)
-    contig_count_pre = contig_count_cmd.communicate()[0]
-    print (contig_count_pre)
-    contig_count, header, percent, sequence = contig_count_pre.split("\t")
-    with open(os.path.join(sample_output_folder, "%s_stats.txt" %sample_id), 'w') as stat_file:
-        stat_file.write("Statistics for sample %s\n" %sample_id)
-        stat_file.write("Read-count in trimmed fastq read-files : %s" %read_count)
-        stat_file.write("Reads assembled into contigs : %s\n" %assembled_reads_count)
-        stat_file.write("Assembled contigs : %s\n" %contig_count)
+def get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict):
+    print ("Extracting statistics for %s" %str(sample_id))
+    contig_file = "%s/Trinity.fasta" %sample_output_folder
+    new_contig_file = "%s/Trinity_formatted.fasta" %sample_output_folder
+    edit_trinity_headers(contig_file,new_contig_file)
+    contig_count = count_contigs(new_contig_file)
+    sample_contig_count_dict.setdefault(sample_id,contig_count)
+    stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
+    stats_df.columns = ['sample', 'total_contig_count']
+    print('#'*50)
+    print(stats_df)
+    return(stats_df)
+
+def edit_trinity_headers(contig_file,new_contig_file):
+    fasta =  open(contig_file,'r')
+    new_fasta = open(new_contig_file,'w')
+    counter = 0
+    for line in fasta:
+        if line.startswith('>'):
+            readcount = int(re.sub(r'.*len=([0-9]*).*','\\1',line).strip())
+            new_header = '>%i %i XXX\n' %(counter,readcount)
+            counter += 1
+            new_fasta.write(new_header)
+        else:
+            new_fasta.write(line)
+    new_fasta.close()
 
 def count_contigs(contig):
     """Return a count of contigs from a fasta file"""
@@ -270,7 +281,7 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
     except:
         raise IOError("Neither Trinity.fasta nor %s_trinity_screen_out.txt were found in output." %sample_id)
     for file in files:
-        if not os.path.basename(file) in ("Trinity.fasta", "%s_trinity_screen_out.txt" %sample_id, "%s_stats.txt" %sample_id):
+        if not os.path.basename(file) in ("Trinity.fasta","Trinity_formatted.fasta", "%s_trinity_screen_out.txt" %sample_id, "%s_stats.txt" %sample_id):
             if os.path.isfile(file) or os.path.islink(file):
                 os.remove(file)
             elif os.path.isdir(file):

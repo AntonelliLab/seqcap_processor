@@ -113,7 +113,12 @@ def add_arguments(parser):
         default=40,
         help='Specifies the minimum length of reads to be kept. For more information see trimmoatic tutorial. Default: %(default)s'
     )
-
+    parser.add_argument(
+        '--cores',
+        type=int,
+        default=1,
+        help='Number of cores to be used for parallelization of trimming algorithm.'
+    )
 
 def main(args):
     # Set working directory
@@ -130,6 +135,7 @@ def main(args):
     tail_crop = args.cropToLength
     head_crop = args.headCrop
     min_length = args.minLength
+    cores = args.cores
     # Return the user-set or default read-threshold
     read_threshold = args.read_min
     print ("\n\n[Info:] Files with a read-count of less than %d are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold)
@@ -319,6 +325,7 @@ def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index,seed
                     "trimmomatic",
                     "PE",
                     "-phred33",
+                    "-threads %i" %cores,
                     R1,
                     R2,
                     output[0],
@@ -350,7 +357,8 @@ def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index,seed
                 "-jar",
                 trimmomatic,
                 "PE",
-                 "-phred33",
+                "-phred33",
+                "-threads %i" %cores,
                 R1,
                 R2,
                 output[0],

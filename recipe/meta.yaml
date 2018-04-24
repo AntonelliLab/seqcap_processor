@@ -35,14 +35,15 @@ requirements:
     - lastz
     - mafft
     - muscle
-    - cogent
     - trimmomatic
     - trinity
     - abyss
     - fastqc
+    - seqtk
     - pandas
     - numpy 
-
+    - cogent
+    
 test:
   imports:
     - secapr

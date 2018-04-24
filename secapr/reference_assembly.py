@@ -65,6 +65,12 @@ def add_arguments(parser):
         help='Set the minimum read coverage. Only positions that are covered by this number of reads will be called in the consensus sequence, otherwise the program will add an ambiguity at this position.'
     )
     parser.add_argument(
+        '--cores',
+        type=int,
+        default=1,
+        help='Number of computational cores for parallelization of computation.'
+    )
+    parser.add_argument(
         '--k',
         type=int,
         default=50,
@@ -95,37 +101,37 @@ def add_arguments(parser):
         help='Discard a match if it has more than INT occurence in the genome'
     )
     parser.add_argument(
-        '--A',
+        '--a',
         type=int,
         default=1,
         help='Matching score. Acts as a factor enhancing any match (higher value makes it less conservative = allows reads that have fewer matches, since every match is scored higher).'
     )
     parser.add_argument(
-        '--B',
+        '--b',
         type=int,
         default=4,
         help='Mismatch penalty. The accepted mismatch rate per read on length k is approximately: {.75 * exp[-log(4) * B/A]}'
     )
     parser.add_argument(
-        '--O',
+        '--o',
         type=int,
         default=10,
         help='Gap opening penalty'
     )    
     parser.add_argument(
-        '--E',
+        '--e',
         type=int,
         default=5,
         help='Gap extension penalty'
     )    
     parser.add_argument(
-        '--L',
+        '--l',
         type=int,
         default=4,
         help='Clipping penalty. During extension, the algorithm keeps track of the best score reaching the end of query. If this score is larger than the best extension score minus the clipping penalty, clipping will not be applied.'
     )    
     parser.add_argument(
-        '--U',
+        '--u',
         type=int,
         default=2,
         help='Penalty for an unpaired read pair. The lower the value, the more unpaired reads will be allowed in the mapping.'
@@ -189,7 +195,7 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args,
         sys.exit()
 
     #Mapping
-    command2 = ["bwa","mem","-k",str(args.k),"-w",str(args.w),"-d",str(args.d),"-r",str(args.r),"-c",str(args.c),"-A",str(args.A),"-B",str(args.B),"-O",str(args.O),"-E",str(args.E),"-L",str(args.L),"-U",str(args.U),"-M",reference,forward,backward]
+    command2 = ["bwa","mem","-t",str(args.cores),"-k",str(args.k),"-w",str(args.w),"-d",str(args.d),"-r",str(args.r),"-c",str(args.c),"-A",str(args.a),"-B",str(args.b),"-O",str(args.o),"-E",str(args.e),"-L",str(args.l),"-U",str(args.u),"-M",reference,forward,backward]
     """
     Copied from bwa manual (http://bio-bwa.sourceforge.net/bwa.shtml#3):
         -k INT Minimum seed length. Matches shorter than INT will be missed. The alignment speed is usually insensitive to this value unless it significantly deviates 20. [19]
