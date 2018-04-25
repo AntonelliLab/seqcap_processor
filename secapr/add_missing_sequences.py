@@ -1,5 +1,5 @@
 # encoding: utf-8
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Hofmann, tobias.andermann@bioenv.gu.se
 """
 This script will add dummy sequences '?' for missing taxons in each alignments, making sure that all alignments in the input folder contain the same taxa (as required for e.g. *BEAST).",
 """

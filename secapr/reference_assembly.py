@@ -4,7 +4,7 @@ Create new reference library and map raw reads against the library (reference-ba
 '''
 
 
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 
 import os
 import sys

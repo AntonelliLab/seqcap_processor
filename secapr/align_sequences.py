@@ -30,7 +30,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ________________________________________
-Modified by Tobias Hofmann (tobias.hofmann@bioenv.gu.se):
+Modified by Tobias Andermann (tobias.andermann@bioenv.gu.se):
 Additions include:
 - Standardizing script for incomplete data 
 - More forgiving default options for non-UCE datasets

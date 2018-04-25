@@ -1,4 +1,4 @@
-#author: Tobias Hofmann, tobias.hofmann@bioenv.gu.se
+#author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 
 import os
 import sys

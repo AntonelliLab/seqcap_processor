@@ -55,12 +55,6 @@ def add_arguments(parser):
         help="The minimum percent identity required for a match [default=80]."
     )
     parser.add_argument(
-        "--regex",
-        type=str,
-        default=".*",
-        help="A regular expression to apply to the reference sequence names as tags in the output table.",
-    )
-    parser.add_argument(
         "--keep-duplicates",
         action='store_true',
         default=False,
@@ -159,7 +153,7 @@ def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_
     # define the output file where extracted contigs will be stored
     global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
     global_match_output_file = os.path.join('/'.join(subfolder.split('/')[:-1]),global_match_output_name)
-    sample_match_output_name = 'extracted_target_contigs%s.fasta'%sample_id
+    sample_match_output_name = 'extracted_target_contigs_%s.fasta'%sample_id
     sample_match_output_file = os.path.join(subfolder,sample_match_output_name)
     # extract valid contigs form contig file and print to fasta file with exon-names+ sample_id as headers
     with open(global_match_output_file, "a") as out_file:
@@ -193,11 +187,29 @@ def main(args):
         os.makedirs(args.output)
     else:
         raise IOError("The directory {} already exists.  Please check and remove by hand.".format(args.output))
-    # Get the list of exons from reference file
-    pre_regex = args.regex
-    regex = re.compile("^(%s)(?:.*)" %pre_regex)
-    exons = set(new_get_probe_name(seq.id, regex) for seq in SeqIO.parse(open(args.reference, 'rU'), 'fasta'))
-    sorted_exon_list = sorted(list(exons))
+    # Write new reference file with numbers as fasta-headers
+    reference_fasta = open(args.reference,'r')
+    new_fasta = os.path.join(args.output,'formatted_reference_library.fasta')
+    new_reference_fasta = open(new_fasta,'w')
+    counter_sequence_dict = {}
+    counter = 0
+    for line in reference_fasta:
+        if line.startswith('>'):
+            old_header = line.replace('>','').strip()
+            counter_sequence_dict.setdefault(counter,old_header)
+            new_header = '>%i\n' %(counter)
+            counter += 1
+            new_reference_fasta.write(new_header)
+        else:
+            new_reference_fasta.write(line)
+    new_reference_fasta.close()
+    # write the translation dictionary between new numerical identifiers and previous fasta headers to file
+    header_info_file = os.path.join(args.output,'reference_fasta_header_info.fasta')
+    header_info = pd.DataFrame.from_dict(counter_sequence_dict, orient='index')
+    header_info.to_csv(header_info_file,sep='\t',header=False,index=True)
+    # get the fasta headers from the new formatted reference file
+    exons = [seq.id for seq in SeqIO.parse(open(new_fasta, 'rU'), 'fasta')]
+    sorted_exon_list = list(exons)
     # Get the paths to the contig fasta files for all samples
     fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
     sample_ids = [os.path.basename(fasta).split('.')[0] for fasta in fasta_files]
@@ -226,7 +238,7 @@ def main(args):
             lastz_command = [
                 'lastz',
                 '%s[multiple,nameparse=full]'%contig_file,
-                '%s[nameparse=full]'%args.reference,
+                '%s[nameparse=full]'%new_fasta,
                 '--strand=both',
                 '--seed=12of19',
                 '--transition',
@@ -263,7 +275,7 @@ def main(args):
                 contig_match_df.loc[exon,critter] = 1        
         print('Extracted %i contigs matching reference exons\n' %extracted_contig_counter)
         log.info("{}".format("-" * 65))
-    
+
     contig_match_df.to_csv(os.path.join(args.output,'match_table.txt'),sep='\t',index=True,encoding='utf-8')
     # Print summary stats
     table = pd.read_csv(os.path.join(args.output,'match_table.txt'), delimiter = '\t',index_col=0)

@@ -1,4 +1,4 @@
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 
 '''
 Assemble trimmed Illumina read files (fastq)

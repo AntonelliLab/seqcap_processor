@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 #__main__.py created by Estelle, based on IgDiscover (https://bitbucket.org/igdiscover/igdiscover)
 
 import os
@@ -12,12 +12,13 @@ from . import __version__
 import importlib
 
 
-__author__ = "Tobias Hofmann"
+__author__ = "Tobias Andermann"
 
 # List of all subcommands. A module of the given name must exist and define
 # add_arguments() and main() functions.
 
 COMMANDS = [
+		'quality_check',
         'clean_reads',
         'assemble_reads',
         'find_target_contigs',
@@ -27,6 +28,7 @@ COMMANDS = [
         'phase_alleles',
         'add_missing_sequences',
         'locus_selection',
+		'automate_all',
 ]
 
 

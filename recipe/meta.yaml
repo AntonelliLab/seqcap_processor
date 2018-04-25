@@ -43,6 +43,8 @@ requirements:
     - pandas
     - numpy 
     - cogent
+    - java-jdk =7.0.91
+    - r =3.4.3
     
 test:
   imports:

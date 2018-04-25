@@ -3,7 +3,7 @@
 Phase remapped reads form reference-based assembly into two separate alleles. Then produce consensus sequence for each allele.
 """
 
-#author: Tobias Hofmann, tobiashofmann@gmx.net
+#author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 
 import os
 import sys
