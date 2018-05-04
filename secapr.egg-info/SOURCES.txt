@@ -8,6 +8,7 @@ secapr/_version.py
 secapr/add_missing_sequences.py
 secapr/align_sequences.py
 secapr/assemble_reads.py
+secapr/automate_all.py
 secapr/clean_reads.py
 secapr/concatenate_alignments.py
 secapr/create_consensus_from_alleles.py
@@ -20,6 +21,7 @@ secapr/mpileup_fasta.py
 secapr/phase_alleles.py
 secapr/phase_alleles_provide_reference_fasta.py
 secapr/process_pileup.py
+secapr/quality_check.py
 secapr/reference_assembly.py
 secapr/remove_uninformative_seqs.py
 secapr/utils.py

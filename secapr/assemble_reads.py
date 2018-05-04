@@ -55,7 +55,13 @@ def add_arguments(parser):
         '--contig_length',
         type=int,
         default=200,
-        help='Set the minimum contig length for the assembly. Contigs that are shorter than this threshold will be discarded. [Only available for Trinity assembler]'
+        help='[Option only for Trinity assembler] Set the minimum contig length for the assembly. Contigs that are shorter than this threshold will be discarded.'
+    )
+    parser.add_argument(
+        '--max_memory',
+        type=int,
+        default='8GB',
+        help='[Option only for Trinity assembler] Set the maximum memory for Trinity to use in this format: 1GB or 1000M.'
     )
     parser.add_argument(
         '--single_reads',
@@ -91,6 +97,7 @@ def main(args):
     kmer = args.kmer
     assembler = args.assembler
     #assembler = 'abyss'
+    max_memory = args.max_memory
     home_dir = os.getcwd()
     sample_contig_count_dict = {}
     if cores > 1:
@@ -102,8 +109,8 @@ def main(args):
             sample_id = re.split("_clean", sample_folder)[0]
             # Loop through each sample-folder and find read-files
             sample_output_folder = "%s/%s" %(out_dir, sample_id)
-            #if assembler == "trinity":
-            #    sample_output_folder = '%s_trinity'%sample_output_folder            
+            if assembler == "trinity":
+                sample_output_folder = '%s_trinity'%sample_output_folder            
             if not os.path.exists(sample_output_folder):
                 os.makedirs(sample_output_folder)
             for misc1, misc2, fastq in os.walk(subfolder):
@@ -188,21 +195,23 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
         str(cores),
         "--min_contig_length",
         str(min_length),
-        #"--max_memory",
-        #"10G", 
+        #"--JM",
+        #"8G",
+        "--max_memory",
+        max_memory, 
         #"--bypass_java_version_check",
         #"--normalize_reads",
         "--output",
         output_folder
     ]
-    #try:
-    print ("Building contigs........")
-    with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
-        p = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file)
-        p.communicate()
-    print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)))
-    #except:
-    #    print ("Could not assemble %s" %id_sample)
+    try:
+        print ("Building contigs........")
+        with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
+            p = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file)
+            p.communicate()
+        print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)))
+    except:
+        print ("Trinity failed, maybe due to limited stack-size. Try increase stacksize with command 'zsh | ulimit -s unlimited | sh' and run again.")
 
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
     print ("De-novo assembly with abyss of sample %s:" %id_sample)

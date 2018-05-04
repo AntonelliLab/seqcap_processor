@@ -240,7 +240,10 @@ def main(args):
     for name, alignment in alignments:
         if alignment.trimmed:
             for t in alignment.trimmed:
-                t.id = t.description.split('|')[0].split('_')[-1]
+                locus_name = t.description.split('|')[-1]
+                rest_of_string = '|'.join(t.description.split('|')[:-1])
+                string_to_replace = '%s_'%str(locus_name)
+                t.id = rest_of_string.replace(string_to_replace, '')
                 t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)

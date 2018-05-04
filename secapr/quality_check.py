@@ -64,6 +64,7 @@ def main(args):
     text_file.close()
     
     # execute r-plotting script
+    plot('Running R-code for plotting: This step can take several minutes when executed for the first time, since R needs to install all dependencies.')
     final_plot = os.path.join(out_folder,'quality_summary_all_samples.pdf')
     plotting_cmd = [
         'Rscript %s -i %s -o %s' %(r_script_path,out_folder,final_plot)
