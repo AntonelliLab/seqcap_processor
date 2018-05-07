@@ -59,9 +59,9 @@ def add_arguments(parser):
     )
     parser.add_argument(
         '--max_memory',
-        type=int,
-        default='8GB',
-        help='[Option only for Trinity assembler] Set the maximum memory for Trinity to use in this format: 1GB or 1000M.'
+        type=str,
+        default='8G',
+        help='[Option only for Trinity assembler] Set the maximum memory for Trinity to use in this format: 1G or 1000M (default: 8G).'
     )
     parser.add_argument(
         '--single_reads',
@@ -140,17 +140,17 @@ def main(args):
                     elif assembler == "abyss":
 #___________________________this is the assembly code block, can be deactivated if only stats shall be printed_________________________
                         assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
-                        files = glob.glob(os.path.join(home_dir,'*'))
+                        files = glob.glob(os.path.join(sample_output_folder,'*'))
                         links = [f for f in files if os.path.islink(f)]
                         for l in links:
                             if l.endswith("-contigs.fa"):
                                 contig_file = os.path.realpath(l)
                                 mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
                                 os.system(mv_contig)
-                        mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
-                        os.system(mv_cmd1)
-                        mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
-                        os.system(mv_cmd2)
+                        #mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+                        #os.system(mv_cmd1)
+                        #mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+                        #os.system(mv_cmd2)
 #_______________________________________________________________________________________________________________________________________
                         contig_count_df = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
                 else:
@@ -217,6 +217,7 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
     print ("De-novo assembly with abyss of sample %s:" %id_sample)
     command = [
         "abyss-pe",
+        "--directory={}".format(output_folder),
         "k={}".format(kmer),
         "j={}".format(cores),
         'name={}'.format(id_sample),

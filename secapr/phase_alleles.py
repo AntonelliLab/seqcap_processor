@@ -84,10 +84,10 @@ def phase_bam(sorted_bam_file,sample_output_folder,min_cov,reference):
 	allele_1_sorted_file = "%s.bam" %allele_1_sorted_base
 
 	# Sorting phased bam files:
-	#sort_phased_0 = "samtools sort %s %s" %(allele_0_file,allele_0_sorted_base)
-	#sort_phased_1 = "samtools sort %s %s" %(allele_1_file,allele_1_sorted_base)
-	sort_phased_0 = "samtools sort -o %s %s" %(allele_0_sorted_file, allele_0_file)
-	sort_phased_1 = "samtools sort -o %s %s" %(allele_1_sorted_file,allele_1_file)
+	sort_phased_0 = "samtools sort %s %s" %(allele_0_file,allele_0_sorted_base)
+	sort_phased_1 = "samtools sort %s %s" %(allele_1_file,allele_1_sorted_base)
+	#sort_phased_0 = "samtools sort -o %s %s" %(allele_0_sorted_file, allele_0_file)
+	#sort_phased_1 = "samtools sort -o %s %s" %(allele_1_sorted_file,allele_1_file)
 	os.system(sort_phased_0)
 	os.system(sort_phased_1)
 

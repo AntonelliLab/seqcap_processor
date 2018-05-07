@@ -1,4 +1,4 @@
-{% set version = "1.1.4" %}
+{% set version = "1.1.6" %}
 
 package:
   name: secapr
@@ -7,7 +7,7 @@ package:
 source:
   fn: secapr_{{ version }}.tar.gz
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: dc28263f0f8567cc7946b5cb4657ccf13af15e158c5df814162e8dab2bd6f52b
+  sha256: 5c14c5d6d2de83ab49671043c4bca07d5dfce11909eef46f9ba7f61f589e4132
 
 build:
   skip: True  # [not py27]
@@ -36,7 +36,7 @@ requirements:
     - mafft
     - muscle
     - trimmomatic
-    - trinity
+    - trinity =2.0.6
     - abyss
     - fastqc
     - seqtk

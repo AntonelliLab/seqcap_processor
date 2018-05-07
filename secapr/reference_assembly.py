@@ -80,7 +80,7 @@ def add_arguments(parser):
         '--w',
         type=int,
         default=21,
-        help='Avoid introducing gaps in read that are longer than this threshold.'
+        help='Avoid introducing gaps in reads that are longer than this threshold.'
     )
     parser.add_argument(
         '--d',
@@ -224,7 +224,7 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args,
     sp3 = subprocess.Popen(command3,stderr=subprocess.PIPE)
     sp3.wait()
     sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
-    command4 = ["samtools","sort", "-o", sorted_bam, raw_bam]
+    command4 = ["samtools","sort",raw_bam, sorted_bam.replace('.bam','')]
     sp4 = subprocess.Popen(command4)
     sp4.wait()
 
