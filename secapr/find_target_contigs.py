@@ -204,7 +204,7 @@ def main(args):
             new_reference_fasta.write(line)
     new_reference_fasta.close()
     # write the translation dictionary between new numerical identifiers and previous fasta headers to file
-    header_info_file = os.path.join(args.output,'reference_fasta_header_info.fasta')
+    header_info_file = os.path.join(args.output,'reference_fasta_header_info.txt')
     header_info = pd.DataFrame.from_dict(counter_sequence_dict, orient='index')
     header_info.to_csv(header_info_file,sep='\t',header=False,index=True)
     # get the fasta headers from the new formatted reference file
