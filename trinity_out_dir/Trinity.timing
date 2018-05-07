@@ -1,5 +1,0 @@
-Statistics:
-===========
-Trinity Version:      v2.0.6
-Compiler:             Intel
-Trinity Parameters:   --seqType fq --left /Users/tobias/GitHub/seqcap_processor/data/processed/cleaned_trimmed_reads_test/1063_clean/1063_clean-READ1.fastq --right /Users/tobias/GitHub/seqcap_processor/data/processed/cleaned_trimmed_reads_test/1063_clean/1063_clean-READ2.fastq --max_memory 8G --CPU 1
