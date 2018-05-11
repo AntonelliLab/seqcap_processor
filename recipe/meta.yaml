@@ -1,4 +1,4 @@
-{% set version = "1.1.6" %}
+{% set version = "1.1.7" %}
 
 package:
   name: secapr
@@ -7,7 +7,7 @@ package:
 source:
   fn: secapr_{{ version }}.tar.gz
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: 5c14c5d6d2de83ab49671043c4bca07d5dfce11909eef46f9ba7f61f589e4132
+  sha256: 8c0b49798af310493236964455e5f5168270045be7fd7884feae3ed0994783ab
 
 build:
   skip: True  # [not py27]
@@ -22,29 +22,27 @@ requirements:
     - setuptools
     - biopython
     - pandas
+    - r-base
 
   run:
     - python
-    - biopython
-    - emboss
-    - bcftools
-    - samtools
-    - picard
-    - seqtk
-    - bwa
-    - lastz
-    - mafft
-    - muscle
-    - trimmomatic
-    - trinity =2.0.6
-    - abyss
-    - fastqc
-    - seqtk
-    - pandas
-    - numpy 
-    - cogent
-    - java-jdk =7.0.91
-    - r =3.4.3
+    - biopython ==1.68
+    - emboss ==6.5.7
+    - bcftools ==1.8
+    - samtools ==0.1.19
+    - picard ==1.126
+    - seqtk >=1.0.82,<=1.2
+    - bwa >=0.7
+    - lastz ==1.0.2
+    - mafft >=7.2
+    - muscle ==3.8.31
+    - trimmomatic ==0.33
+    - abyss ==1.5.2
+    - fastqc 0.11*
+    - pandas ==0.22.0
+    - numpy ==1.14
+    - cogent ==1.5.3
+    - r-base
     
 test:
   imports:
