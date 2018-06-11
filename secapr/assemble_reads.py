@@ -180,7 +180,7 @@ def main(args):
         except:
             print('INFO: Stats could NOT be appended to %s. Maybe file does not excist? If contig files were not created, try using the --disable_stats flag and run again' %(os.path.join(input_folder,'sample_stats.txt')))
 
-def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length):
+def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_memory):
     print ("De-novo assembly with Trinity of sample %s:" %id_sample)
     print(output_folder)
     command = [
