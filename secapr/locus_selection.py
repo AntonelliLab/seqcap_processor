@@ -248,8 +248,10 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         convert_to_bam = 'samtools view -Sb %s > %s' %(sam_output_file,bam_output_file)
         os.system(convert_to_bam)
         sorted_bam_out = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci_sorted.bam" %(sample,input_type))
-        sort_bam = 'samtools sort %s > %s' %(bam_output_file,sorted_bam_out)
+        sort_bam = 'samtools sort %s %s' %(bam_output_file,sorted_bam_out.replace('.bam',''))
         os.system(sort_bam)
+        index_bam = 'samtools index %s' %(sorted_bam_out)
+        os.system(index_bam)
     return target_loci
 
 

@@ -131,7 +131,7 @@ def main(args):
                     print ('#' * 50)
                     print ("Processing sample %s" %sample_id)
                     if assembler == "trinity":
-                        assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length)
+                        assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length,max_memory)
                         contig_count_df = get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict)
                         cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
                         print ("#" * 50)
