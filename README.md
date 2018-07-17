@@ -1,6 +1,6 @@
 # <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
 
-**Original Publication: https://doi.org/10.7287/peerj.preprints.26477v3**
+**Original Publication: https://doi.org/10.7717/peerj.5175**
 
 ___
 
@@ -23,6 +23,6 @@ Some functions in this pipeline are inspired by the scripts from the [Phyluce pi
 
 #### Please cite:
 
-**Andermann T**, Cano Á, Zizka A, Bacon C, Antonelli A. (2018) SECAPR - A bioinformatics pipeline for the rapid and user-friendly processing of Illumina sequences, from raw reads to alignments. PeerJ Preprints. doi: 10.7287/peerj.preprints.26477v3
+**Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR — A bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175. DOI: 10.7717/peerj.5175.
 
 Faircloth BC. 2015. PHYLUCE is a software package for the analysis of conserved genomic loci. bioRxiv. doi: 10.1101/027904.
