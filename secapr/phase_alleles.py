@@ -158,7 +158,7 @@ def main(args):
 		if os.path.isdir(path):
 			subfolder_path = os.path.join(input_folder,subfolder)
 			if subfolder_path.endswith('_remapped') or subfolder_path.endswith('_locus_selection'):
-				sample = subfolder.split('_')[0]
+				sample = '_'.join(subfolder.split('_')[:-1])
 				sample_output_folder = os.path.join(out_dir,'%s_phased' %sample)
 				if not os.path.exists(sample_output_folder):
 					os.makedirs(sample_output_folder)

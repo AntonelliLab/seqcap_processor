@@ -182,7 +182,7 @@ def main(args):
 
 def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_memory):
     print ("De-novo assembly with Trinity of sample %s:" %id_sample)
-    print(output_folder)
+    #print(output_folder)
     command = [
         "Trinity",
         "--seqType",
@@ -204,14 +204,31 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_mem
         "--output",
         output_folder
     ]
-    try:
-        print ("Building contigs........")
-        with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
-            p = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file)
-            p.communicate()
-        print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)))
-    except:
-        print ("Trinity failed, maybe due to limited stack-size. Try increase stacksize with command 'zsh | ulimit -s unlimited | sh' and run again.")
+    print ("Building contigs........")
+    with open(os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample), 'w') as log_err_file:
+        p = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file)
+        p.communicate()
+    filename = os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)
+    file_object  = open(filename, 'r')
+    for line in file_object:
+        if line.startswith('Error'):
+            print(line)
+            print ('SECAPR NOTE:\nTrinity is currently only functional in the Linux distribution of SECAPR due to Java incompatibilities.\n')
+                #'However, the environment on MacOS machines can be easily altered by hand in order to properly run Trinity.\n',
+                #'This might however compromise the functionality of other parts of the SECAPR pipeline, therefore we recommend to undo the changes made in the envrionment after using Trinity by following the instructions below.\n\n',
+                #'In order to run the Trinity assembly on MacOS do the following:\n',
+                #'1. within the SECAPR conda envrionment type: "conda install openjdk=7"\n',
+                #'2. run the secapr assemble_reads function with Trinity (using the "--assembler trinity" flag)\n',
+                #'3. after assembly rebuild the SECAPR default environment by typing "conda install trimmomatic=0.33"\n'
+            sys.exit()
+        elif line.startswith('Trinity run failed.'):
+            print (''.join(file(filename)))
+            print ('SECAPR NOTE:\nTrinity is currently only functional in the Linux distribution of SECAPR.\n')
+            sys.exit()
+
+    print ("%s assembled. Trinity-stats are printed into %s" %(id_sample, os.path.join(output_folder, "%s_trinity_screen_out.txt" %id_sample)))
+    #except:
+    #    print ("Trinity failed, maybe due to limited stack-size. Try increase stacksize with command 'zsh | ulimit -s unlimited | sh' and run again.")
 
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
     print ("De-novo assembly with abyss of sample %s:" %id_sample)

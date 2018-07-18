@@ -283,9 +283,13 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
         "VALIDATION_STRINGENCY=LENIENT"
     ]
     print ("Removing duplicate reads with Picard..........")
-    with open(os.path.join(log, "picard_screen_out.txt"), 'w') as log_err_file:
-        pi = subprocess.Popen(run_picard, stderr=log_err_file)
-        pi.communicate()
+    try:
+        with open(os.path.join(log, "picard_screen_out.txt"), 'w') as log_err_file:
+            pi = subprocess.Popen(run_picard, stderr=log_err_file)
+            pi.communicate()
+    except OSError:
+        print('Not enough reads mapped to reference in order to run Picard. Try using the "--keep_duplicates" flag in order to avoid the use of Picard.') 
+        quit()
     print ("Duplicates successfully removed.")
     # Cleaning up a bit
     has_duplicates = "%s/including_duplicate_reads" %sample_output_folder
@@ -753,6 +757,7 @@ def main(args):
                     bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
     join_fastas(out_dir,sample_out_list)
     # create file with read-coverage overview
+    print("#" * 50)
     sample_bam_dict, input_type = get_bam_path_dict(out_dir)
     # currently only available for unphased data
     if input_type == 'unphased':
