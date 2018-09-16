@@ -93,6 +93,7 @@ def contigs_matching_exons(lastz_df):
         #print(contig_header)
         #contig_name = re.sub('^\>([0-9]*) .*', '\\1', contig_header)
         contig_name = re.sub('^\>([^\s]*) .*', '\\1', contig_header)
+        contig_name = re.sub('^>', '', contig_name)
         #print(contig_name)
         exon_contig_dict.setdefault(locus_name,[])
         exon_contig_dict[locus_name].append(contig_name)
@@ -144,7 +145,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_wi
     for exon in exon_contig_dict:
         if exon not in invalid_exons_unique:
             contig_name = exon_contig_dict[exon]
-            valid_contig_names.append(contig_name[0])
+            valid_contig_names.append(str(contig_name[0]).replace('>',''))
     return valid_contig_names
 
 
@@ -159,7 +160,7 @@ def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_
     with open(global_match_output_file, "a") as out_file:
         with open(sample_match_output_file, "w") as sample_file:
             for fasta in contig_sequences:
-                if fasta.id in valid_contig_names:
+                if str(fasta.id) in valid_contig_names:
                     orientation = contig_orientation_dict[fasta.id]
                     if orientation == '-':
                         seq = fasta.seq.reverse_complement()
@@ -293,14 +294,18 @@ def main(args):
             count_list.append(sum(table[column]))
             out_file.write('%s: %i extracted contigs\n'%(column,sum(table[column])))
         out_file.write('mean: %f stdev: %f'%(np.mean(count_list),np.std(count_list)))
-    stats_df = pd.read_csv(os.path.join(args.contigs,'sample_stats.txt'),sep='\t')
-    new_df = stats_df.copy()
-    new_df['target_contigs'] = [0]*len(new_df)
-    for key in sample_count_dict.keys():
-        index_row = new_df[new_df['sample'] == int(key)].index 
-        new_df.iloc[index_row,-1] = int(sample_count_dict[key])
-    new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
-
+    try:
+        stats_df = pd.read_csv(os.path.join(args.contigs,'sample_stats.txt'),sep='\t')
+        new_df = stats_df.copy()
+        new_df['target_contigs'] = [0]*len(new_df)
+        for key in sample_count_dict.keys():
+            index_row = new_df[new_df['sample'] == int(key)].index 
+            new_df.iloc[index_row,-1] = int(sample_count_dict[key])
+        new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
+    except:
+        print('No stats-file found in contig-folder. Instead printing stats to screen:')
+        for key in sample_count_dict.keys():
+            print('Sample %s: %i contigs extracted.'%(key,int(sample_count_dict[key])))
 
 
 

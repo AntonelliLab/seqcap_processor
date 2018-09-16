@@ -1,4 +1,4 @@
-{% set version = "1.1.11" %}
+{% set version = "1.1.12" %}
 
 package:
   name: secapr
@@ -6,11 +6,11 @@ package:
 
 source:
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: a14cea6d58154759da84c9626b17b6010626b907980e9e5bbde5ee9c2be5a3ca
+  sha256: 0e6693940aaea1e43adc52aaf03581a9d8f448fc3771acdf9ca3fa3c8b7588eb
 
 build:
   skip: True  # [not py27] 
-  number: 2
+  number: 0
   script: python -m pip install --no-deps --ignore-installed .
   entry_points:
     - secapr = secapr.__main__:main
@@ -29,7 +29,7 @@ requirements:
     - biopython
     - emboss
     - bcftools ==1.8
-    - samtools 0.1.19
+    - samtools ==0.1.19
     - picard
     - seqtk >=1.0.82,<=1.2
     - bwa >=0.7
