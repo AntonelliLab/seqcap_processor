@@ -269,6 +269,44 @@ def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
     return sorted_bam
 
 
+def clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log):
+	
+    samtools_out = "%s/%s_no_dupls_sorted.bam" %(sample_output_folder,sample_id)
+    dupl_log = "%s/%s_dupls.log" %(log,sample_id)
+    run_samtools_rmdup = [
+        "samtools",
+        "rmdup",
+        sorted_bam,
+        samtools_out
+    ]
+    print ("Removing duplicate reads with samtools..........")
+    try:
+        with open(os.path.join(log, "samtools_screen_out.txt"), 'w') as log_err_file:
+            pi = subprocess.Popen(run_samtools_rmdup, stderr=log_err_file)
+            pi.communicate()
+    except OSError:
+        print('Not enough reads mapped to reference in order to run samtools rmdup. Try using the "--keep_duplicates" flag in order to avoid the use of duplicate cleaning.') 
+        quit()
+    print ("Duplicates successfully removed.")
+    # Cleaning up a bit
+    has_duplicates = "%s/including_duplicate_reads" %sample_output_folder
+    if not os.path.exists(has_duplicates):
+        os.makedirs(has_duplicates)
+    mv_duplicates_1 = 'mv %s/*.bam %s' %(sample_output_folder,has_duplicates)
+    mv_duplicates_2 = 'mv %s/*.bam.bai %s' %(sample_output_folder,has_duplicates)
+    mv_final = 'mv %s/*_no_dupls_sorted.bam %s' %(has_duplicates,sample_output_folder)
+    os.system(mv_duplicates_1)
+    os.system(mv_duplicates_2)
+    os.system(mv_final)
+
+    print ("Indexing duplicate-free bam..........")
+    index_cleaned_bam = "samtools index %s" %(samtools_out)
+    os.system(index_cleaned_bam)
+    dupl_bam_name = sorted_bam.split('/')[-1]
+    dupl_out = os.path.join(has_duplicates,dupl_bam_name)
+    return samtools_out, dupl_out
+
+
 def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
 
     picard_out = "%s/%s_no_dupls_sorted.bam" %(sample_output_folder,sample_id)
@@ -748,7 +786,7 @@ def main(args):
                 if mapper == "bwa":
                     sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,args,log)
                 if not args.keep_duplicates:
-                    sorted_bam, dupl_bam = clean_with_picard(sample_output_folder,sample_id,sorted_bam,log)
+                    sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)
                 name_stem = '%s_bam_consensus' %sample_id
                 bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
                 if not args.keep_duplicates:
