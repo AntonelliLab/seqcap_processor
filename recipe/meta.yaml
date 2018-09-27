@@ -36,7 +36,7 @@ requirements:
     - lastz
     - mafft >=7.2
     - muscle
-    - trimmomatic ==0.33
+    - trimmomatic >=0.3
     - abyss
     - trinity <=2.3.2
     - fastqc

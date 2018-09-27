@@ -299,7 +299,7 @@ def main(args):
         new_df = stats_df.copy()
         new_df['target_contigs'] = [0]*len(new_df)
         for key in sample_count_dict.keys():
-            index_row = new_df[new_df['sample'] == int(key)].index 
+            index_row = new_df[new_df['sample'] == str(key)].index 
             new_df.iloc[index_row,-1] = int(sample_count_dict[key])
         new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
     except:
