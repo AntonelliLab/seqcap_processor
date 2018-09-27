@@ -46,7 +46,7 @@ def add_arguments(parser):
 		required=True,
 		action=CompletePath,
 		default=None,
-		help='Provide the reference that was used for read-mapping. If you used the alignment-consensus method, provide the joined_references.fasta which is found in the reference folder within the reference-assembly output.'
+		help='Provide the reference that was used for read-mapping. If you used the alignment-consensus method, provide the joined_fasta_library.fasta which is found in the reference_seqs folder within the reference-assembly output.'
 	)
 
 
