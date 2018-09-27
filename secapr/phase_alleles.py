@@ -41,6 +41,13 @@ def add_arguments(parser):
 		default=4,
 		help='Set the minimum read coverage. Only positions that are covered by this number of reads will be called in the consensus sequence, otherwise the program will add an ambiguity at this position.'
 	)
+	parser.add_argument(
+		'--reference',
+		required=True,
+		action=CompletePath,
+		default=None,
+		help='Provide the reference that was used for read-mapping. If you used the alignment-consensus method, provide the joined_references.fasta which is found in the reference folder within the reference-assembly output.'
+	)
 
 
 def phase_bam(sorted_bam_file,sample_output_folder,min_cov,reference):
@@ -144,6 +151,7 @@ def manage_homzygous_samples(fasta_dir, sample_id):
 
 def main(args):
 	min_cov = args.min_coverage
+	reference = args.reference
 	# Set working directory
 	out_dir = args.output
 	if not os.path.exists(out_dir):
@@ -165,8 +173,8 @@ def main(args):
 				sample_out_list.append(sample_output_folder)
 				tmp_folder = os.path.join(subfolder_path,'tmp')
 				reference_pickle = os.path.join(tmp_folder,'%s_reference.pickle' %sample)
-				with open(reference_pickle, 'rb') as handle:
-					reference = pickle.load(handle)
+				#with open(reference_pickle, 'rb') as handle:
+				#	reference = pickle.load(handle)
 				for file in os.listdir(subfolder_path):
 					if file.endswith("sorted.bam"):
 						sorted_bam = file
