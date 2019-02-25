@@ -61,6 +61,12 @@ def add_arguments(parser):
         help="Use this flag in case you want to keep those contigs that span across multiple exons.",
     )
     parser.add_argument(
+        "--keep-paralogs",
+        action='store_true',
+        default=False,
+        help="Use this flag in case you want to keep loci with signs of paralogy (multiple contig matches). One randomely selected contig will be selected for these loci.",
+    )
+    parser.add_argument(
         '--disable_stats',
         action='store_true',
         default=False,
@@ -125,21 +131,30 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
     return invalid_exon_loci, exons_with_multiple_hits, contigs_matching_multiple_exons
 
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,outdir):
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir):
     # summarize all exons that should be excluded form further processing (duplicates)
     if keep_duplicates_boolean:
         # then only mark the list exons_with_multiple_hits as bad exons
-        invalid_exons_unique = list(set(exons_with_multiple_hits))
+        invalid_exons_temp = list(set(exons_with_multiple_hits))
         valid_contigs_matching_multiple_exon_dict = {}
         for exon in contigs_matching_multiple_exon_dict.keys():
-            if not exon in invalid_exons_unique:
+            if not exon in invalid_exons_temp:
                 valid_contigs_matching_multiple_exon_dict.setdefault(exon,contigs_matching_multiple_exon_dict[exon])
         dupl_info = pd.DataFrame.from_dict(valid_contigs_matching_multiple_exon_dict, orient='index')
         dupl_info.to_csv(os.path.join(outdir,'info_contigs_matching_multiple_exons.txt'),header=False,sep="\t")
+    if keep_paralogs_boolean:
+        invalid_exons_unique = []
+        invalid_exons_temp = list(set(duplicate_loci))
+        paralogous_exons = {}
+        for exon in exons_with_multiple_hits:
+            paralogous_exons.setdefault(exon,exon_contig_dict[exon])
+        paralog_info = pd.DataFrame.from_dict(paralogous_exons, orient='index')
+        paralog_info.to_csv(os.path.join(outdir,'info_paralogous_loci.txt'),header=False,sep="\t")
+        print('Warning: Found %i paralogous loci. One randomely selected copy of the respective contigs for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(invalid_exons_temp))
     else:
         # remove all duplicates
         invalid_exons_unique = list(set(duplicate_loci))
-    print(len(invalid_exons_unique), 'possibly paralogous exons detected - excluded from processing')
+        print(len(invalid_exons_unique), 'possibly paralogous exons detected - excluded from processing')
     # get list of valid contig names
     valid_contig_names = []
     for exon in exon_contig_dict:
@@ -265,7 +280,7 @@ def main(args):
         # mark duplicate loci
         duplicate_loci, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs
-        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,subfolder)
+        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,args.keep_paralogs,subfolder)
         # load the actual contig sequences
         contig_sequences = SeqIO.parse(open(contig_file),'fasta')
         # write those contigs that match the reference library to the file

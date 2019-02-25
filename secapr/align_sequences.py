@@ -40,6 +40,7 @@ ________________________________________
 
 from __future__ import print_function
 import os
+import re
 import sys
 import copy
 import tempfile
@@ -243,7 +244,8 @@ def main(args):
                 locus_name = t.description.split('|')[-1]
                 rest_of_string = '|'.join(t.description.split('|')[:-1])
                 string_to_replace = '%s_'%str(locus_name)
-                t.id = rest_of_string.replace(string_to_replace, '')
+                new_string = t.id
+                t.id = re.sub(string_to_replace, '', new_string)
                 t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
