@@ -1,4 +1,4 @@
-{% set version = "1.1.13" %}
+{% set version = "1.1.14" %}
 
 package:
   name: secapr
@@ -6,7 +6,7 @@ package:
 
 source:
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: d4d90767c5ca1ba28906685b456f1b726b0386b84f4938c633f7ffeff8e6c08e
+  sha256: 79b08ed957bf71d996419a329ea667ecbefb7b7d3e1974e7e7c060c2358d9a86
 
 build:
   skip: True  # [not py27] 
@@ -22,7 +22,6 @@ requirements:
     - setuptools
     - biopython
     - pandas
-    - r-base
 
   run:
     - python
@@ -43,8 +42,6 @@ requirements:
     - pandas
     - numpy
     - cogent
-    - r-base
-    - r-tidyverse
 
 test:
   imports:

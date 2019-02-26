@@ -4,6 +4,9 @@
 This script runs a fastqc test on all fastq samples in a user-provided folder and creates an overview plot,
 """
 
+import matplotlib
+matplotlib.use('Agg')
+
 import os
 import sys
 import glob
