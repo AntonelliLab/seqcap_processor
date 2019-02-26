@@ -109,7 +109,6 @@ def plot_fastqc_results(fastqc_out_folder):
     #plt.legend()
     fig.savefig(os.path.join(fastqc_out_folder,'quality_summary_all_samples_2.pdf'), dpi = 500,transparent=True,bbox_inches='tight')
 
-
 def main(args):
     # Set working directory
     out_folder = args.output
@@ -122,6 +121,9 @@ def main(args):
     for root, dirnames, filenames in os.walk(input_folder):
         for filename in fnmatch.filter(filenames, '*.fastq'):
             matches.append(os.path.join(root, filename))
+    if len(matches) == 0:
+        print('No files with the ending .fastq found in input folder. Please check path and ensure that all readfiles are unzipped and have the filending ".fastq"')
+        sys.exit()
     fastq_df = pd.DataFrame(index=np.arange(0,len(matches)), columns=['filepaths'])
     fastq_df['filepaths'] = matches
     fastq_list_path = os.path.join(out_folder,'fastq_file_list.txt')

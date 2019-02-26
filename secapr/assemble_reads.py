@@ -55,7 +55,7 @@ def add_arguments(parser):
         '--contig_length',
         type=int,
         default=200,
-        help='[Option only for Trinity assembler] Set the minimum contig length for the assembly. Contigs that are shorter than this threshold will be discarded.'
+        help='Set the minimum contig length for the assembly. Contigs that are shorter than this threshold will be discarded.'
     )
     parser.add_argument(
         '--max_memory',
@@ -152,9 +152,10 @@ def main(args):
                         #mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
                         #os.system(mv_cmd2)
 #_______________________________________________________________________________________________________________________________________
-                        contig_count_df = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
+                        contig_count_df,contig_file = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
+                        remove_short_contigs(contig_file,min_length)
                 else:
-                    print ("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively." %sample_id)
+                    print ("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively and if all files are unzipped." %sample_id)
                     raise SystemExit
     if not args.disable_stats:
         try:
@@ -278,22 +279,45 @@ def edit_trinity_headers(contig_file,new_contig_file):
             new_fasta.write(line)
     new_fasta.close()
 
-def count_contigs(contig):
+def count_contigs(contig_file):
     """Return a count of contigs from a fasta file"""
-    return sum([1 for line in open(contig, 'rU').readlines() if line.startswith('>')])
+    return sum([1 for line in open(contig_file, 'rU').readlines() if line.startswith('>')])
+
+def remove_short_contigs(contig_file,min_length):
+    fasta =  open(contig_file,'r')
+    fasta_content = list(fasta)
+    counter = 0
+    indeces_to_keep = []
+    for i,line in enumerate(fasta_content):
+        if not line.startswith('>'):
+            contig_length = len(line.replace('\n',''))
+            if contig_length < min_length:
+                pass
+            else:
+                # line number of header
+                indeces_to_keep.append(i-1)
+                # line number of sequence
+                indeces_to_keep.append(i)
+    new_fasta_content = list(np.array(fasta_content)[indeces_to_keep])
+    new_fasta = open(contig_file,'w')
+    for line in new_fasta_content:
+        new_fasta.write(line)
+    new_fasta.close()
+
 
 def get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict):
     #contig_count_cmd = subprocess.Popen(["tail", "-n", "2", "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)], stdout=subprocess.PIPE)
     #contig_count_pre = contig_count_cmd.communicate()[0]
     contig_file = "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)
     contig_count = count_contigs(contig_file)
+
     #contig_count = contig_count_pre.split(' ')[0].replace('>','')
     sample_contig_count_dict.setdefault(sample_id,contig_count)
     stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
     stats_df.columns = ['sample', 'total_contig_count']
     print('#'*50)
     print(stats_df)
-    return(stats_df)
+    return(stats_df,contig_file)
     #contig_count, header, percent, sequence = contig_count_pre.split("\t")    
 
 def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
