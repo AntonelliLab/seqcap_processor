@@ -169,7 +169,6 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_wi
         if exon not in invalid_exons_unique:
             contig_name = exon_contig_dict[exon]
             contig_name = find_longest_contig(contig_name,lastz_df)
-            print(contig_name)
             valid_contig_names.append(str(contig_name).replace('>',''))
     return valid_contig_names
 

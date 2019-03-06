@@ -248,6 +248,7 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
         with open(os.path.join(output_folder, "%s_abyss_screen_out.txt" %id_sample), 'w') as log_err_file:
             p = subprocess.Popen(command, stdout=log_err_file)
             p.communicate()
+            p.wait()
         print ("%s assembled. Statistics are printed into %s" %(id_sample, os.path.join(output_folder, "%s_abyss_screen_out.txt" %id_sample)))
     except:
         print ("Could not assemble %s" %id_sample)
