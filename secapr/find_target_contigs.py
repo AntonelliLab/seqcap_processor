@@ -64,7 +64,7 @@ def add_arguments(parser):
         "--keep-paralogs",
         action='store_true',
         default=False,
-        help="Use this flag in case you want to keep loci with signs of paralogy (multiple contig matches). One randomely selected contig will be selected for these loci.",
+        help="Use this flag in case you want to keep loci with signs of paralogy (multiple contig matches). The longest contig will be selected for these loci.",
     )
     parser.add_argument(
         '--disable_stats',
@@ -158,7 +158,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_wi
             paralogous_exons.setdefault(exon,exon_contig_dict[exon])
         paralog_info = pd.DataFrame.from_dict(paralogous_exons, orient='index')
         paralog_info.to_csv(os.path.join(outdir,'info_paralogous_loci.txt'),header=False,sep="\t")
-        print('Warning: Found %i paralogous loci. One randomely selected copy of the respective contigs for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(invalid_exons_temp))
+        print('Warning: Found %i paralogous loci. The longest matching contig for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(invalid_exons_temp))
     else:
         # remove all duplicates
         invalid_exons_unique = list(set(duplicate_loci))
