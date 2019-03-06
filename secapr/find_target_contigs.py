@@ -131,7 +131,15 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
     return invalid_exon_loci, exons_with_multiple_hits, contigs_matching_multiple_exons
 
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir):
+def find_longest_contig(contig_names,lastz_df):
+    contig_header_values = np.array([i.split(' ')[0].replace('>','') for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
+    contig_length_values = np.array([i.split(' ')[1] for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
+    longest_contig = contig_header_values[list(contig_length_values).index(np.max(contig_length_values))]
+
+    return longest_contig
+
+
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,lastz_df):
     # summarize all exons that should be excluded form further processing (duplicates)
     if keep_duplicates_boolean:
         # then only mark the list exons_with_multiple_hits as bad exons
@@ -160,7 +168,9 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_wi
     for exon in exon_contig_dict:
         if exon not in invalid_exons_unique:
             contig_name = exon_contig_dict[exon]
-            valid_contig_names.append(str(contig_name[0]).replace('>',''))
+            contig_name = find_longest_contig(contig_name,lastz_df)
+            print(contig_name)
+            valid_contig_names.append(str(contig_name).replace('>',''))
     return valid_contig_names
 
 
@@ -280,7 +290,7 @@ def main(args):
         # mark duplicate loci
         duplicate_loci, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs
-        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,args.keep_paralogs,subfolder)
+        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,possible_paralogous,contig_multi_exon_dict,args.keep_duplicates,args.keep_paralogs,subfolder,lastz_df)
         # load the actual contig sequences
         contig_sequences = SeqIO.parse(open(contig_file),'fasta')
         # write those contigs that match the reference library to the file
