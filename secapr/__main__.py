@@ -29,6 +29,7 @@ COMMANDS = [
         'add_missing_sequences',
         'locus_selection',
 		'automate_all',
+		'concatenate_alignments'
 ]
 
 

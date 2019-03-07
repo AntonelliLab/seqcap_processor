@@ -232,6 +232,9 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_mem
     #    print ("Trinity failed, maybe due to limited stack-size. Try increase stacksize with command 'zsh | ulimit -s unlimited | sh' and run again.")
 
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
+    print("WARNING: Abyss is very memory heavy and depending on the size of your read files may throw an error because it's runnign out of memory. If runnign on a cluster, ask your system administrator how to allocate more memory to your abyss job.")
+    if cores > 1:
+        print('WARNING: You chose to run Abyss on more than 1 core. This can cause problems on some systems and will make the script crash. In that case try running Abyss on a sinlge core instead.')
     print ("De-novo assembly with abyss of sample %s:" %id_sample)
     command = [
         "abyss-pe",

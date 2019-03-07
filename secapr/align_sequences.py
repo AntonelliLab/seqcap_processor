@@ -120,10 +120,10 @@ def add_arguments(parser):
         help="""The minimum length of alignments to keep."""
     )
     parser.add_argument(
-        "--ambiguous",
+        "--exclude_ambiguous",
         action="store_true",
         default=False,
-        help="""Allow reads in alignments containing N-bases."""
+        help="""Don't allow reads in alignments containing N-bases."""
     )
     parser.add_argument(
         "--cores",
@@ -134,8 +134,8 @@ def add_arguments(parser):
     )
 
 
-def build_locus_dict(log, loci, locus, record, ambiguous=False):
-    if not ambiguous:
+def build_locus_dict(log, loci, locus, record, exclude_ambiguous):
+    if exclude_ambiguous:
         if not "N" in record.seq:
             loci[locus].append(record)
         else:
@@ -184,15 +184,15 @@ def align(params):
 
 def get_fasta_dict(log, args):
     log.info("Building the locus dictionary")
-    if args.ambiguous:
-        log.info("NOT removing sequences with ambiguous bases...")
-    else:
+    if args.exclude_ambiguous:
         log.info("Removing ALL sequences with ambiguous bases...")
+    else:
+        log.info("NOT removing sequences with ambiguous bases...")
     loci = defaultdict(list)
     with open(args.sequences, "rU") as infile:
         for record in SeqIO.parse(infile, "fasta"):
             locus = record.description.split("|")[1]
-            loci = build_locus_dict(log, loci, locus, record, args.ambiguous)
+            loci = build_locus_dict(log, loci, locus, record, args.exclude_ambiguous)
     # workon a copy so we can iterate and delete
     snapshot = copy.deepcopy(loci)
     # iterate over loci to check for all species at a locus

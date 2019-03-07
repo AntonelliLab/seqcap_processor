@@ -135,7 +135,6 @@ def find_longest_contig(contig_names,lastz_df):
     contig_header_values = np.array([i.split(' ')[0].replace('>','') for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
     contig_length_values = np.array([i.split(' ')[1] for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
     longest_contig = contig_header_values[list(contig_length_values).index(np.max(contig_length_values))]
-
     return longest_contig
 
 
