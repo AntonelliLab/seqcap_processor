@@ -245,7 +245,9 @@ def main(args):
                 rest_of_string = '|'.join(t.description.split('|')[:-1])
                 string_to_replace = '%s_'%str(locus_name)
                 new_string = t.id
-                t.id = re.sub(string_to_replace, '', new_string)
+                # fix the fasta header, also removing the occasional _R_ resulting from reverse contigs
+                tmp = re.sub(string_to_replace, '', new_string,1)
+                t.id = re.sub('_R_','',tmp,1)
                 t.name = t.id
                 t.description = ''
     write_alignments_to_outdir(log, args.output, alignments, args.output_format)
