@@ -369,11 +369,10 @@ def plot_contigs_and_alignments_yield(contig_input_file,alignment_folder):
     #plt.colorbar()
     return fig
 
-
-contig_input_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/target_contigs/match_table.txt'
-alignment_folder = '/Users/tobias/GitHub/seqcap_processor/data/processed/alignments/contig_alignments'
-read_cov_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/remapped_reads/average_cov_per_locus.txt'
-norm_value=10
+#contig_input_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/target_contigs/match_table.txt'
+#alignment_folder = '/Users/tobias/GitHub/seqcap_processor/data/processed/alignments/contig_alignments'
+#read_cov_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/selected_loci/overview_selected_loci.txt'
+#norm_value=10
 
 def plot_contigs_alignments_read_cov(contig_input_file,alignment_folder,read_cov_file,number_of_rows=False,font_size=12,reduce=False,string_to_remove_from_sample_names='sample_',norm_value=False):
     mpl.rcParams.update({'font.size': font_size})
