@@ -320,37 +320,37 @@ def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index,seed
     adapter_fasta = make_adapter_fasta(sample_id,output_sample_dir,barcodes,conf,adapt_index)
     # Command for trimmomatic
     if not adapter_fasta == None:
-        try:
-            stats_file = os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)
-            with open(stats_file, 'w') as log_err_file:
-                command1 = [
-                    "trimmomatic",
-                    "PE",
-                    "-phred33",
-                    "-threads %i" %cores,
-                    R1,
-                    R2,
-                    output[0],
-                    output[1],
-                    output[2],
-                    output[3],
-                    "ILLUMINACLIP:%s:%d:%d:%d" %(adapter_fasta,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold),
-                    "SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
-                    "LEADING:%d" %leading,
-                    "TRAILING:%d" %trailing,
-                    "CROP:%d" %tail_crop,
-                    "HEADCROP:%d" %head_crop,
-                    "MINLEN:%d" %min_length
-                ]
+        stats_file = os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)
+        command1 = [
+            "trimmomatic",
+            "PE",
+            "-phred33",
+            "-threads %i" %cores,
+            R1,
+            R2,
+            output[0],
+            output[1],
+            output[2],
+            output[3],
+            "ILLUMINACLIP:%s:%d:%d:%d" %(adapter_fasta,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold),
+            "SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
+            "LEADING:%d" %leading,
+            "TRAILING:%d" %trailing,
+            "CROP:%d" %tail_crop,
+            "HEADCROP:%d" %head_crop,
+            "MINLEN:%d" %min_length
+        ]
+        with open(stats_file, 'w') as log_err_file:
+            try:
                 p1 = subprocess.Popen(command1, stderr=log_err_file)
                 p1.communicate()
                 before_reads, after_reads = get_read_count_from_stats_file(stats_file)
                 stats_dict.setdefault(sample_id,[before_reads,after_reads])
                 print ("%s successfully cleaned and trimmed. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)) )
                 print ("#" * 50)
-        except:
-            print ("Trimmomatic was interrupted or did not start properly. You may have entered impossible values in the trimmomatic settings. Rerun again with different values for the trimmomatic flags.")
-            sys.exit()
+            except:
+                print ("Trimmomatic was interrupted or did not start properly. You may have entered impossible values in the trimmomatic settings or trimmomatic cannot be found in the environment. Rerun again with different values for the trimmomatic flags. If that doesn't solve the problem, reinstall the secapr environment, to ensure trimmomatic being installed in the correct path.")
+                sys.exit()
     else:
         print ("***********No barcodes for %s stored in config-file. Only quality trimming (no adapter trimming) will be performed***********" %sample_id)
         with open(stats_file, 'w') as log_err_file:

@@ -97,14 +97,14 @@ def plot_fastqc_results(fastqc_out_folder):
     r1 = [x - barWidth for x in r2]
     r3 = [x + barWidth for x in r2]
 
-    fig = plt.figure(figsize=(8,len(samples)))
+    fig = plt.figure(figsize=(8,1+len(samples)/8))
     plt.bar(r1, all_pass_counts, color='green', width=barWidth, edgecolor='black', label='pass')
     plt.bar(r2, all_warn_counts, color='yellow', width=barWidth, edgecolor='black', label='warn')
     plt.bar(r3, all_fail_counts, color='red', width=barWidth, edgecolor='black', label='fail')
     plt.xticks(range(values.shape[1]), label_abbrevations)
     for border in np.array(r3)+0.66*barWidth:
         plt.axvline(border,color='black',linestyle='--',alpha=0.5)
-    plt.yticks(range(len(samples)+1), range(len(samples)+1))
+    #plt.yticks(range(len(samples)+1), range(len(samples)+1))
     plt.xlim(0-barWidth-0.75*barWidth,)
     plt.xlabel('FastQC test (abbrevated names)')
     plt.ylabel('number of samples')
@@ -123,7 +123,8 @@ def main(args):
     matches = []
     for root, dirnames, filenames in os.walk(input_folder):
         for filename in fnmatch.filter(filenames, '*.fastq'):
-            matches.append(os.path.join(root, filename))
+            if not filename.endswith('-single.fastq'):
+                matches.append(os.path.join(root, filename))
     if len(matches) == 0:
         print('No files with the ending .fastq found in input folder. Please check path and ensure that all readfiles are unzipped and have the filending ".fastq"')
         sys.exit()

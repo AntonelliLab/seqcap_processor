@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: secapr
-Version: 1.1.0+47.gd364be5.dirty
+Version: 1.1.12+15.g0fb2b1e.dirty
 Summary: Process sequence-capture fastq files into alignments for phylogenetic analyses
 Home-page: https://github.com/AntonelliLab/seqcap_processor
 Author: Tobias Hofmann
@@ -8,11 +8,11 @@ Author-email: tobias.hofmann@bioenv.gu.se
 License: MIT
 Description: # <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
         
-        **Original Publication: https://doi.org/10.7287/peerj.preprints.26477v3**
+        **Original Publication: https://doi.org/10.7717/peerj.5175**
         
         ___
         
-        *We are now teaching a **free 1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. Check it out and apply!*
+        *We are now teaching a **free 1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. See course overview from last year and contact tobias.andermann@bioenv.gu.se in case you are interested.*
         
         http://www.forbio.uio.no/events/courses/2018/target_capture.html
         
@@ -31,7 +31,7 @@ Description: # <img src="images/secapr_logo.png" width="100"> SEquence CApture P
         
         #### Please cite:
         
-        **Andermann T**, Cano Á, Zizka A, Bacon C, Antonelli A. (2018) SECAPR - A bioinformatics pipeline for the rapid and user-friendly processing of Illumina sequences, from raw reads to alignments. PeerJ Preprints. doi: 10.7287/peerj.preprints.26477v3
+        **Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR — A bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175. DOI: 10.7717/peerj.5175.
         
         Faircloth BC. 2015. PHYLUCE is a software package for the analysis of conserved genomic loci. bioRxiv. doi: 10.1101/027904.
         

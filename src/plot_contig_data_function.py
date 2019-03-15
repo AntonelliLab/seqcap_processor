@@ -318,7 +318,7 @@ def plot_contig_yield(contig_input_file):
     #plt.colorbar()
     return fig
     
-    
+
 def plot_contigs_and_alignments_yield(contig_input_file,alignment_folder):
     workdir = '/'.join(contig_input_file.split('/')[:-1])
     contig_matrix = pd.read_csv(contig_input_file,sep='\t',index_col=0)
@@ -333,13 +333,13 @@ def plot_contigs_and_alignments_yield(contig_input_file,alignment_folder):
     #_______________________________Contig Alignment Data__________________________
     # Get the alignment files and make list of loci with alignments
     alignment_files = glob.glob(os.path.join(alignment_folder, '*.fasta'))
-    list_of_loci_with_alignments = [re.sub('.fasta','',al.split('/')[-1]) for al in alignment_files]
+    list_of_loci_with_alignments = np.array([re.sub('.fasta','',al.split('/')[-1]) for al in alignment_files]).astype(int)
     # Create 1-dimensional matrix and fill with info which loci have alignment data 
     presence_absence_df = pd.DataFrame({'loci':x_labels,'presence':0})
     for locus in list_of_loci_with_alignments:
         row_index = presence_absence_df[presence_absence_df.loci == locus].index
         presence_absence_df.loc[row_index,'presence'] = 1
-    data_2_contig_alignment = np.matrix(presence_absence_df.presence)
+    data_2_contig_alignment = np.array(presence_absence_df.presence)
     data_2_y_labels = np.array('contig alignment')
     #_________________________Combine contig and alignment data_____________________
     contig_data_subset = np.vstack([data_1_contig_present, data_2_contig_alignment])
@@ -370,6 +370,11 @@ def plot_contigs_and_alignments_yield(contig_input_file,alignment_folder):
     return fig
 
 
+contig_input_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/target_contigs/match_table.txt'
+alignment_folder = '/Users/tobias/GitHub/seqcap_processor/data/processed/alignments/contig_alignments'
+read_cov_file = '/Users/tobias/GitHub/seqcap_processor/data/processed/remapped_reads/average_cov_per_locus.txt'
+norm_value=10
+
 def plot_contigs_alignments_read_cov(contig_input_file,alignment_folder,read_cov_file,number_of_rows=False,font_size=12,reduce=False,string_to_remove_from_sample_names='sample_',norm_value=False):
     mpl.rcParams.update({'font.size': font_size})
     workdir = '/'.join(read_cov_file.split('/')[:-1])
@@ -378,20 +383,20 @@ def plot_contigs_alignments_read_cov(contig_input_file,alignment_folder,read_cov
     num_x_labels = range(len(x_labels))
     #______________________________1. Contig Data_____________________________________
     # Read the contig data
-    data_1_contig_present = np.matrix(contig_matrix).T
+    data_1_contig_present = np.array(contig_matrix).T
     data_1_y_labels = contig_matrix.columns
     # replace substring in sample name
-    data_1_y_labels = np.core.defchararray.replace(np.array(data_1_y_labels,dtype=str), string_to_remove_from_sample_names, 'contigs ')
+    data_1_y_labels = np.array([i.replace(string_to_remove_from_sample_names,'')+'_contigs' for i in data_1_y_labels])
     #_______________________________2. Contig Alignment Data__________________________
     # Get the alignment files and make list of loci with alignments
     alignment_files = glob.glob(os.path.join(alignment_folder, '*.fasta'))
-    list_of_loci_with_alignments = [re.sub('.fasta','',al.split('/')[-1]) for al in alignment_files]
+    list_of_loci_with_alignments = np.array([re.sub('.fasta','',al.split('/')[-1]) for al in alignment_files]).astype(int)
     # Create 1-dimensional matrix and fill with info which loci have alignment data 
     presence_absence_df = pd.DataFrame({'loci':x_labels,'presence':0})
     for locus in list_of_loci_with_alignments:
         row_index = presence_absence_df[presence_absence_df.loci == locus].index
         presence_absence_df.loc[row_index,'presence'] = 1
-    data_2_contig_alignment = np.matrix(presence_absence_df.presence)
+    data_2_contig_alignment = np.array(presence_absence_df.presence)
     data_2_y_labels = np.array('contig alignment')
     #_______________________________3. Reference-assembly Data__________________________
     # Get the data as pandas dataframe

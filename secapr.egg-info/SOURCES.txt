@@ -1,6 +1,7 @@
 MANIFEST.in
 README.md
 setup.cfg
+setup.py
 versioneer.py
 secapr/__init__.py
 secapr/__main__.py

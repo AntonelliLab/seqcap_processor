@@ -4,7 +4,7 @@
 
 ___
 
-*We are now teaching a **free 1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. Check it out and apply!*
+*We are now teaching a **free 1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. See course overview from last year and contact tobias.andermann@bioenv.gu.se in case you are interested.*
 
 http://www.forbio.uio.no/events/courses/2018/target_capture.html
 

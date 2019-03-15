@@ -68,7 +68,7 @@ def main(args):
                         list_headers.append(name)
 
         # "value" is a list of all fasta files to be concatenated
-        # Find the missing taxa in each fasta input file and simulate a sequence of correct length (only "?")
+        # Find the missing taxa in each fasta input file and simulate a sequence of correct length (only "n")
         for k in sorted(value):
             taxa_names_single = []
             present_seq = []
@@ -85,7 +85,7 @@ def main(args):
                     missing_taxa.append(header)
             simulated_seq = []
             for mistax in missing_taxa:
-                fake_string = "?" * length_alignment
+                fake_string = "n" * length_alignment
                 simulated_seq.append((mistax,fake_string))
             all_seq = sorted(simulated_seq+present_seq)
             out_fasta = open(os.path.join(out_dir, k), 'w')
