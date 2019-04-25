@@ -23,6 +23,6 @@ Some functions in this pipeline are inspired by the scripts from the [Phyluce pi
 
 #### Please cite:
 
-**Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR — A bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175. DOI: 10.7717/peerj.5175.
+**Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR—a bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175 https://doi.org/10.7717/peerj.5175
 
-Brant C. Faircloth, PHYLUCE is a software package for the analysis of conserved genomic loci, Bioinformatics, Volume 32, Issue 5, 1 March 2016, Pages 786–788, https://doi.org/10.1093/bioinformatics/btv646
+Faircloth B.C., PHYLUCE is a software package for the analysis of conserved genomic loci, Bioinformatics, Volume 32, Issue 5, 1 March 2016, Pages 786–788, https://doi.org/10.1093/bioinformatics/btv646
