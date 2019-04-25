@@ -107,10 +107,14 @@ def contigs_matching_exons(lastz_df):
         contig_exon_dict[contig_name].append(locus_name)
         orientation = row[1].strand2
         contig_orientation_dict.setdefault(contig_name,orientation)
+    
+    orientation_df = pd.DataFrame(index=np.arange(0,len(contig_orientation_dict)), columns=['contig_id','orientation'])
+    orientation_df['contig_id'] = contig_orientation_dict.keys()
+    orientation_df['orientation'] = contig_orientation_dict.values()
     for contig in contig_exon_dict.keys():
         if len(contig_exon_dict[contig]) > 1:
             contig_multi_exon_dict.setdefault(contig,contig_exon_dict[contig])
-    return exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict
+    return exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict, orientation_df
 
 
 def find_duplicates(exon_contig_dict,contig_exon_dict):
@@ -284,7 +288,8 @@ def main(args):
         # load the lastz matches from the previous command
         lastz_df = pd.read_csv(lastz_output,sep='\t')
         # store the data in dictionaries for convenience
-        exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict = contigs_matching_exons(lastz_df)
+        exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict, orientation_df = contigs_matching_exons(lastz_df)
+        orientation_df.to_csv(os.path.join(subfolder,'contig_orientation.txt'),index=False,sep='\t')
         # mark duplicate loci
         duplicate_loci, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs

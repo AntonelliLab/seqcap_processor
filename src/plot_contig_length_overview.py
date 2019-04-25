@@ -29,7 +29,6 @@ len(contig_lengths_new)
 np.mean(contig_lengths_old)
 np.mean(contig_lengths_new)
 
-
 plt.hist(contig_lengths_old,100)
 plt.title('Old contigs')
 
