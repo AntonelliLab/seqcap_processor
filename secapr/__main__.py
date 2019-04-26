@@ -30,7 +30,8 @@ COMMANDS = [
         'locus_selection',
 		'automate_all',
 		'concatenate_alignments',
-		'paralogs_to_ref'
+		'paralogs_to_ref',
+		'plot_sequence_yield'
 ]
 
 
