@@ -1,7 +1,22 @@
 # encoding: utf-8
 """
 Align sequences and produce separate alignment file for each locus, containing the seqeunces of all taxa.
+"""
 
+from __future__ import print_function
+import os
+import re
+import sys
+import copy
+import tempfile
+import multiprocessing
+import logging
+import pickle
+from Bio import SeqIO
+from collections import defaultdict
+from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
+
+'''
 Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,21 +51,7 @@ Additions include:
 - More forgiving default options for non-UCE datasets
 - Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
 ________________________________________
-"""
-
-from __future__ import print_function
-import os
-import re
-import sys
-import copy
-import tempfile
-import multiprocessing
-import logging
-import pickle
-from Bio import SeqIO
-from collections import defaultdict
-from phyluce.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
-
+'''
 
 log = logging.getLogger(__name__)
 
