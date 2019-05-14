@@ -127,6 +127,18 @@ def add_arguments(parser):
         help="""Don't allow reads in alignments containing N-bases."""
     )
     parser.add_argument(
+        "--gap_opening_penalty",
+        type=float,
+        default=1,
+        help="""Set gap opening penalty for aligner (only for mafft, default=1.53)."""
+    )
+    parser.add_argument(
+        "--gap_extension_penalty",
+        type=float,
+        default=0.0,
+        help="""Set gap extension penalty for aligner (only for mafft, default=0.0)."""
+    )
+    parser.add_argument(
         "--cores",
         type=int,
         default=1,
@@ -158,9 +170,9 @@ def align(params):
     locus, opts = params
     name, sequences = locus
     # get additional params from params tuple
-    window, threshold, notrim, proportion, divergence, min_len, align_class = opts
+    window, threshold, notrim, proportion, divergence, min_len, opening_penalty, extension_penalty, align_class = opts
     fasta = create_locus_specific_fasta(sequences)
-    aln = align_class(fasta)
+    aln = align_class([str(opening_penalty),str(extension_penalty),fasta])
     aln.run_alignment()
     if notrim:
         aln.trim_alignment(
@@ -213,8 +225,7 @@ def main(args):
     # create the fasta dictionary
     loci = get_fasta_dict(log, args)
     log.info("Aligning with {}".format(str(args.aligner).upper()))
-    opts = [[args.window, args.threshold, args.no_trim, args.proportion, args.max_divergence, args.min_length, align_class] \
-            for _ in loci]
+    opts = [[args.window, args.threshold, args.no_trim, args.proportion, args.max_divergence, args.min_length, args.gap_opening_penalty, args.gap_extension_penalty, align_class] for _ in loci]
     # combine loci and options
     params = zip(loci.items(), opts)
     log.info("Alignment begins. 'X' indicates dropped alignments (these are reported after alignment)")
@@ -227,6 +238,7 @@ def main(args):
         alignments = pool.map(align, params)
     else:
         alignments = map(align, params)
+
 
     #import pickle
     #with open('/Users/tobias/Desktop/alignments.pickle', 'wb') as handle:

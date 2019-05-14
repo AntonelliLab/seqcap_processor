@@ -50,9 +50,6 @@ for locus in list_of_loci_with_alignments:
     presence_absence_df.loc[row_index,'presence'] = 1
 data_2_contig_alignment = np.matrix(presence_absence_df.presence)
 data_2_y_labels = np.array('Contig alignment')
-#_________________________Combine contig and alignment data_____________________
-contig_data_subset = np.vstack([data_1_contig_present, data_2_contig_alignment])
-y_labels_contig_data =  np.append(data_1_y_labels,data_2_y_labels)
 
 
 #_______________________________3. Reference-assembly Data__________________________
@@ -111,40 +108,11 @@ ax.set_xlabel('Exon index')
 fig.add_subplot(211, frameon=False)
 # hide tick and tick label of the big axis
 plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
-plt.ylabel("Contig present (yes/no)",labelpad=30)
+plt.ylabel("Contig present (yes/no)",labelpad=50)
 fig.add_subplot(212, frameon=False)
 # hide tick and tick label of the big axis
 plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
-plt.ylabel("Read coverage (# of reads)",labelpad=30)
-
-
-#fig = plt.figure(figsize=(width/40,height/2))
-#fig.subplots_adjust(top=1, bottom=0.0, left=0.2, right=0.99)
-#axa = plt.subplot(2,1,1,frameon=True)
-#axa.tick_params(left=False,bottom=False,labelleft=False)
-#axa.xaxis.set_major_formatter(plt.NullFormatter())
-
-
-for i,m in enumerate(combined_data):
-    ax = plt.subplot(height, 1, i+1)
-    ax.tick_params(left=False,bottom=False,labelleft=True)
-    # Only plot x-axis for last row
-    if not i == height-1:
-        ax.xaxis.set_major_formatter(plt.NullFormatter())
-    #plt.axis("off")
-    if combined_y_labels[i] == 'contig alignment':
-        ax.imshow(combined_data[i], aspect='auto', cmap='Greens', origin='lower')
-        switch = 'on'
-    else:
-        if switch == 'off':
-            ax.imshow(combined_data[i], aspect='auto', cmap='GnBu', origin='lower') 
-        else :
-            ax.imshow(combined_data[i], aspect='auto', cmap='hot_r',norm=norm, origin='lower')#,clim=(0.0, 10))
-    plt.yticks([0],[combined_y_labels[i]])
-ax.set_xlabel('exon index')
-axa.set_ylabel('contigs',labelpad=50)
-
-#plt.colorbar()
+plt.ylabel("Read coverage (# of reads)",labelpad=50)
 
 fig.savefig(os.path.join(outdir,'contig_yield_overview.png'),bbox_inches='tight', dpi = 500)
     
