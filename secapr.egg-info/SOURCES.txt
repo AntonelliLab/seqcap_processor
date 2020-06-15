@@ -1,8 +1,6 @@
-MANIFEST.in
 README.md
 setup.cfg
 setup.py
-versioneer.py
 secapr/__init__.py
 secapr/__main__.py
 secapr/_version.py
@@ -15,12 +13,15 @@ secapr/concatenate_alignments.py
 secapr/create_consensus_from_alleles.py
 secapr/extract_alignments_from_phyluce_get_inf_sites_output.py
 secapr/find_target_contigs.py
+secapr/helpers.py
 secapr/join_exons.py
 secapr/locus_selection.py
 secapr/merge_probes.py
 secapr/mpileup_fasta.py
+secapr/paralogs_to_ref.py
 secapr/phase_alleles.py
 secapr/phase_alleles_provide_reference_fasta.py
+secapr/plot_sequence_yield.py
 secapr/process_pileup.py
 secapr/quality_check.py
 secapr/reference_assembly.py
@@ -32,10 +33,3 @@ secapr.egg-info/SOURCES.txt
 secapr.egg-info/dependency_links.txt
 secapr.egg-info/entry_points.txt
 secapr.egg-info/top_level.txt
-secapr/phyluce/__init__.py
-secapr/phyluce/generic_align.py
-secapr/phyluce/helpers.py
-secapr/phyluce/lastz.py
-secapr/phyluce/mafft.py
-secapr/phyluce/muscle.py
-secapr/phyluce/pth.py
