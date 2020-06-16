@@ -136,36 +136,42 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
 
 
 def find_longest_contig(contig_names,lastz_df):
-    contig_header_values = np.array([i.split(' ')[0].replace('>','') for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
-    contig_length_values = np.array([i.split(' ')[1] for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
-    longest_contig = contig_header_values[list(contig_length_values).index(np.max(contig_length_values))]
+    try:
+        contig_header_values = np.array([i.split(' ')[0].replace('>','') for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
+        contig_length_values = np.array([i.split(' ')[1] for i in lastz_df.name1.values if i.split(' ')[0].replace('>','') in contig_names]).astype(int)
+        longest_contig = contig_header_values[list(contig_length_values).index(np.max(contig_length_values))]
+    except:
+        contig_lengths = np.array([int(i.split('length_')[1].split('_')[0]) for i in contig_names])
+        longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
     return longest_contig
 
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,duplicate_loci,exons_with_multiple_hits,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,lastz_df):
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,lastz_df):
     # summarize all exons that should be excluded form further processing (duplicates)
+    # remove all duplicates
+    invalid_exons_unique = list(set(loci_with_issues))
     if keep_duplicates_boolean:
-        # then only mark the list exons_with_multiple_hits as bad exons
-        invalid_exons_temp = list(set(exons_with_multiple_hits))
-        valid_contigs_matching_multiple_exon_dict = {}
-        for exon in list(contigs_matching_multiple_exon_dict.keys()):
-            if not exon in invalid_exons_temp:
-                valid_contigs_matching_multiple_exon_dict.setdefault(exon,contigs_matching_multiple_exon_dict[exon])
-        dupl_info = pd.DataFrame.from_dict(valid_contigs_matching_multiple_exon_dict, orient='index')
-        dupl_info.to_csv(os.path.join(outdir,'info_contigs_matching_multiple_exons.txt'),header=False,sep="\t")
+        # keep all exons that are only affected by possible duplicate issues (i.e. long exons)
+        exons_affected_by_dupls = [contigs_matching_multiple_exon_dict[i] for i in contigs_matching_multiple_exon_dict.keys()]
+        exons_affected_by_dupls = sorted(list(set([item for sublist in exons_affected_by_dupls for item in sublist])))
+        keep_these_exons = list(set(exons_affected_by_dupls)-set(possible_paralogous))
+        invalid_exons_unique = list(set(invalid_exons_unique)-set(keep_these_exons))
     if keep_paralogs_boolean:
-        invalid_exons_unique = []
-        invalid_exons_temp = list(set(duplicate_loci))
-        paralogous_exons = {}
-        for exon in exons_with_multiple_hits:
-            paralogous_exons.setdefault(exon,exon_contig_dict[exon])
-        paralog_info = pd.DataFrame.from_dict(paralogous_exons, orient='index')
-        paralog_info.to_csv(os.path.join(outdir,'info_paralogous_loci.txt'),header=False,sep="\t")
+        # keep the potential paralogs
+        keep_these_exons = possible_paralogous
+        invalid_exons_unique = list(set(invalid_exons_unique)-set(keep_these_exons))
         print('Warning: Found %i paralogous loci. The longest matching contig for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(invalid_exons_temp))
-    else:
-        # remove all duplicates
-        invalid_exons_unique = list(set(duplicate_loci))
-        print(len(invalid_exons_unique), 'possibly paralogous exons detected - excluded from processing')
+    print('Removing',len(invalid_exons_unique),'exon loci with potential issues.')
+    # print the info to file
+    # paralog info file
+    paralogous_exons = {}
+    for exon in possible_paralogous:
+        paralogous_exons.setdefault(exon,exon_contig_dict[exon])
+    paralog_info = pd.DataFrame.from_dict(paralogous_exons, orient='index')
+    paralog_info.to_csv(os.path.join(outdir,'info_paralogous_loci.txt'),header=False,sep="\t")
+    # dupl info file
+    duplicate_info = pd.DataFrame.from_dict(contigs_matching_multiple_exon_dict, orient='index')
+    duplicate_info.to_csv(os.path.join(outdir,'info_exons_spanning_multiple_loci.txt'),header=False,sep="\t")
     # get list of valid contig names
     valid_contig_names = []
     for exon in exon_contig_dict:
