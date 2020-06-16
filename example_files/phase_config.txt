@@ -1,9 +1,0 @@
-[paths]
-samtools:/usr/local/packages/anaconda2/bin/samtools
-clc:/state/partition3/CLC-AssemblyCell/clc-assembly-cell-4.3.0-linux_64
-bcftools:/usr/local/packages/anaconda2/bin/bcftools
-vcfutils:/usr/local/packages/anaconda2/bin/vcfutils.pl
-emboss:/opt/bio/EMBOSS
-picard:/usr/local/ubin/picard-tools-1.97/
-seqtk:/usr/local/packages/seqtk/seqtk
-bwa:/usr/local/packages/bwa-0.7.13/bwa
