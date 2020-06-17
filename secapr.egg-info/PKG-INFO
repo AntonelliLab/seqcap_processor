@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: secapr
-Version: 1.1.12+30.g896113e.dirty
+Version: 1.1.12+34.g02a1bd0.dirty
 Summary: Process sequence-capture fastq files into alignments for phylogenetic analyses
 Home-page: https://github.com/AntonelliLab/seqcap_processor
 Author: Tobias Andermann
@@ -29,7 +29,17 @@ Description: # <img src="images/secapr_logo.png" width="100"> SEquence CApture P
         
         Some functions in this pipeline are inspired by the scripts from the [Phyluce pipeline](https://github.com/faircloth-lab/phyluce) by Braint Faircloth, which is aimed at the processing of Ultraconserved Elements (UCEs). To honour some of the ingenious ideas belonging to Brant Faircloth, and the generous sharing of all his code as open-source, we ask you to cite the Phyluce pipeline (Faircloth 2016) alongside with ours (Andermann et al. 2018), when using SECAPR.  
         
-        #### Please cite:
+        
+        ## Workflow
+        
+        
+        <img src="https://github.com/AntonelliLab/seqcap_processor/blob/master/images/secapr_workflow.png" width="600">
+        
+        **SECAPR analytical workflow.** The flowchart shows the basic SECAPR functions, which are separated into two separate steps (colored boxes). Blue box (1. reference library from raw data): in this step the raw reads are cleaned and assembled into contigs (de novo assembly); Orange box (2. reference based assembly with custom reference library): the contigs from the previous step are used for reference-based assembly, enabling allele phasing and additional quality control options, e.g. concerning read-coverage. Black boxes show SECAPR commands and white boxes represent the input and output data of the respective function. Boxes marked in grey represent multiple sequence alignments (MSAs) generated with SECAPR, which can be used for phylogenetic inference. 
+        
+        
+        
+        ## Please cite:
         
         **Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR—a bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175 https://doi.org/10.7717/peerj.5175
         

@@ -11,12 +11,10 @@ import glob
 import shutil
 import argparse
 import subprocess
-import subprocess
 import pandas as pd
 import numpy as np
-
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#%%% Input %%%
+from Bio import SeqIO
+import time
 
 # Complete path function
 class CompletePath(argparse.Action):
@@ -41,15 +39,15 @@ def add_arguments(parser):
     )
     parser.add_argument(
         '--assembler',
-        choices=["abyss","trinity"],
-        default="abyss",
-        help="""The assembler to use (default = abyss)."""
+        choices=["spades","abyss","trinity"],
+        default="spades",
+        help="""The assembler to use (default = spades)."""
     )
     parser.add_argument(
         '--kmer',
         type=int,
         default=35,
-        help='Set the kmer value'
+        help='Set the kmer value (only for abyss and trinity)'
     )
     parser.add_argument(
         '--contig_length',
@@ -73,7 +71,7 @@ def add_arguments(parser):
         '--disable_stats',
         action='store_true',
         default=False,
-        help='Use this flag if you want to disabel generation of stats (can be necessary because previous stats files can\'t be found if reads are used that were not previously processed with SECAPR) '
+        help='Disable generation of stats (can be necessary because previous stats files can\'t be found if reads are used that were not previously processed with SECAPR) '
     )
     parser.add_argument(
         '--cores',
@@ -82,104 +80,19 @@ def add_arguments(parser):
         help='For parallel processing you can set the number of cores you want to run the assembly on.'
     )
 
-def main(args):
-    # Set working directory
-    out_folder = args.output
-    out_dir = "%s/stats" %out_folder
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    # Get all the other input variables
-    input_folder = args.input
-    min_length = args.contig_length
-    #trinity = args.trinity
-    cores = args.cores
-    #abyss = args.abyss
-    kmer = args.kmer
-    assembler = args.assembler
-    #assembler = 'abyss'
-    max_memory = args.max_memory
-    home_dir = os.getcwd()
-    sample_contig_count_dict = {}
-    if cores > 1:
-        print(("Running %s parallel on %d cores" %(assembler, cores)))
-    for subfolder, dirs, files in os.walk(input_folder):
-        subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
-        if subfolder_path_elements[-1] != input_folder:
-            sample_folder = subfolder_path_elements[-1]
-            sample_id = re.split("_clean", sample_folder)[0]
-            # Loop through each sample-folder and find read-files
-            sample_output_folder = "%s/%s" %(out_dir, sample_id)
-            if assembler == "trinity":
-                sample_output_folder = '%s_trinity'%sample_output_folder            
-            if not os.path.exists(sample_output_folder):
-                os.makedirs(sample_output_folder)
-            for misc1, misc2, fastq in os.walk(subfolder):
-                forward = ""
-                backward = ""
-                single_f = ""
-                single_b = ""
-                for element in fastq:
-                    if sample_id in element and element.endswith("READ1.fastq"):
-                        forward = "%s/%s" %(subfolder,element)
-                    if sample_id in element and element.endswith("READ2.fastq"):
-                        backward = "%s/%s" %(subfolder,element)
-                    if sample_id in element and element.endswith("READ1-single.fastq"):
-                        single_f = "%s/%s" %(subfolder,element)
-                    if sample_id in element and element.endswith("READ2-single.fastq"):
-                        single_b = "%s/%s" %(subfolder,element)
-                if forward != "" and backward != "":
-                    print(('#' * 50))
-                    print(("Processing sample %s" %sample_id))
-                    if assembler == "trinity":
-                        assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length,max_memory)
-                        contig_count_df = get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict)
-                        cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
-                        print(("#" * 50))
-                        mv_cmd = "mv %s/Trinity_formatted.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
-                        os.system(mv_cmd)
-                    elif assembler == "abyss":
-#___________________________this is the assembly code block, can be deactivated if only stats shall be printed_________________________
-                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
-                        files = glob.glob(os.path.join(sample_output_folder,'*'))
-                        links = [f for f in files if os.path.islink(f)]
-                        for l in links:
-                            if l.endswith("-contigs.fa"):
-                                contig_file = os.path.realpath(l)
-                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
-                                os.system(mv_contig)
-                        #mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
-                        #os.system(mv_cmd1)
-                        #mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
-                        #os.system(mv_cmd2)
-#_______________________________________________________________________________________________________________________________________
-                        contig_count_df,contig_file = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
-                        remove_short_contigs(contig_file,min_length)
-                else:
-                    print(("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively and if all files are unzipped." %sample_id))
-                    raise SystemExit
-    if not args.disable_stats:
-        try:
-            previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')
-            counter = 0
-            for index,row in previous_stats_df.iterrows():
-                sample_name = str(row['sample'])
-                if sample_name in list(contig_count_df['sample']):
-                    new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
-                    new_value = new_info.values[0]
-                    new_name = new_info.name
-                    headers = np.array(row.index)
-                    old_values = row.values
-                    new_index = np.append(headers,new_name)
-                    new_values = np.append(old_values,new_value)
-                    if counter == 0:
-                        new_values_previous = new_values
-                    else:
-                        new_values_previous = np.vstack([new_values_previous, new_values])
-                    counter += 1
-            new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
-            new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
-        except:
-            print(('INFO: Stats could NOT be appended to %s. Maybe file does not excist? If contig files were not created, try using the --disable_stats flag and run again' %(os.path.join(input_folder,'sample_stats.txt'))))
+# import argparse
+# p = argparse.ArgumentParser()
+# args = p.parse_args()
+# args.input = '/Users/tobias/GitHub/seqcap_processor/data/test/cleaned_reads'
+# args.output = '/Users/tobias/GitHub/seqcap_processor/data/test/contigs_spades'
+# args.assembler = 'spades'
+# args.kmer = 35
+# args.contig_length = 200
+# args.max_memory = '8G'
+# args.single_reads = True
+# args.disable_stats = True
+# args.cores = 1
+
 
 def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_memory):
     print(("De-novo assembly with Trinity of sample %s:" %id_sample))
@@ -223,7 +136,7 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_mem
                 #'3. after assembly rebuild the SECAPR default environment by typing "conda install trimmomatic=0.33"\n'
             sys.exit()
         elif line.startswith('Trinity run failed.'):
-            print((''.join(file(filename))))
+            print(filename)
             print ('SECAPR NOTE:\nTrinity is currently only functional in the Linux distribution of SECAPR.\n')
             sys.exit()
 
@@ -256,6 +169,30 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
     except:
         print(("Could not assemble %s" %id_sample))
 
+def assembly_spades(forw,backw,singlef,singleb,output_folder,id_sample,cores,args):
+    print(("De-novo assembly with spades of sample %s:" %id_sample))
+    command = [
+        "spades.py",
+        "--only-assembler",
+        "--pe1-1",
+        forw,
+        "--pe1-2",
+        backw,
+        "-o",
+        output_folder
+    ]
+    if args.single_reads:
+        command+=["--pe1-s", singlef, "--pe1-s",singleb]
+    # try:
+    print ("Building contigs........")
+    with open(os.path.join(output_folder, "%s_spades_screen_out.txt" %id_sample), 'w') as log_err_file:
+        p = subprocess.Popen(command, stdout=log_err_file)
+        p.communicate()
+        p.wait()
+    print(("%s assembled. Statistics are printed into %s" %(id_sample, os.path.join(output_folder, "%s_spades_screen_out.txt" %id_sample))))
+    # except:
+    #     print(("Could not assemble %s" %id_sample))
+
 def get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict):
     print(("Extracting statistics for %s" %str(sample_id)))
     contig_file = "%s/Trinity.fasta" %sample_output_folder
@@ -285,36 +222,38 @@ def edit_trinity_headers(contig_file,new_contig_file):
 
 def count_contigs(contig_file):
     """Return a count of contigs from a fasta file"""
-    return sum([1 for line in open(contig_file, 'rU').readlines() if line.startswith('>')])
+    return sum([1 for line in open(contig_file, 'r').readlines() if line.startswith('>')])
 
 def remove_short_contigs(contig_file,min_length):
-    fasta =  open(contig_file,'r')
-    fasta_content = list(fasta)
-    counter = 0
-    indeces_to_keep = []
-    for i,line in enumerate(fasta_content):
-        if not line.startswith('>'):
-            contig_length = len(line.replace('\n',''))
-            if contig_length < min_length:
-                pass
-            else:
-                # line number of header
-                indeces_to_keep.append(i-1)
-                # line number of sequence
-                indeces_to_keep.append(i)
-    new_fasta_content = list(np.array(fasta_content)[indeces_to_keep])
-    new_fasta = open(contig_file,'w')
-    for line in new_fasta_content:
-        new_fasta.write(line)
-    new_fasta.close()
-
+    fasta_content = list(SeqIO.parse(open(contig_file),'fasta'))
+    new_fasta_content = []
+    for record in fasta_content:
+        contig_length = len(str(record.seq))
+        if contig_length < min_length:
+            pass
+        else:
+            new_fasta_content.append(record)
+    SeqIO.write(new_fasta_content,contig_file, 'fasta-2line')
+            
 
 def get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict):
     #contig_count_cmd = subprocess.Popen(["tail", "-n", "2", "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)], stdout=subprocess.PIPE)
     #contig_count_pre = contig_count_cmd.communicate()[0]
     contig_file = "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)
     contig_count = count_contigs(contig_file)
+    #contig_count = contig_count_pre.split(' ')[0].replace('>','')
+    sample_contig_count_dict.setdefault(sample_id,contig_count)
+    stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
+    stats_df.columns = ['sample', 'total_contig_count']
+    print(('#'*50))
+    print(stats_df)
+    return(stats_df,contig_file)
+    #contig_count, header, percent, sequence = contig_count_pre.split("\t")    
 
+def get_stats_spades(contig_file,sample_id,sample_contig_count_dict):
+    #contig_count_cmd = subprocess.Popen(["tail", "-n", "2", "%s/%s.fa" %('/'.join(sample_output_folder.split('/')[:-2]),sample_id)], stdout=subprocess.PIPE)
+    #contig_count_pre = contig_count_cmd.communicate()[0]
+    contig_count = count_contigs(contig_file)
     #contig_count = contig_count_pre.split(' ')[0].replace('>','')
     sample_contig_count_dict.setdefault(sample_id,contig_count)
     stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
@@ -341,3 +280,113 @@ def cleanup_trinity_assembly_folder(sample_output_folder, sample_id):
                 os.remove(file)
             elif os.path.isdir(file):
                 shutil.rmtree(file)
+
+
+def main(args):
+    # Set working directory
+    out_folder = args.output
+    out_dir = "%s/stats" %out_folder
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    # Get all the other input variables
+    input_folder = args.input
+    min_length = args.contig_length
+    #trinity = args.trinity
+    cores = args.cores
+    #abyss = args.abyss
+    kmer = args.kmer
+    assembler = args.assembler
+    #assembler = 'abyss'
+    max_memory = args.max_memory
+    #home_dir = os.getcwd()
+    sample_contig_count_dict = {}
+    if cores > 1:
+        print(("Running %s parallel on %d cores" %(assembler, cores)))
+    for subfolder, dirs, files in os.walk(input_folder):
+        subfolder_path_elements = re.split("%s/" %input_folder, subfolder)
+        if subfolder_path_elements[-1] != input_folder:
+            sample_folder = subfolder_path_elements[-1]
+            sample_id = re.split("_clean", sample_folder)[0]
+            # Loop through each sample-folder and find read-files
+            sample_output_folder = "%s/%s" %(out_dir, sample_id)
+            if assembler == "trinity":
+                sample_output_folder = '%s_trinity'%sample_output_folder            
+            if not os.path.exists(sample_output_folder):
+                os.makedirs(sample_output_folder)
+            for misc1, misc2, fastq in os.walk(subfolder):
+                forward = ""
+                backward = ""
+                single_f = ""
+                single_b = ""
+                for element in fastq:
+                    if sample_id in element and element.endswith("READ1.fastq"):
+                        forward = "%s/%s" %(subfolder,element)
+                    if sample_id in element and element.endswith("READ2.fastq"):
+                        backward = "%s/%s" %(subfolder,element)
+                    if sample_id in element and element.endswith("READ1-single.fastq"):
+                        single_f = "%s/%s" %(subfolder,element)
+                    if sample_id in element and element.endswith("READ2-single.fastq"):
+                        single_b = "%s/%s" %(subfolder,element)
+                if forward != "" and backward != "":
+                    print(('#' * 50))
+                    print(("Processing sample %s" %sample_id))
+                    start = time.time()
+                    if assembler == "trinity":
+                        assembly_trinity(forward,backward,sample_output_folder,sample_id,cores,min_length,max_memory)
+                        contig_count_df = get_trinity_stats(sample_output_folder,sample_id,sample_contig_count_dict)
+                        cleanup_trinity_assembly_folder(sample_output_folder,sample_id)
+                        print(("#" * 50))
+                        mv_cmd = "mv %s/Trinity_formatted.fasta %s/%s.fasta" %(sample_output_folder,out_folder,sample_id)
+                        os.system(mv_cmd)
+                    elif assembler == "abyss":
+                        assembly_abyss(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,args)
+                        files = glob.glob(os.path.join(sample_output_folder,'*'))
+                        links = [f for f in files if os.path.islink(f)]
+                        for l in links:
+                            if l.endswith("-contigs.fa"):
+                                contig_file = os.path.realpath(l)
+                                mv_contig = "mv %s %s/../../%s.fa" %(contig_file,sample_output_folder,sample_id)
+                                os.system(mv_contig)
+                        #mv_cmd1 = "mv %s/%s* %s" %(home_dir,sample_id,sample_output_folder)
+                        #os.system(mv_cmd1)
+                        #mv_cmd2 = "mv %s/coverage.hist %s" %(home_dir,sample_output_folder)
+                        #os.system(mv_cmd2)
+                        contig_count_df,contig_file = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
+                        remove_short_contigs(contig_file,min_length)
+                    elif assembler == 'spades':
+                        assembly_spades(forward,backward,single_f,single_b,sample_output_folder,sample_id,cores,args)
+                        contig_file = os.path.join(sample_output_folder,'contigs.fasta')
+                        new_contig_file = '%s/../../%s.fa'%(sample_output_folder,sample_id)
+                        mv_contig = "cp %s %s" %(contig_file,new_contig_file)
+                        os.system(mv_contig)
+                        contig_count_df,contig_file = get_stats_spades(new_contig_file,sample_id,sample_contig_count_dict)
+                        remove_short_contigs(new_contig_file,min_length)
+                    end = time.time()
+                    print('Assembled contigs for sample %s in %i minutes' %(sample_id,int(np.round((end-start)/60))))
+                else:
+                    print(("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively and if all files are unzipped." %sample_id))
+                    raise SystemExit
+    if not args.disable_stats:
+        try:
+            previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')
+            counter = 0
+            for index,row in previous_stats_df.iterrows():
+                sample_name = str(row['sample'])
+                if sample_name in list(contig_count_df['sample']):
+                    new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
+                    new_value = new_info.values[0]
+                    new_name = new_info.name
+                    headers = np.array(row.index)
+                    old_values = row.values
+                    new_index = np.append(headers,new_name)
+                    new_values = np.append(old_values,new_value)
+                    if counter == 0:
+                        new_values_previous = new_values
+                    else:
+                        new_values_previous = np.vstack([new_values_previous, new_values])
+                    counter += 1
+            new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
+            new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
+        except:
+            print(('INFO: Stats could NOT be appended to %s. Maybe file does not excist? If contig files were not created, try using the --disable_stats flag and run again' %(os.path.join(input_folder,'sample_stats.txt'))))
+
