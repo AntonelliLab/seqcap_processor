@@ -73,12 +73,6 @@ def add_arguments(parser):
         default=False,
         help="Keep loci with signs of paralogy (multiple contig matches). The longest contig will be selected for these loci.",
     )
-    parser.add_argument(
-        '--disable_stats',
-        action='store_true',
-        default=False,
-        help='Disable generation of stats (can be necessary because previous stats files can\'t be found if files are used that were not previously processed with SECAPR)'
-    )
 
 
 
@@ -360,6 +354,7 @@ def main(args):
             count_list.append(sum(table[column]))
             out_file.write('%s: %i extracted contigs\n'%(column,sum(table[column])))
         out_file.write('mean: %f stdev: %f'%(np.mean(count_list),np.std(count_list)))
+
     try:
         stats_df = pd.read_csv(os.path.join(args.contigs,'sample_stats.txt'),sep='\t')
         new_df = stats_df.copy()
@@ -367,12 +362,13 @@ def main(args):
         for key in list(sample_count_dict.keys()):
             index_row = new_df[new_df['sample'].apply(str) == str(key)].index 
             new_df.iloc[index_row,-1] = int(sample_count_dict[key])
-        new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
     except:
-        print('No stats-file found in contig-folder. Instead printing stats to screen:')
-        for key in list(sample_count_dict.keys()):
-            print('Sample %s: %i contigs extracted.'%(key,int(sample_count_dict[key])))
+        print('No previous stats file found, creating new stats file.')
+        new_df = pd.DataFrame.from_dict(sample_count_dict,orient='index')
+        new_df = new_df.reset_index()
+        new_df.columns = ['sample','target_contigs']
 
+    new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
 
 
 #    # Make plot of match table
