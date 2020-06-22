@@ -319,6 +319,8 @@ def main(args):
     delimiter = []
     for element in names:
         delimiter.append(element[1])
+    if len(set(delimiter)) > 1:
+        quit('Multiple delimiters defined in [names] section of config file. Please choose consistent delimiter in filenames and config file!')
     # Add delimiter after the sample-name
     name_pattern = []
     for i in range(len(names_id)):
@@ -352,8 +354,8 @@ def main(args):
                 r1 = ""
                 r2 = ""
                 for fq in clean_list:
-                    pattern_r1 = ["R1","READ1","Read1","read1"]
-                    pattern_r2 = ["R2","READ2","Read2","read2"]
+                    pattern_r1 = ["%sR1"%str(delimiter[0]),"%sREAD1"%str(delimiter[0]),"%sRead1"%str(delimiter[0]),"%sread1"%str(delimiter[0])]
+                    pattern_r2 = ["%sR2"%str(delimiter[0]),"%sREAD2"%str(delimiter[0]),"%sRead2"%str(delimiter[0]),"%sread2"%str(delimiter[0])]
                     if any(pat in fq for pat in pattern_r1):
                         r1 = fq
                     elif any(pat in fq for pat in pattern_r2):

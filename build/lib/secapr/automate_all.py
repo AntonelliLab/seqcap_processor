@@ -45,9 +45,9 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		'--assembler',
-		choices=["abyss", "trinity"],
-		default="abyss",
-		help='The assembler to use for de-novo assembly (default=abyss).'
+		choices=["spades","abyss", "trinity"],
+		default="spades",
+		help='The assembler to use for de-novo assembly (default=spades).'
 	)
 	parser.add_argument(
 		'--cores',
@@ -98,7 +98,7 @@ def main(args):
 		# find_target_contigs
 		print('Extracting target contigs ...')
 		find_target_out = os.path.join(output_folder,'target_contigs/')
-		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s --keep-duplicates" %(assembly_out,reference,find_target_out)]
+		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s" %(assembly_out,reference,find_target_out)]
 		log_command(command[0],command_log_file)
 		with open(central_log_file, 'a') as log_err_file:
 			d = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file, shell=True)
@@ -196,7 +196,7 @@ def main(args):
 		# find_target_contigs
 		print('Extracting target contigs ...')
 		find_target_out = os.path.join(output_folder,'target_contigs/')
-		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s --min-coverage 70 --min-identity 70 --keep-duplicates" %(assembly_out,reference,find_target_out)]
+		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s --min_identity 80 --keep_paralogs --target_length 40" %(assembly_out,reference,find_target_out)]
 		log_command(command[0],command_log_file)
 		with open(central_log_file, 'a') as log_err_file:
 			d = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file, shell=True)
@@ -295,7 +295,7 @@ def main(args):
 		# find_target_contigs
 		print('Extracting target contigs ...')
 		find_target_out = os.path.join(output_folder,'target_contigs/')
-		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s --min-coverage 90 --min-identity 90 --keep-duplicates" %(assembly_out,reference,find_target_out)]
+		command = ["secapr find_target_contigs --contigs %s --reference %s --output %s --min_identity 90 --target_length 100" %(assembly_out,reference,find_target_out)]
 		log_command(command[0],command_log_file)
 		with open(central_log_file, 'a') as log_err_file:
 			d = subprocess.Popen(command, stdout=log_err_file, stderr=log_err_file, shell=True)

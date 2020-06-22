@@ -45,9 +45,8 @@ def add_arguments(parser):
     )
     parser.add_argument(
         '--kmer',
-        type=int,
-        default=35,
-        help='Set the kmer value (only for abyss and trinity)'
+        type=str,
+        help='Set the kmer value (only available for Abyss and Spades). Provide single value for Abyss, or list of kmers for Spades, e.g. "--kmer 21,33,55". Default for Abyss is 35, and for spades it is 21,33,55,77,99,127. Only odd kmer values allowed for Spades!'
     )
     parser.add_argument(
         '--contig_length',
@@ -58,8 +57,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--max_memory',
         type=str,
-        default='8G',
-        help='[Option only for Trinity assembler] Set the maximum memory for Trinity to use in this format: 1G or 1000M (default: 8G).'
+        help='Set the maximum memory to be used during assembly in GB (only available for Spades and Trinity). This can be necessary when working with computing nodes with limited memory or to avoid over-allocation of computing resources on clusters which can in some cases cause your assembly to be stopped or interrupted.'
     )
     parser.add_argument(
         '--single_reads',
@@ -68,35 +66,20 @@ def add_arguments(parser):
         help='Use this flag if you additionally want to use single reads for the assembly'
     )
     parser.add_argument(
-        '--disable_stats',
-        action='store_true',
-        default=False,
-        help='Disable generation of stats (can be necessary because previous stats files can\'t be found if reads are used that were not previously processed with SECAPR) '
-    )
-    parser.add_argument(
         '--cores',
         type=int,
         default=1,
         help='For parallel processing you can set the number of cores you want to run the assembly on.'
     )
 
-# import argparse
-# p = argparse.ArgumentParser()
-# args = p.parse_args()
-# args.input = '/Users/tobias/GitHub/seqcap_processor/data/test/cleaned_reads'
-# args.output = '/Users/tobias/GitHub/seqcap_processor/data/test/contigs_spades'
-# args.assembler = 'spades'
-# args.kmer = 35
-# args.contig_length = 200
-# args.max_memory = '8G'
-# args.single_reads = True
-# args.disable_stats = True
-# args.cores = 1
-
 
 def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_memory):
     print(("De-novo assembly with Trinity of sample %s:" %id_sample))
     #print(output_folder)
+    if not max_memory:
+        max_memory = '8G'
+    else:
+        max_memory = '%sG'%max_memory
     command = [
         "Trinity",
         "--seqType",
@@ -149,6 +132,10 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
     if cores > 1:
         print('WARNING: You chose to run Abyss on more than 1 core. This can cause problems on some systems and will make the script crash. In that case try running Abyss on a sinlge core instead.')
     print(("De-novo assembly with abyss of sample %s:" %id_sample))
+    try:
+        kmer = int(kmer)
+    except:
+        quit('\n\nError: Provided kmer value could not be formatted as integer. Please provide single numeric kmer value when choosing the Abyss assembler.')
     command = [
         "abyss-pe",
         "--directory={}".format(output_folder),
@@ -169,10 +156,13 @@ def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores
     except:
         print(("Could not assemble %s" %id_sample))
 
-def assembly_spades(forw,backw,singlef,singleb,output_folder,id_sample,cores,args):
+def assembly_spades(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,max_memory,args):
     print(("De-novo assembly with spades of sample %s:" %id_sample))
+    kmer = str(kmer)        
     command = [
         "spades.py",
+        "-k",
+        kmer,
         "--only-assembler",
         "--pe1-1",
         forw,
@@ -183,6 +173,10 @@ def assembly_spades(forw,backw,singlef,singleb,output_folder,id_sample,cores,arg
     ]
     if args.single_reads:
         command+=["--pe1-s", singlef, "--pe1-s",singleb]
+    if args.cores > 1:
+        command+=["--threads", str(args.cores)]
+    if args.max_memory:
+        command+=["--memory", str(args.max_memory)]
     # try:
     print ("Building contigs........")
     with open(os.path.join(output_folder, "%s_spades_screen_out.txt" %id_sample), 'w') as log_err_file:
@@ -293,11 +287,19 @@ def main(args):
     min_length = args.contig_length
     #trinity = args.trinity
     cores = args.cores
-    #abyss = args.abyss
-    kmer = args.kmer
     assembler = args.assembler
-    #assembler = 'abyss'
-    max_memory = args.max_memory
+
+    if args.kmer:
+        kmer = str(args.kmer)
+    else:
+        if assembler == 'spades':
+            kmer = '21,33,55,77,99,127'
+        else:
+            kmer = 35
+    if args.max_memory:
+        max_memory = args.max_memory
+    else:
+        max_memory = None
     #home_dir = os.getcwd()
     sample_contig_count_dict = {}
     if cores > 1:
@@ -354,7 +356,7 @@ def main(args):
                         contig_count_df,contig_file = get_stats_abyss(sample_output_folder,sample_id,sample_contig_count_dict)
                         remove_short_contigs(contig_file,min_length)
                     elif assembler == 'spades':
-                        assembly_spades(forward,backward,single_f,single_b,sample_output_folder,sample_id,cores,args)
+                        assembly_spades(forward,backward,single_f,single_b,sample_output_folder,sample_id,kmer,cores,max_memory,args)
                         contig_file = os.path.join(sample_output_folder,'contigs.fasta')
                         new_contig_file = '%s/../../%s.fa'%(sample_output_folder,sample_id)
                         mv_contig = "cp %s %s" %(contig_file,new_contig_file)
@@ -366,27 +368,32 @@ def main(args):
                 else:
                     print(("Error: Read-files for sample %s could not be found.Please check if fastq file names end with 'READ1.fastq' and 'READ2.fastq' respectively and if all files are unzipped." %sample_id))
                     raise SystemExit
-    if not args.disable_stats:
-        try:
-            previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')
-            counter = 0
-            for index,row in previous_stats_df.iterrows():
-                sample_name = str(row['sample'])
-                if sample_name in list(contig_count_df['sample']):
-                    new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
-                    new_value = new_info.values[0]
-                    new_name = new_info.name
-                    headers = np.array(row.index)
-                    old_values = row.values
-                    new_index = np.append(headers,new_name)
-                    new_values = np.append(old_values,new_value)
-                    if counter == 0:
-                        new_values_previous = new_values
-                    else:
-                        new_values_previous = np.vstack([new_values_previous, new_values])
-                    counter += 1
-            new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
-            new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
-        except:
-            print(('INFO: Stats could NOT be appended to %s. Maybe file does not excist? If contig files were not created, try using the --disable_stats flag and run again' %(os.path.join(input_folder,'sample_stats.txt'))))
+
+    try:
+        previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')
+        counter = 0
+        for index,row in previous_stats_df.iterrows():
+            sample_name = str(row['sample'])
+            if sample_name in list(contig_count_df['sample']):
+                new_info = contig_count_df[contig_count_df['sample']==sample_name]['total_contig_count']
+                new_value = new_info.values[0]
+                new_name = new_info.name
+                headers = np.array(row.index)
+                old_values = row.values
+                new_index = np.append(headers,new_name)
+                new_values = np.append(old_values,new_value)
+                if counter == 0:
+                    new_values_previous = new_values
+                else:
+                    new_values_previous = np.vstack([new_values_previous, new_values])
+                counter += 1
+        new_stats_df = pd.DataFrame(data=new_values_previous,columns=new_index)
+
+    except:
+        print('No previous stats file found, creating new stats file.')
+        new_stats_df = contig_count_df
+
+    new_stats_df.to_csv(os.path.join(out_folder,'sample_stats.txt'),sep="\t",index=False)
+
+
 
