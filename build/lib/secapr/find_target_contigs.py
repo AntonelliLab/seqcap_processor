@@ -19,7 +19,7 @@ from secapr.helpers import is_dir, is_file, FullPaths
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-#import pdb
+
 log = logging.getLogger(__name__)
 
 def add_arguments(parser):
@@ -28,14 +28,14 @@ def add_arguments(parser):
         required=True,
         type=is_dir,
         action=FullPaths,
-        help="The directory containing the assembled contigs in fasta format."
+        help="The directory containing the assembled contigs in fasta format. Alternatively you can provide a directory with subfolders containing results of various assembly runs (e.g. based on different kmer values). In the latter case it is recommended to use the --keep_paralogs flag, to avoid the majority of loci being discarded as paralogous."
     )
     parser.add_argument(
         '--reference',
         required=True,
         type=is_file,
         action=FullPaths,
-        help="The fasta-file containign the reference sequences (probe-order-file)."
+        help="The fasta-file containing the reference sequences (one sequence per targeted locus)."
     )
     parser.add_argument(
         '--output',
@@ -65,15 +65,27 @@ def add_arguments(parser):
         "--remove_multilocus_contigs",
         action='store_true',
         default=False,
-        help="Drop those contigs that span across multiple exons.",
+        help="Drop those contigs that match multiple exons.",
     )
     parser.add_argument(
         "--keep_paralogs",
         action='store_true',
         default=False,
-        help="Keep loci with signs of paralogy (multiple contig matches). The longest contig will be selected for these loci.",
+        help="Keep contigs for loci that are flagged as potentially paralogous (multiple contigs matching same locus). The longest contig will be selected for these loci.",
     )
 
+# import argparse
+# p = argparse.ArgumentParser()
+# args = p.parse_args()
+# args.contigs = '/Users/tobias/GitHub/seqcap_processor/data/test/contigs'
+# args.reference = '/Users/tobias/GitHub/seqcap_processor_old/data/raw/palm_reference_sequences.fasta'
+# args.output = '/Users/tobias/GitHub/seqcap_processor/data/test/target_loci_test'
+# args.min_identity = 90
+# args.remove_multilocus_contigs = False
+# args.keep_paralogs = False
+# args.disable_stats = False
+# args.seed_length = 11
+# args.target_length = 50
 
 
 def contig_count(contig):
@@ -145,13 +157,12 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
 
 
 def find_longest_contig(contig_names,blast_df,contig_file):
-    try:
-        contigs_file_content = SeqIO.parse(open(contig_file),'fasta')
-        contig_info = [(i.id,int(i.description.split(' ')[1])) for i in contigs_file_content if i.id in contig_names]
-        longest_contig = sorted(contig_info, key=lambda tup: tup[1],reverse=True)[0][0]
-    except:
-        contig_lengths = np.array([int(i.split('length_')[1].split('_')[0]) for i in contig_names])
-        longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
+    contigs_file_content = SeqIO.parse(open(contig_file),'fasta')
+    contig_info = [(i.id,len(i.seq)) for i in contigs_file_content if i.id in contig_names]
+    longest_contig = sorted(contig_info, key=lambda tup: tup[1],reverse=True)[0][0]
+    # except: # spades
+    #     contig_lengths = np.array([int(i.split('length_')[1].split('_')[0]) for i in contig_names])
+    #     longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
     return longest_contig
 
 
@@ -169,7 +180,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
         # keep the potential paralogs
         keep_these_exons = possible_paralogous
         invalid_exons_unique = list(set(invalid_exons_unique)-set(keep_these_exons))
-        print('Warning: Found %i paralogous loci. The longest matching contig for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
+        print('Warning: Found %i possibly paralogous loci. The longest matching contig for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
     print('Removing',len(invalid_exons_unique),'exon loci with potential issues.')
     # print the info to file
     # paralog info file
@@ -258,7 +269,23 @@ def main(args):
     sorted_exon_list = list(exons)
     # Get the paths to the contig fasta files for all samples
     fasta_files = glob.glob(os.path.join(args.contigs, '*.fa*'))
-    sample_ids = [os.path.basename(fasta).split('.')[0] for fasta in fasta_files]
+    if len(fasta_files) == 0: # multiple subfolders with contigs
+        fasta_files_dict = {}
+        for subdir in next(os.walk(args.contigs))[1]:
+            fasta_files_sub = glob.glob(os.path.join(os.path.join(args.contigs,subdir), '*.fa*'))
+            for fasta in fasta_files_sub:
+                sample_id = os.path.basename(fasta).split('.fa')[0]
+                fasta_files_dict.setdefault(sample_id,[])
+                fasta_files_dict[sample_id].append(fasta)
+        sample_ids = list(fasta_files_dict.keys())
+    else: # single folder with contig
+        fasta_files_dict = {}
+        sample_ids = [os.path.basename(fasta).split('.fa')[0] for fasta in fasta_files]
+        for i,sample_id in enumerate(sample_ids):
+            fasta_files_dict.setdefault(sample_id,[fasta_files[i]])
+
+
+
     # Create a dataframe filled with 0's
     contig_match_df = pd.DataFrame(index=sorted_exon_list,columns=sample_ids)
     for locus in sorted_exon_list:
@@ -266,22 +293,35 @@ def main(args):
     # Print some log screen output
     log.info("Processing contig data")
     log.info("{}".format("-" * 65))
-    # Start processing by iterating through contig files (=samples)
-    for contig_file in sorted(fasta_files):
-        # Get the name of the sample
-        sample_id = os.path.basename(contig_file).split('.')[0]#.replace('-', "_")
+    # Start processing by iterating through samples
+    for sample_id in fasta_files_dict.keys():
         # Make subfolder for each sample
         subfolder = os.path.join(args.output,sample_id)
         if not os.path.exists(subfolder):
-            os.makedirs(subfolder)        
+            os.makedirs(subfolder) 
+        fasta_files_sample = fasta_files_dict[sample_id]
+        print(fasta_files_sample)
+        if len(fasta_files_sample) > 1: # if there are multiple contig files for a sample, join them first.
+            all_contigs_sample = []
+            for file in fasta_files_sample:
+                contig_sequences = list(SeqIO.parse(open(file),'fasta'))
+                all_contigs_sample += contig_sequences
+            contig_file = os.path.join(subfolder,'%s.fa'%sample_id)
+            SeqIO.write(all_contigs_sample, contig_file, 'fasta-2line')
+            reference_lib = contig_file
+        else:
+            contig_file = fasta_files_sample[0]
+            reference_lib = os.path.join(subfolder,os.path.basename(contig_file))
+            mv_contig = 'cp %s %s'%(contig_file,reference_lib)
+            os.system(mv_contig)            
+            
         # Print some stats to screen
         total_count_of_contig = contig_count(contig_file)
         print('%s:\n'%sample_id,'Total contigs: %i\nSearching for contigs with matches in reference database.'%total_count_of_contig)
         # Blast the the contigs against the reference file
         # create blast_db
-        reference_lib = os.path.join(subfolder,os.path.basename(contig_file))
-        mv_contig = 'cp %s %s'%(contig_file,reference_lib)
-        os.system(mv_contig)
+        
+
         makeblastdb_logfile = os.path.join(subfolder,'makeblastdb.log')
         with open(makeblastdb_logfile, 'w') as makeblastdb_out_file:
             makeblastdb_command = ['makeblastdb', '-in', reference_lib, '-dbtype', 'nucl']
@@ -363,7 +403,7 @@ def main(args):
             index_row = new_df[new_df['sample'].apply(str) == str(key)].index 
             new_df.iloc[index_row,-1] = int(sample_count_dict[key])
     except:
-        print('No previous stats file found, creating new stats file.')
+        print('\n\nNo previous stats file found, creating new stats file.')
         new_df = pd.DataFrame.from_dict(sample_count_dict,orient='index')
         new_df = new_df.reset_index()
         new_df.columns = ['sample','target_contigs']
