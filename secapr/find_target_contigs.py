@@ -144,8 +144,7 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
     return sorted(list(np.unique(np.array((invalid_exon_loci))))), exons_with_multiple_hits, contigs_matching_multiple_exons
 
 
-
-def find_longest_contig(contig_names,blast_df,contig_file):
+def find_longest_contig(contig_names,blast_df):
     length_list = []    
     for contig in contig_names:
         match = blast_df[blast_df.sseqid.values.astype(str)==str(contig)]
@@ -160,7 +159,7 @@ def find_longest_contig(contig_names,blast_df,contig_file):
     return longest_contig
 
 
-def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,blast_df,contig_file):
+def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contigs_matching_multiple_exon_dict,keep_duplicates_boolean,keep_paralogs_boolean,outdir,blast_df):
     # summarize all exons that should be excluded form further processing (duplicates)
     # remove all duplicates
     invalid_exons_unique = list(set(loci_with_issues))
@@ -191,7 +190,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
     for exon in exon_contig_dict:
         if exon not in invalid_exons_unique:
             contig_names = exon_contig_dict[exon]
-            contig_names = find_longest_contig(contig_names,blast_df,contig_file)
+            contig_names = find_longest_contig(contig_names,blast_df)
             valid_contig_names.append(str(contig_names).replace('>',''))
     return valid_contig_names
 
@@ -312,13 +311,12 @@ def main(args):
             os.makedirs(subfolder) 
         fasta_files_sample = fasta_files_dict[sample_id]
         if len(fasta_files_sample) > 1: # if there are multiple contig files for a sample, join them first.
-            contig_file = os.path.join(subfolder,'%s.fa'%sample_id)
-            write_to_config = 'touch %s'%(contig_file)
+            reference_lib = os.path.join(subfolder,'%s.fa'%sample_id)
+            write_to_config = 'touch %s'%(reference_lib)
             os.system(write_to_config)               
-            for file in fasta_files_sample:
-                write_to_config = 'cat %s >> %s'%(file,contig_file)
+            for contig_file in fasta_files_sample:
+                write_to_config = 'cat %s >> %s'%(contig_file,reference_lib)
                 os.system(write_to_config)
-            reference_lib = contig_file
         else:
             contig_file = fasta_files_sample[0]
             reference_lib = os.path.join(subfolder,os.path.basename(contig_file))
@@ -376,9 +374,9 @@ def main(args):
         # mark duplicate loci
         loci_with_issues, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs
-        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contig_multi_exon_dict,keep_duplicates,args.keep_paralogs,subfolder,selected_matches,contig_file)
+        target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contig_multi_exon_dict,keep_duplicates,args.keep_paralogs,subfolder,selected_matches)
         # write those contigs that match the reference library to the file
-        sample_contig_file = extract_target_contigs(sample_id,contig_file,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
+        sample_contig_file = extract_target_contigs(sample_id,reference_lib,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
         output_target_contig_files.append(sample_contig_file)
         # remove contig names duplicates from file (only keep longest)
         print('Cleaning extracted target contigs to remove duplicate contig names...')
@@ -390,6 +388,9 @@ def main(args):
                 contig_match_df.loc[exon,sample_id] = 1        
         print('Extracted %i contigs matching reference exons\n' %extracted_contig_counter)
         log.info("{}".format("-" * 65))
+        # remove the blast database, because it can be a large file
+        for db_file in glob.glob(reference_lib+'*'):
+	        os.remove(db_file)
 
     # summarize all extracted target contigs of all samples in one shared file
     global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
