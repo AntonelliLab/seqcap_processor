@@ -47,3 +47,4 @@ class Align(GenericAlign):
         # cleanup temp files
         if clean:
             self._clean(aln)
+            self._clean((self.input)[2])

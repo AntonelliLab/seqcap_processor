@@ -48,3 +48,4 @@ class Align(GenericAlign):
                 alphabet=Gapped(IUPAC.unambiguous_dna, "-"))
         if clean:
             self._clean(aln)
+            self._clean((self.input)[2])

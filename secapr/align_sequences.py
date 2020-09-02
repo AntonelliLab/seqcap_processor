@@ -79,7 +79,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "--output-format",
-        choices=["fasta", "nexus", "phylip", "clustal", "emboss", "stockholm"],
+        choices=["fasta", "fasta-2line", "nexus", "phylip", "clustal", "emboss", "stockholm"],
         default="fasta",
         help="""The output alignment format.""",
     )
@@ -265,10 +265,7 @@ def main(args):
                 t.id = re.sub('_R_','',tmp,1)
                 t.name = t.id
                 t.description = ''
-    out_fmt = args.output_format
-    if out_fmt == 'fasta':
-        out_fmt = 'fasta-2line'
-    write_alignments_to_outdir(log, args.output, alignments, out_fmt)
+    write_alignments_to_outdir(log, args.output, alignments, args.output_format)
     try:
         #input_folder = '/'.join(args.sequences.split('/')[:-2])
         pickle_path = os.path.join(args.output,'.secapr_files')

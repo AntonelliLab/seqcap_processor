@@ -254,6 +254,7 @@ def get_uce_names_from_probes(probes, regex=None, repl=None, lower=False):
 def get_file_extensions(ftype):
     ext = {
         'fasta': ('.fasta', '.fsa', '.aln', '.fa'),
+        'fasta-2line': ('.fasta', '.fsa', '.aln', '.fa'),
         'nexus': ('.nexus', '.nex'),
         'phylip': ('.phylip', '.phy'),
         'phylip-relaxed': ('.phylip', '.phy', '.phylip-relaxed'),
