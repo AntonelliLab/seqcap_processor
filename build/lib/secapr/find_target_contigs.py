@@ -9,6 +9,7 @@ import re
 import os
 import sys
 import glob
+import time
 import logging
 import argparse
 import subprocess
@@ -74,18 +75,6 @@ def add_arguments(parser):
         help="Keep contigs for loci that are flagged as potentially paralogous (multiple contigs matching same locus). The longest contig will be selected for these loci.",
     )
 
-# import argparse
-# p = argparse.ArgumentParser()
-# args = p.parse_args()
-# args.contigs = '/Users/tobias/GitHub/seqcap_processor/data/test/contigs'
-# args.reference = '/Users/tobias/GitHub/seqcap_processor_old/data/raw/palm_reference_sequences.fasta'
-# args.output = '/Users/tobias/GitHub/seqcap_processor/data/test/target_loci_test'
-# args.min_identity = 90
-# args.remove_multilocus_contigs = False
-# args.keep_paralogs = False
-# args.disable_stats = False
-# args.seed_length = 11
-# args.target_length = 50
 
 
 def contig_count(contig):
@@ -157,9 +146,14 @@ def find_duplicates(exon_contig_dict,contig_exon_dict):
 
 
 def find_longest_contig(contig_names,blast_df,contig_file):
-    contigs_file_content = SeqIO.parse(open(contig_file),'fasta')
-    contig_info = [(i.id,len(i.seq)) for i in contigs_file_content if i.id in contig_names]
-    longest_contig = sorted(contig_info, key=lambda tup: tup[1],reverse=True)[0][0]
+    length_list = []    
+    for contig in contig_names:
+        match = blast_df[blast_df.sseqid.values.astype(str)==str(contig)]
+        length_list.append(match.length.values[0])
+    longest_contig = np.array(contig_names)[np.array(length_list)==np.max(length_list)][0]
+    # contigs_file_content = SeqIO.parse(open(contig_file),'fasta')
+    # contig_info = [(i.id,len(i.seq)) for i in contigs_file_content if i.id in contig_names]
+    # longest_contig = sorted(contig_info, key=lambda tup: tup[1],reverse=True)[0][0]
     # except: # spades
     #     contig_lengths = np.array([int(i.split('length_')[1].split('_')[0]) for i in contig_names])
     #     longest_contig = contig_names[np.where(np.max(contig_lengths))[0][0]]        
@@ -180,7 +174,7 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
         # keep the potential paralogs
         keep_these_exons = possible_paralogous
         invalid_exons_unique = list(set(invalid_exons_unique)-set(keep_these_exons))
-        print('Warning: Found %i possibly paralogous loci. The longest matching contig for each paralogous locus will be kept, due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
+        print('Warning: Found %i possibly paralogous loci. The longest and best matching contig for each paralogous locus will be kept (product of match identity and length of match), due to the use of the --keep_paralogs flag. It is not recommendable to use paralogous loci for phylogenetic inference!'%len(possible_paralogous))
     print('Removing',len(invalid_exons_unique),'exon loci with potential issues.')
     # print the info to file
     # paralog info file
@@ -202,15 +196,15 @@ def get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possib
     return valid_contig_names
 
 
-def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_exon_dict,contig_orientation_dict,subfolder):
-    printed_contigs_counter = 0
-    # define the output file where extracted contigs will be stored
-    global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
-    global_match_output_file = os.path.join('/'.join(subfolder.split('/')[:-1]),global_match_output_name)
-    sample_match_output_name = 'extracted_target_contigs_%s.fasta'%sample_id
-    sample_match_output_file = os.path.join(subfolder,sample_match_output_name)
-    # extract valid contigs form contig file and print to fasta file with exon-names+ sample_id as headers
-    with open(global_match_output_file, "a") as out_file:
+def extract_target_contigs(sample_id,contig_file,valid_contig_names,contig_exon_dict,contig_orientation_dict,subfolder):
+    # load the actual contig sequences
+    with open(contig_file,'r') as handle:
+        contig_sequences = SeqIO.parse(handle,'fasta')
+        printed_contigs_counter = 0
+        # define the output file where extracted contigs will be stored
+        sample_match_output_name = 'extracted_target_contigs_%s.fasta'%sample_id
+        sample_match_output_file = os.path.join(subfolder,sample_match_output_name)
+        # extract valid contigs form contig file and print to fasta file with exon-names+ sample_id as headers
         with open(sample_match_output_file, "w") as sample_file:
             for fasta in contig_sequences:
                 if str(fasta.id) in valid_contig_names:
@@ -224,17 +218,35 @@ def extract_target_contigs(sample_id,contig_sequences,valid_contig_names,contig_
                         for matching_locus in contig_exon_dict[fasta.id]:
                             header = '%s_%s |%s' %(matching_locus,sample_id,matching_locus)
                             new_fasta = SeqRecord(seq, id=header, name='', description='')
-                            out_file.write(new_fasta.format('fasta-2line'))
                             sample_file.write(new_fasta.format('fasta-2line'))
                             printed_contigs_counter += 1                         
                     else:        
                         header = '%s_%s |%s' %(contig_exon_dict[fasta.id][0],sample_id,contig_exon_dict[fasta.id][0])
                         new_fasta = SeqRecord(seq, id=header, name='', description='')
-                        out_file.write(new_fasta.format('fasta-2line'))
                         sample_file.write(new_fasta.format('fasta-2line'))
-                        printed_contigs_counter += 1 
-    return printed_contigs_counter
+                        printed_contigs_counter += 1
+            sample_file.close()
+        handle.close()
+    return sample_match_output_file
 
+
+def remove_duplicate_names_from_contig_file(contig_file):
+    with open(contig_file,'r') as handle:
+        contigs_file_content = SeqIO.parse(handle,'fasta')
+        contigs_file_content_list = list(contigs_file_content)
+        contig_info = [(i.id,len(i.seq)) for i in contigs_file_content_list]
+        headers, lengths = zip(*contig_info)
+        headers = np.array(headers)
+        lengths = np.array(lengths)
+        fasta_object_out = []
+        for header in set(headers):
+            indices = np.where(headers==header)[0]
+            longest_contig_copy_index = indices[np.where(lengths[indices]==np.max(lengths[indices]))[0][0]]
+            fasta_object_out.append(contigs_file_content_list[longest_contig_copy_index])
+        fasta_object_out.sort(key=lambda r: int(r.id.split('_')[0]))
+        handle.close()
+    SeqIO.write(fasta_object_out, contig_file, 'fasta-2line')
+    return (len(fasta_object_out))
 
 
 def main(args):
@@ -284,8 +296,6 @@ def main(args):
         for i,sample_id in enumerate(sample_ids):
             fasta_files_dict.setdefault(sample_id,[fasta_files[i]])
 
-
-
     # Create a dataframe filled with 0's
     contig_match_df = pd.DataFrame(index=sorted_exon_list,columns=sample_ids)
     for locus in sorted_exon_list:
@@ -294,20 +304,20 @@ def main(args):
     log.info("Processing contig data")
     log.info("{}".format("-" * 65))
     # Start processing by iterating through samples
+    output_target_contig_files = []
     for sample_id in fasta_files_dict.keys():
         # Make subfolder for each sample
         subfolder = os.path.join(args.output,sample_id)
         if not os.path.exists(subfolder):
             os.makedirs(subfolder) 
         fasta_files_sample = fasta_files_dict[sample_id]
-        print(fasta_files_sample)
         if len(fasta_files_sample) > 1: # if there are multiple contig files for a sample, join them first.
-            all_contigs_sample = []
-            for file in fasta_files_sample:
-                contig_sequences = list(SeqIO.parse(open(file),'fasta'))
-                all_contigs_sample += contig_sequences
             contig_file = os.path.join(subfolder,'%s.fa'%sample_id)
-            SeqIO.write(all_contigs_sample, contig_file, 'fasta-2line')
+            write_to_config = 'touch %s'%(contig_file)
+            os.system(write_to_config)               
+            for file in fasta_files_sample:
+                write_to_config = 'cat %s >> %s'%(file,contig_file)
+                os.system(write_to_config)
             reference_lib = contig_file
         else:
             contig_file = fasta_files_sample[0]
@@ -320,13 +330,13 @@ def main(args):
         print('%s:\n'%sample_id,'Total contigs: %i\nSearching for contigs with matches in reference database.'%total_count_of_contig)
         # Blast the the contigs against the reference file
         # create blast_db
-        
-
+        print('Creating blast database...')
         makeblastdb_logfile = os.path.join(subfolder,'makeblastdb.log')
         with open(makeblastdb_logfile, 'w') as makeblastdb_out_file:
             makeblastdb_command = ['makeblastdb', '-in', reference_lib, '-dbtype', 'nucl']
             run_makeblastdb = subprocess.Popen(makeblastdb_command, stdout=makeblastdb_out_file, stderr=None)
             run_makeblastdb.communicate()
+        print('Done.')
         # run blast
         blast_cmd = [
             'blastn',
@@ -347,11 +357,12 @@ def main(args):
         ]
         blast_out = os.path.join(subfolder,'%s_all_blast_hits.txt'%sample_id)
         blast_err = os.path.join(subfolder,'%s_blast_screen.txt'%sample_id)
-        #print(blast_cmd)
+        print('Running blast search...')
         with open(blast_out, 'w') as out, open(blast_err, 'w') as err:
             blast = subprocess.Popen(blast_cmd, stderr = err, stdout=out)
             blast.wait()
-        
+        print('Done.')
+
         print('Filtering best matches, using min_similarity and min_length_fraction values ...')
         selected_matches_out = os.path.join(subfolder,'%s_selected_blast_hits.txt'%sample_id)
         blast_hits = pd.read_csv(blast_out,sep='\t',header=None)
@@ -366,16 +377,27 @@ def main(args):
         loci_with_issues, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs
         target_contigs = get_list_of_valid_exons_and_contigs(exon_contig_dict,loci_with_issues,possible_paralogous,contig_multi_exon_dict,keep_duplicates,args.keep_paralogs,subfolder,selected_matches,contig_file)
-        # load the actual contig sequences
-        contig_sequences = SeqIO.parse(open(contig_file),'fasta')
         # write those contigs that match the reference library to the file
-        extracted_contig_counter = extract_target_contigs(sample_id,contig_sequences,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
+        sample_contig_file = extract_target_contigs(sample_id,contig_file,target_contigs,contig_exon_dict,contig_orientation_dict,subfolder)
+        output_target_contig_files.append(sample_contig_file)
+        # remove contig names duplicates from file (only keep longest)
+        print('Cleaning extracted target contigs to remove duplicate contig names...')
+        extracted_contig_counter = remove_duplicate_names_from_contig_file(sample_contig_file)
+        print('Done.')
         # Fill the extracted target contig into the dataframe
         for contig in target_contigs:
             for exon in contig_exon_dict[contig]:
                 contig_match_df.loc[exon,sample_id] = 1        
         print('Extracted %i contigs matching reference exons\n' %extracted_contig_counter)
         log.info("{}".format("-" * 65))
+
+    # summarize all extracted target contigs of all samples in one shared file
+    global_match_output_name = 'extracted_target_contigs_all_samples.fasta'
+    global_match_output_file = os.path.join(args.output,global_match_output_name)
+    for file in output_target_contig_files:
+        input_file =  file
+        output_file = global_match_output_file
+        open(output_file, "a").writelines([l for l in open(input_file).readlines()])
 
     contig_match_df.to_csv(os.path.join(args.output,'match_table.txt'),sep='\t',index=True,encoding='utf-8')
     # Print summary stats

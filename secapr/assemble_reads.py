@@ -28,7 +28,7 @@ def add_arguments(parser):
         required=True,
         action=CompletePath,
         default=None,
-        help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_]'
+        help='Call the folder that contains the trimmed reads, organized in a separate subfolder for each sample. The name of the subfolder has to start with the sample name, delimited with an underscore [_] (default output of secapr clean_reads function)'
     )
     parser.add_argument(
         '--output',
@@ -46,7 +46,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--kmer',
         type=str,
-        help='Set the kmer value (only available for Abyss and Spades). Provide single value for Abyss, or list of kmers for Spades, e.g. "--kmer 21,33,55". Default for Abyss is 35, and for spades it is 21,33,55,77,99,127. Only odd kmer values allowed for Spades!'
+        help='Set the kmer value (only available for Abyss and Spades). Provide single value for Abyss, or list of kmers for Spades, e.g. "--kmer 21,33,55". Default for Abyss is 35, and for spades it is 21,33,55,77,99,127. Note that Spades only accepts uneven kmer values.'
     )
     parser.add_argument(
         '--contig_length',
