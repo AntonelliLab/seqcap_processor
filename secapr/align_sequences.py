@@ -50,6 +50,7 @@ Additions include:
 - Standardizing script for incomplete data 
 - More forgiving default options for non-UCE datasets
 - Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
+- Updated to python3
 ________________________________________
 '''
 
@@ -159,10 +160,11 @@ def build_locus_dict(log, loci, locus, record, exclude_ambiguous):
 
 
 def create_locus_specific_fasta(sequences):
-    fd, fasta_file = tempfile.mkstemp(suffix=".fasta")
+    fd, fasta_file = tempfile.mkstemp(suffix='.fasta')
+    #fd, fasta_file = tempfile.mkstemp()
+    handle = open(fasta_file,'w')
     for seq in sequences:
-        os.write(fd, seq.format("fasta"))
-    os.close(fd)
+        handle.write(seq.format("fasta"))
     return fasta_file
 
 
@@ -218,9 +220,9 @@ def get_fasta_dict(log, args):
 
 def main(args):
     if args.aligner == "muscle":
-        from phyluce.muscle import Align as align_class
+        from secapr.muscle import Align as align_class
     elif args.aligner == "mafft":
-        from phyluce.mafft import Align as align_class
+        from secapr.mafft import Align as align_class
     
     # create the fasta dictionary
     loci = get_fasta_dict(log, args)
@@ -263,7 +265,10 @@ def main(args):
                 t.id = re.sub('_R_','',tmp,1)
                 t.name = t.id
                 t.description = ''
-    write_alignments_to_outdir(log, args.output, alignments, args.output_format)
+    out_fmt = args.output_format
+    if out_fmt == 'fasta':
+        out_fmt = 'fasta-2line'
+    write_alignments_to_outdir(log, args.output, alignments, out_fmt)
     try:
         #input_folder = '/'.join(args.sequences.split('/')[:-2])
         pickle_path = os.path.join(args.output,'.secapr_files')

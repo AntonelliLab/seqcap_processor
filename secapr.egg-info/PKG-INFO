@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: secapr
-Version: 1.1.12+39.g66a0045.dirty
+Version: 1.1.12+40.g14aaf4c.dirty
 Summary: Process sequence-capture fastq files into alignments for phylogenetic analyses
 Home-page: https://github.com/AntonelliLab/seqcap_processor
 Author: Tobias Andermann
