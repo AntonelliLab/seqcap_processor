@@ -16,8 +16,10 @@ import subprocess
 import subprocess
 import pickle
 from Bio import SeqIO
-from .utils import CompletePath
-from .reference_assembly import bam_consensus, join_fastas
+from secapr.utils import CompletePath
+from secapr.reference_assembly import bam_consensus, join_fastas
+from secapr.helpers import CreateDir
+
 
 # Get arguments
 def add_arguments(parser):
@@ -31,7 +33,7 @@ def add_arguments(parser):
 	parser.add_argument(
 		'--output',
 		required=True,
-		action=CompletePath,
+		action=CreateDir,
 		default=None,
 		help='The output directory where results will be safed.'
 	)
@@ -91,8 +93,8 @@ def phase_bam(sorted_bam_file,sample_output_folder,min_cov,reference):
 	allele_1_sorted_file = "%s.bam" %allele_1_sorted_base
 
 	# Sorting phased bam files:
-	sort_phased_0 = "samtools sort %s %s" %(allele_0_file,allele_0_sorted_base)
-	sort_phased_1 = "samtools sort %s %s" %(allele_1_file,allele_1_sorted_base)
+	sort_phased_0 = "samtools sort -o %s %s" %(allele_0_sorted_file,allele_0_file)
+	sort_phased_1 = "samtools sort -o %s %s" %(allele_1_sorted_file,allele_1_file)
 	#sort_phased_0 = "samtools sort -o %s %s" %(allele_0_sorted_file, allele_0_file)
 	#sort_phased_1 = "samtools sort -o %s %s" %(allele_1_sorted_file,allele_1_file)
 	os.system(sort_phased_0)
@@ -150,14 +152,11 @@ def manage_homzygous_samples(fasta_dir, sample_id):
 
 
 def main(args):
+	print('\n')
 	min_cov = args.min_coverage
 	reference = args.reference
 	# Set working directory
 	out_dir = args.output
-	if not os.path.exists(out_dir):
-		os.makedirs(out_dir)
-	else:
-		raise IOError("The directory {} already exists.  Please check and remove by hand.".format(out_dir))
 	input_folder = args.input
 	sample_out_list = []
 	# Iterate through all sample specific subfolders
@@ -179,7 +178,7 @@ def main(args):
 					if file.endswith("sorted.bam"):
 						sorted_bam = file
 						sorted_bam_path = os.path.join(subfolder_path,sorted_bam)
-						print(("#" * 50))
+						print(('\n'+"#" * 50))
 						print(('Processing sample %s' %sample))
 						allele_fastas = phase_bam(sorted_bam_path,sample_output_folder,min_cov,reference)
 
@@ -199,3 +198,4 @@ def main(args):
 							os.remove(os.path.join(allele_fastas,allele1))
 						
 	join_fastas(out_dir,sample_out_list)
+	print('\n')

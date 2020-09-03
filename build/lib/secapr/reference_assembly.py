@@ -15,12 +15,12 @@ import shutil
 import argparse
 import configparser
 import subprocess
-import subprocess
 import pickle
 import pandas as pd
 from Bio import SeqIO
 
-from .utils import CompletePath
+from secapr.utils import CompletePath
+from secapr.helpers import CreateDir
 
 
 # Get arguments
@@ -48,7 +48,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--output',
         required=True,
-        action=CompletePath,
+        action=CreateDir,
         default=None,
         help='The output directory where results will be safed.'
     )
@@ -142,21 +142,28 @@ def create_reference_fasta(reference_folder,alignments):
     # Create a list of fasta files from the input directory
     file_list = [fn for fn in os.listdir(alignments) if fn.endswith(".fasta")]
     reference_list = []
+    print('Creating consensus sequences from input alignments...')
+    temp_single_refs = []
     for fasta_alignment in file_list:
         sequence_name = re.sub(".fasta","",fasta_alignment)
         orig_aln = os.path.join(alignments,fasta_alignment)
         sep_reference = "%s/%s" %(reference_folder,fasta_alignment)
         reference_list.append(sep_reference)
-        cons_cmd = "cons -sequence %s -outseq %s -name %s -plurality 0.1 -setcase 0.1" %(orig_aln,sep_reference,sequence_name)
-        os.system(cons_cmd)
+        cons_cmd = ["cons", "-sequence", orig_aln, "-outseq", sep_reference, "-name", sequence_name, "-plurality", "0.1", "-setcase", "0.1"]
+        proc = subprocess.Popen(cons_cmd,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        stderr,stdout = proc.communicate()
+        temp_single_refs.append(sep_reference)
+    print('Done.')
     reference = os.path.join(reference_folder,"joined_fasta_library.fasta")
     join_fastas = "cat %s/*.fasta > %s" %(reference_folder,reference)
     os.system(join_fastas)
+    for i in temp_single_refs:
+        os.remove(i)
     return reference
 
 
 def create_sample_reference_fasta(reference_folder,sample_id,alignments):
-    print(("Creating reference library for %s .........." %sample_id))
+    print(("Creating reference library for %s ..." %sample_id))
 #    get the sequence header with the correct fasta id and extract sequence
 #    store these sequences in separate fasta file for each locus at out_dir/reference_seqs/sample_id
 #    header of sequence remains the locus name
@@ -185,6 +192,7 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
 def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args, log):
     #Indexing
     command1 = ["bwa","index",reference]
+    #print(command1)
     bwa_out = os.path.join(log, "bwa_screen_out.txt")
     try:
         with open(bwa_out, 'w') as logfile:
@@ -211,26 +219,30 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args,
         -U INT Penalty for an unpaired read pair. BWA-MEM scores an unpaired read pair as scoreRead1+scoreRead2-INT and scores a paired as scoreRead1+scoreRead2-insertPenalty. It compares these two scores to determine whether we should force pairing. [9] 
         -M Mark shorter split hits as secondary (for Picard compatibility). 
     """
-    sam_name = "%s/%s.sam" %(sample_output_folder,sample_id)
-    print ("Mapping..........")
+    sam_name = os.path.join(sample_output_folder,'%s.sam'%sample_id)
+    print ("Mapping...")
+    #print(command2)
     with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
         sp2 = subprocess.Popen(command2, stderr = err, stdout=out)
         sp2.wait()
 
     #Converting to bam-format with samtools
-    print ("Converting to bam..........")
+    print ("Converting to bam...")
     raw_bam = os.path.join(sample_output_folder,"%s_raw.bam" %sample_id)
     command3 = ["samtools","view","-b","-o",raw_bam,"-S",sam_name]
+    #print(command3)
     sp3 = subprocess.Popen(command3,stderr=subprocess.PIPE)
     sp3.wait()
     sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
-    command4 = ["samtools","sort",raw_bam, sorted_bam.replace('.bam','')]
+    command4 = ["samtools", "sort", raw_bam, "-o", sorted_bam]
+    #print(command4)
     sp4 = subprocess.Popen(command4)
     sp4.wait()
 
     #Indexing bam files
-    print ("Indexing bam..........")
+    print ("Indexing bam...")
     command5 = ["samtools","index",sorted_bam]
+    #print(command5)
     sp5 = subprocess.Popen(command5)
     sp5.wait()
     
@@ -242,27 +254,27 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args,
 
 
 def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
-    print ("Mapping..........")
+    print ("Mapping...")
     cas = "%s/%s.cas" %(sample_output_folder,sample_id)
     command1 = "%s -o %s -d %s -q -p fb ss 100 1000 -i %s %s -l %d -s %d --cpus %d" %(clc_mapper,cas,reference,forward,backward,length,similarity,args.cores)
     os.system(command1)
 
-    print ("Converting to bam..........")
+    print ("Converting to bam...")
     bam = "%s/%s.bam" %(sample_output_folder,sample_id)
     command2 = "%s -a %s -o %s -f 33 -u" %(clc_cas_to_sam,cas,bam)
     os.system(command2)
 
-    print ("Sorting bam..........")
+    print ("Sorting bam...")
     sorted_bam = "%s/%s.sorted.bam" %(sample_output_folder,sample_id)
     #sorted = "%s/%s.sorted" %(sample_output_folder,sample_id)
     command3 = "samtools sort -o %s %s" %(sorted.bam,bam)
     os.system(command3)
 
-    print ("Indexing bam..........")
+    print ("Indexing bam...")
     command4 = "samtools index %s" %(sorted_bam)
     os.system(command4)
 
-    print ("Removing obsolete files..........")
+    print ("Removing obsolete files...")
     command5 = "rm %s %s" %(cas,bam)
     os.system(command5)
 
@@ -279,7 +291,7 @@ def clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log):
         sorted_bam,
         samtools_out
     ]
-    print ("Removing duplicate reads with samtools..........")
+    print ("Removing duplicate reads with samtools...")
     try:
         with open(os.path.join(log, "samtools_screen_out.txt"), 'w') as log_err_file:
             pi = subprocess.Popen(run_samtools_rmdup, stderr=log_err_file)
@@ -287,7 +299,7 @@ def clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log):
     except OSError:
         print('Not enough reads mapped to reference in order to run samtools rmdup. Try using the "--keep_duplicates" flag in order to avoid the use of duplicate cleaning.') 
         quit()
-    print ("Duplicates successfully removed.")
+    #print ("Duplicates successfully removed.")
     # Cleaning up a bit
     has_duplicates = "%s/including_duplicate_reads" %sample_output_folder
     if not os.path.exists(has_duplicates):
@@ -299,7 +311,7 @@ def clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log):
     os.system(mv_duplicates_2)
     os.system(mv_final)
 
-    print ("Indexing duplicate-free bam..........")
+    print ("Indexing duplicate-free bam...")
     index_cleaned_bam = "samtools index %s" %(samtools_out)
     os.system(index_cleaned_bam)
     dupl_bam_name = sorted_bam.split('/')[-1]
@@ -320,7 +332,7 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
         "REMOVE_DUPLICATES=true",
         "VALIDATION_STRINGENCY=LENIENT"
     ]
-    print ("Removing duplicate reads with Picard..........")
+    print ("Removing duplicate reads with Picard...")
     try:
         with open(os.path.join(log, "picard_screen_out.txt"), 'w') as log_err_file:
             pi = subprocess.Popen(run_picard, stderr=log_err_file)
@@ -340,7 +352,7 @@ def clean_with_picard(sample_output_folder,sample_id,sorted_bam,log):
     os.system(mv_duplicates_2)
     os.system(mv_final)
 
-    print ("Indexing Picard-cleaned bam..........")
+    print ("Indexing Picard-cleaned bam...")
     index_picard_bam = "samtools index %s" %(picard_out)
     os.system(index_picard_bam)
     dupl_bam_name = sorted_bam.split('/')[-1]
@@ -410,7 +422,7 @@ def bcf_cons(pileup,out_fasta,cov):
 
 
 def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'custom'):
-    print ("Generating a consensus sequence from bam-file..........")
+    print ("Generating a consensus sequence from bam-file...")
     # Creating consensus sequences from bam-files
 
     # This is the custom written consensus building function
@@ -508,14 +520,14 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
             sample_id = name_base.split("_selected_loci")[0]
         else:
             sample_id = name_base.split("_allele_0")[0]
-        with open(final_fasta_file, "wb") as out_file:
+        with open(final_fasta_file, "w") as out_file:
             for fasta in fasta_sequences:
                 name, sequence = fasta.id, str(fasta.seq)
                 name = re.sub('_consensus_sequence','',name)
                 name = re.sub('_\(modified\)','',name)
-                name = re.sub(r'(.*)',r'\1_%s_0 |\1' %sample_id ,name)
+                #name = re.sub(r'(.*)',r'\1_%s_0 |\1' %sample_id ,name)
                 sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
-                out_file.write(">%s\n%s\n" %(name,sequence))
+                out_file.write(">%s_%s_0 |%s\n%s\n" %(name,sample_id,name,sequence))
     
     elif "allele_1" in name_base:
         fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
@@ -525,14 +537,14 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
             sample_id = name_base.split("_selected_loci")[0]
         else:
             sample_id = name_base.split("_allele_1")[0]
-        with open(final_fasta_file, "wb") as out_file:
+        with open(final_fasta_file, "w") as out_file:
             for fasta in fasta_sequences:
                 name, sequence = fasta.id, str(fasta.seq)
                 name = re.sub('_consensus_sequence','',name)
                 name = re.sub('_\(modified\)','',name)
-                name = re.sub(r'(.*)',r'\1_%s_1 |\1' %sample_id ,name)
+                #name = re.sub(r'(.*)',r'\1_%s_1 |\1' %sample_id ,name)
                 sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
-                out_file.write(">%s\n%s\n" %(name,sequence))
+                out_file.write(">%s_%s_1 |%s\n%s\n" %(name,sample_id,name,sequence))
 
     else:
         fasta_sequences = SeqIO.parse(open(fasta_file),'fasta')
@@ -542,14 +554,14 @@ def bam_consensus(reference,bam_file,name_base,out_dir,min_cov,cons_method = 'cu
             sample_id = name_base.split("_selected_loci")[0]        
         else:
             sample_id = name_base.split("_bam_consensus")[0]
-        with open(final_fasta_file, "wb") as out_file:
+        with open(final_fasta_file, "w") as out_file:
             for fasta in fasta_sequences:
                 name, sequence = fasta.id, str(fasta.seq)
                 name = re.sub('_consensus_sequence','',name)
                 name = re.sub('_\(modified\)','',name)
-                name = re.sub(r'(.*)',r'\1_%s |\1' %sample_id ,name)
+                #name = re.sub(r'(.*)',r'\1_%s |\1' %sample_id ,name)
                 sequence = re.sub('[a,c,t,g,y,w,r,k,s,m,n,Y,W,R,K,S,M]','N',sequence)
-                out_file.write(">%s\n%s\n" %(name,sequence))
+                out_file.write(">%s_%s |%s\n%s\n" %(name,sample_id,name,sequence))
         tmp_folder = "%s/tmp" %out_dir
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder)
@@ -725,13 +737,14 @@ def summarize_read_depth_files(subfolder,read_depth_file,complete_locus_list,loc
 
 
 def main(args):
+    print('\n')
     mapper = 'bwa'
     # Set working directory
     out_dir = args.output
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    else:
-        raise IOError("The directory {} already exists.  Please check and remove by hand.".format(out_dir))
+    #if not os.path.exists(out_dir):
+    #    os.makedirs(out_dir)
+    #else:
+    #    raise IOError("The directory {} already exists.  Please check and remove by hand.".format(out_dir))
     # Get other input variables
     alignments = args.reference
     reads = args.reads
@@ -777,7 +790,7 @@ def main(args):
                     elif sample_id in fastq and "READ2.fastq" in fastq:
                         backward = os.path.join(subfolder_path,fastq)
             if forward != "" and backward != "":
-                print(("#" * 50))
+                print(('\n'+"#" * 50))
                 print(("Processing sample %s" %sample_id))
                 sorted_bam = ""
                 log = os.path.join(sample_output_folder,'log')
@@ -795,7 +808,7 @@ def main(args):
                     bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
     join_fastas(out_dir,sample_out_list)
     # create file with read-coverage overview
-    print(("#" * 50))
+    print(('\n'+"#" * 50))
     sample_bam_dict, input_type = get_bam_path_dict(out_dir)
     # currently only available for unphased data
     if input_type == 'unphased':

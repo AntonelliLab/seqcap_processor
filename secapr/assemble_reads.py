@@ -39,7 +39,7 @@ def add_arguments(parser):
     )
     parser.add_argument(
         '--assembler',
-        choices=["spades","abyss","trinity"],
+        choices=["spades","abyss"],# trinity support discontinued 
         default="spades",
         help="""The assembler to use (default = spades)."""
     )
@@ -57,7 +57,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--max_memory',
         type=str,
-        help='Set the maximum memory to be used during assembly in GB (only available for Spades and Trinity). This can be necessary when working with computing nodes with limited memory or to avoid over-allocation of computing resources on clusters which can in some cases cause your assembly to be stopped or interrupted.'
+        help='Set the maximum memory to be used during assembly in GB (only available for Spades). This can be necessary when working with computing nodes with limited memory or to avoid over-allocation of computing resources on clusters which can in some cases cause your assembly to be stopped or interrupted.'
     )
     parser.add_argument(
         '--single_reads',

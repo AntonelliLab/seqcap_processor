@@ -10,8 +10,8 @@ import csv
 import pandas as pd
 import pickle
 from Bio import SeqIO
-from .utils import CompletePath
-
+from secapr.utils import CompletePath
+from secapr.helpers import CreateDir
 
 # Get arguments
 def add_arguments(parser):
@@ -25,7 +25,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--output',
         required=True,
-        action=CompletePath,
+        action=CreateDir,
         default=None,
         help='The output directory where results will be safed.'
     )
@@ -174,7 +174,7 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
     else:
         coverage_all_samples = pd.read_csv("%s/average_cov_per_locus.txt" %input_dir, sep = '\t')
     # Return boolean for every field, depending on if its greater than the threshold
-    thres_test = coverage_all_samples.ix[:,1:]>threshold
+    thres_test = coverage_all_samples.iloc[:,1:]>threshold
     # Extract only those rows for which all fields returned 'True' and store in new df
     selected_rows = pd.DataFrame([])
     for line in thres_test.iterrows():
@@ -182,12 +182,12 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         if line.all():
             selected_rows = selected_rows.append(line)
     # Store all indices of the selected data (selected_rows) in a list
-    indeces = list(selected_rows.index.get_values())
+    indeces = list(selected_rows.index.values)
     # Use indices to extract rows from oriignal df and create new one from it
     loci_passing_test = coverage_all_samples.iloc[indeces,:].copy()
     list_of_good_loci = list(loci_passing_test.locus)
     # Calculate the read-depth sum across all samples for each locus and store as new column in df 
-    loci_passing_test['sum_per_locus'] = loci_passing_test.ix[:,1:].sum(axis=1)
+    loci_passing_test['sum_per_locus'] = loci_passing_test.iloc[:,1:].sum(axis=1)
     # Sort the df by the 'sum' column to have the best covered loci on top
     loci_passing_test.sort_values('sum_per_locus', axis=0, ascending=False, inplace=True)
     # select best n rows
@@ -235,7 +235,7 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
             #locus_sequence = sequence.seq
             if locus_name_corrected in target_loci:
                 sequence_collection.append(sequence)
-        SeqIO.write(sequence_collection, "%s/%s_%s_selected_sequences.fasta" %(output_subfolder_dict[sample],sample,input_type), "fasta")
+        SeqIO.write(sequence_collection, "%s/%s_%s_selected_sequences.fasta" %(output_subfolder_dict[sample],sample,input_type), "fasta-2line")
         # Now produce a new bam-file
         bam = '%s/%s*.bam' %(sample_subfolder_dict[sample],sample)
         target_files = glob.glob(bam)
@@ -248,7 +248,7 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
         convert_to_bam = 'samtools view -Sb %s > %s' %(sam_output_file,bam_output_file)
         os.system(convert_to_bam)
         sorted_bam_out = os.path.join(output_subfolder_dict[sample],"%s_%s_selected_loci_sorted.bam" %(sample,input_type))
-        sort_bam = 'samtools sort %s %s' %(bam_output_file,sorted_bam_out.replace('.bam',''))
+        sort_bam = 'samtools sort %s -o %s' %(bam_output_file,sorted_bam_out)
         os.system(sort_bam)
         index_bam = 'samtools index %s' %(sorted_bam_out)
         os.system(index_bam)
@@ -279,10 +279,10 @@ def main(args):
     output_folder = args.output
     n = args.n
     threshold = args.read_cov
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    else:
-        raise IOError("The directory {} already exists.  Please check and remove by hand.".format(output_folder))
+    #if not os.path.exists(output_folder):
+    #    os.makedirs(output_folder)
+    #else:
+    #    raise IOError("The directory {} already exists.  Please check and remove by hand.".format(output_folder))
     # Create a dictionary containing the bam-file paths for each sample and tell if data is phased or unphased
     sample_bam_dict, input_type = get_bam_path_dict(input_dir)
     if input_type == 'unphased':
