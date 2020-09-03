@@ -20,7 +20,8 @@ import pickle
 import pandas as pd
 from Bio import SeqIO
 
-from .utils import CompletePath
+from secapr.utils import CompletePath
+from secapr.helpers import CreateDir
 
 
 # Get arguments
@@ -48,7 +49,7 @@ def add_arguments(parser):
     parser.add_argument(
         '--output',
         required=True,
-        action=CompletePath,
+        action=CreateDir,
         default=None,
         help='The output directory where results will be safed.'
     )

@@ -19,7 +19,7 @@ import subprocess
 from Bio import AlignIO
 from Bio.Alphabet import IUPAC, Gapped
 
-from .generic_align import GenericAlign
+from secapr.generic_align import GenericAlign
 
 
 class Align(GenericAlign):
