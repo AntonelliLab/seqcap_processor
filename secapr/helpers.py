@@ -274,17 +274,17 @@ def get_alignment_files(log, input_dir, input_format):
     return alignments
 
 
-def write_alignments_to_outdir(log, outdir, alignments, format):
+def write_alignments_to_outdir(log, outdir, alignments, alformat):
     log.info('Writing output files')
     for tup in alignments:
         locus, aln = tup
         if aln.trimmed is not None:
             outname = "{}{}".format(
                 os.path.join(outdir, locus),
-                get_file_extensions(format)[0]
+                get_file_extensions(alformat)[0]
             )
             with open(outname, 'w') as outf:
-                outf.write(aln.trimmed.format(format))
+                outf.write(format(aln.trimmed,alformat))
         else:
             log.warn("DROPPED {0} from output".format(locus))
 

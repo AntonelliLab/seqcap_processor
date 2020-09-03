@@ -164,7 +164,8 @@ def create_locus_specific_fasta(sequences):
     #fd, fasta_file = tempfile.mkstemp()
     handle = open(fasta_file,'w')
     for seq in sequences:
-        handle.write(seq.format("fasta"))
+        seq.id = '_'.join(seq.id.split('_')[1:])
+        handle.write(format(seq,"fasta"))
     return fasta_file
 
 
