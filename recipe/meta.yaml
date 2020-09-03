@@ -1,4 +1,4 @@
-{% set version = "1.1.15" %}
+{% set version = "2.0.0" %}
 
 package:
   name: secapr
@@ -6,12 +6,12 @@ package:
 
 source:
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: 0bf985591b8c44f69ca1d4c40d0d37c871d914336d1846a70cad209fcab529c1
+  sha256: f1024c2cb15d43f321e3f5752bc75ee1387e5aa2c28d31f2c1d7225b12b4bedc
 
 build:
-  skip: True  # [not py27] 
+  noarch: python
   number: 0
-  script: python -m pip install --no-deps --ignore-installed .
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv"
   entry_points:
     - secapr = secapr.__main__:main
 
@@ -24,7 +24,7 @@ requirements:
   run:
     - python
     - pandas
-    - matplotlib
+    - matplotlib-base
     - biopython
     - trimmomatic
     - fastqc
@@ -47,4 +47,4 @@ about:
   home: 'https://github.com/AntonelliLab/seqcap_processor'
   license: MIT
   license_file: LICENSE
-  summary: 'Process sequence-capture FASTQ files into alignments for phylogenetic analyses. Integrates allele phasing, producing haplotype alignments.'
+  summary: 'Process sequence-capture FASTQ files into alignments for phylogenetic analyses. Integrates allele phasing.'
