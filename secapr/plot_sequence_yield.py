@@ -54,6 +54,7 @@ def add_arguments(parser):
         help="The directory in which to store the plots."
     )
 
+
 def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_file=False,norm_value = None):
     workdir = '/'.join(contig_input_file.split('/')[:-1])
     contig_matrix = pd.read_csv(contig_input_file,sep='\t',index_col=0)

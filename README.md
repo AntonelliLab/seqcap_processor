@@ -4,7 +4,7 @@
 
 ___
 
-*We are now teaching a **free 1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. Don't miss it and sign up online at:*
+*We are now teaching a **1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. Don't miss it and sign up online at:*
 
 https://www.forbio.uio.no/events/courses/2020/target_capture.html
 
@@ -19,7 +19,7 @@ This semi-automated pipeline aims to make the processing and analysis of sequenc
 
 We included an empirical data tutorial in the [pipeline documentation](http://htmlpreview.github.io/?https://github.com/AntonelliLab/seqcap_processor/blob/master/docs/documentation/main_doc.html), which covers the processing from raw Illumina read data into multiple seqeunce alignments (MSAs) for phylogenetic analyses, including the compiling of allele sequence MSAs. This workflow can be applied to any Illumina dataset, independently of the underlying bait set and organism group.
 
-Some functions in this pipeline are inspired by the scripts from the [Phyluce pipeline](https://github.com/faircloth-lab/phyluce) by Braint Faircloth, which is aimed at the processing of Ultraconserved Elements (UCEs). To honour some of the ingenious ideas belonging to Brant Faircloth, and the generous sharing of all his code as open-source, we ask you to cite the Phyluce pipeline (Faircloth 2016) alongside with ours (Andermann et al. 2018), when using SECAPR.  
+Some functions in this pipeline are inspired by scripts from the [Phyluce pipeline](https://github.com/faircloth-lab/phyluce) by Braint Faircloth, which is aimed at the processing of Ultraconserved Elements (UCEs). To honour some of the ideas belonging to Brant Faircloth, and the generous sharing of all his code as open-source, we ask you to cite the Phyluce pipeline (Faircloth 2016) alongside with ours (Andermann et al. 2018), when using SECAPR.  
 
 
 ## Workflow

@@ -371,6 +371,7 @@ def main(args):
 
         # store the data in dictionaries for convenience
         exon_contig_dict, contig_exon_dict, contig_orientation_dict, contig_multi_exon_dict, orientation_df = contigs_matching_exons(selected_matches)
+        orientation_df.to_csv(os.path.join(subfolder,'contig_orientation.txt'),sep='\t',index=False)
         # mark duplicate loci
         loci_with_issues, possible_paralogous, contigs_covering_several_loci = find_duplicates(exon_contig_dict,contig_exon_dict)
         # remove duplicate loci from the list of targeted loci and contigs

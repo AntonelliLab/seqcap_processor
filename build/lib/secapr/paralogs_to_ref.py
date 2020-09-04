@@ -23,11 +23,17 @@ log = logging.getLogger(__name__)
 
 def add_arguments(parser):
     parser.add_argument(
+        '--extracted_target_contigs',
+        required=True,
+        action=FullPaths,
+        help="The directory containing the extraceted target contigs and with them the info about paralogous loci (output dir from find_target_contigs function)."
+    )
+    parser.add_argument(
         '--contigs',
         required=True,
         type=is_dir,
         action=FullPaths,
-        help="The directory containing the assembled contigs in fasta format."
+        help="The directory containing the assembled contigs in fasta format. The paralogous contigs logged in the find_target_contigs output folder will be extracted from this file."
     )
     parser.add_argument(
         '--reference',
@@ -37,17 +43,24 @@ def add_arguments(parser):
         help="The fasta-file containing the reference sequences that were used for extracting target contigs."
     )
     parser.add_argument(
-        '--target_contigs',
-        required=True,
-        action=FullPaths,
-        help="The directory containing the extraceted target contigs (output dir from find_target_contigs function)."
-    )
-    parser.add_argument(
         '--output',
         required=True,
         action=FullPaths,
         help="The output directory where alignments of paralogous cotnigs with reference sequences will be stored."
     )
+    parser.add_argument(
+        '--gap_open_penalty',
+        default=3.,
+        type=float,
+        help="Set the gap opening penalty for the alignments (default=3)."
+    )
+    parser.add_argument(
+        '--gap_extent_penalty',
+        default=1.,
+        type=float,
+        help="Set the gap extention penalty for the alignment (default=1)."
+    )
+
 
 def fix_line_wrap(alignment_file):
     file_in = open(alignment_file)
@@ -68,10 +81,12 @@ def fix_line_wrap(alignment_file):
 
 
 def main(args):
+    root_dir = args.extracted_target_contigs
     contig_folder = args.contigs
     ref_file = args.reference
-    root_dir = args.target_contigs
     outdir = args.output
+    gap_o = args.gap_open_penalty
+    gap_e = args.gap_extent_penalty
 
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
@@ -87,7 +102,7 @@ def main(args):
         para_info = os.path.join(sample_path,'info_paralogous_loci.txt')
         contig_file = os.path.join(contig_folder,'%s.fa'%sample)
         # read the data
-        ref_index_df = pd.read_csv(ref_index_info,sep='\t',header=-1)
+        ref_index_df = pd.read_csv(ref_index_info,sep='\t',header=None)
         keys = ref_index_df[0].values
         values = ref_index_df[1].values
         id_ref_dict = dict(list(zip(keys,values)))
@@ -114,7 +129,7 @@ def main(args):
             for contig_id in contig_list:
                 contig_seq = [contig for contig in contig_seqs if contig_id == contig.id][0]
                 orientation = contig_orientation_df[contig_orientation_df.contig_id == int(contig_id)].orientation.values[0]
-                if orientation == '+':
+                if orientation == 'plus':
                     pass
                 else:
                     contig_seq.seq = contig_seq.seq.reverse_complement()
@@ -130,7 +145,7 @@ def main(args):
         seq_colls = glob.glob(os.path.join(sample_sequence_outdir,'*'))
         for counter, sequence_collection in enumerate(seq_colls):
             filename = sequence_collection.split('/')[-1].replace('paralog_contigs_collection_','alignment_')
-            cline = MafftCommandline(input=sequence_collection,op=6.,ep=1.)
+            cline = MafftCommandline(input=sequence_collection,op=gap_o,ep=gap_e)
             stdout, stderr = cline()
             alignment_out = os.path.join(sample_alignment_outdir,filename)
             sys.stdout.write('\rAligning sequence collections %i/%i '%(int(counter+1),len(para_data)))
