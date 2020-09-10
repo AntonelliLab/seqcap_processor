@@ -72,7 +72,7 @@ def main(args):
         for k in sorted(value):
             taxa_names_single = []
             present_seq = []
-            length_alignment = ""
+            length_alignment = 0
             with open("%s/%s" %(work_dir,k)) as f:
                 for name, seq in read_fasta(f):
                     taxa_names_single.append(name)
@@ -101,4 +101,4 @@ def main(args):
         with open(pickle_path, 'wb') as handle:
             pickle.dump(sequence_origin, handle, protocol=pickle.HIGHEST_PROTOCOL)
     except:
-        print('INFO: Origin path of sequences could NOT be identified.')
+        pass
