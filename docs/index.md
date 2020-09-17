@@ -6,9 +6,6 @@ title: SECAPR pipeline
 # ![SECAPR](https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_logo_small.png) SEquence CApture PRocessor (SECAPR)
 
 
-
-
-
 **Original Publication: https://doi.org/10.7717/peerj.5175**
 
 ___
@@ -34,7 +31,7 @@ Some functions in this pipeline are inspired by scripts from the [Phyluce pipeli
 ## Workflow
 
 
-<img src="https://github.com/AntonelliLab/seqcap_processor/blob/master/images/secapr_workflow.png" width="600">
+<img src="https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_workflow.png" width="600">
 
 **SECAPR analytical workflow.** The flowchart shows the basic SECAPR functions, which are separated into two separate steps (colored boxes). Blue box (1. reference library from raw data): in this step the raw reads are cleaned and assembled into contigs (de novo assembly); Orange box (2. reference based assembly with custom reference library): the contigs from the previous step are used for reference-based assembly, enabling allele phasing and additional quality control options, e.g. concerning read-coverage. Black boxes show SECAPR commands and white boxes represent the input and output data of the respective function. Boxes marked in grey represent multiple sequence alignments (MSAs) generated with SECAPR, which can be used for phylogenetic inference. 
 
