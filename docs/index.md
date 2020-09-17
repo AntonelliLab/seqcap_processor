@@ -1,3 +1,8 @@
+---
+layout: default
+title: SECAPR pipeline
+---
+
 # <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
 
 **Original Publication: https://doi.org/10.7717/peerj.5175**
