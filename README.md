@@ -1,4 +1,6 @@
-# ![SECAPR](https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_logo_small.png) SEquence CApture PRocessor (SECAPR)
+# SEquence CApture PRocessor (SECAPR)
+
+![SECAPR](https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_logo_small.png)
 
 [![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
 
