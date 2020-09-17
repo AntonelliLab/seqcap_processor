@@ -3,7 +3,11 @@ layout: default
 title: SECAPR pipeline
 ---
 
-# ![Octocat](https://github.githubassets.com/images/icons/emoji/octocat.png) SEquence CApture PRocessor (SECAPR)
+# ![SECAPR](https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_logo_small.png) SEquence CApture PRocessor (SECAPR)
+
+
+
+
 
 **Original Publication: https://doi.org/10.7717/peerj.5175**
 
