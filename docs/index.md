@@ -1,3 +1,7 @@
+---
+author_profile: true
+---
+
 
 # SEquence CApture PRocessor (SECAPR)
 
