@@ -1,50 +1,144 @@
 Metadata-Version: 1.1
 Name: secapr
-Version: 1.1.12+48.gb3586ef.dirty
+Version: 2.0.2+27.g068c2ad.dirty
 Summary: Process sequence-capture fastq files into alignments for phylogenetic analyses
 Home-page: https://github.com/AntonelliLab/seqcap_processor
 Author: Tobias Andermann
 Author-email: tobias.andermann@bioenv.gu.se
 License: MIT
-Description: # <img src="images/secapr_logo.png" width="100"> SEquence CApture PRocessor (SECAPR)
+Description: # SEquence CApture PRocessor (SECAPR)
         
-        **Original Publication: https://doi.org/10.7717/peerj.5175**
-        
-        ___
-        
-        *We are now teaching a **1-week intensive course** on target enrichment data, including practical exercises for all functionalities of the SECAPR pipeline. Don't miss it and sign up online at:*
-        
-        https://www.forbio.uio.no/events/courses/2020/target_capture.html
-        
-        ___
-        
-        ## Installation instructions and documentation [click here](http://htmlpreview.github.io/?https://github.com/AntonelliLab/seqcap_processor/blob/master/docs/documentation/main_doc.html)
+        ![SECAPR](https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/images/secapr_logo_small.png)
         
         [![downloads](https://anaconda.org/bioconda/secapr/badges/downloads.svg)](http://bioconda.github.io/recipes/secapr/README.html)
         
+        **Original Publication: [https://doi.org/10.7717/peerj.5175](https://doi.org/10.7717/peerj.5175)**
         
-        This semi-automated pipeline aims to make the processing and analysis of sequence capture (= target enrichment) data simple and straight forward for all users. The detailed documentation and simple installation makes this pipeline accessible also for users with limited biofinformatic knowledge, while enabling user-defined processing options for the more experienced users.
+        <br/>
+        <br/>
         
-        We included an empirical data tutorial in the [pipeline documentation](http://htmlpreview.github.io/?https://github.com/AntonelliLab/seqcap_processor/blob/master/docs/documentation/main_doc.html), which covers the processing from raw Illumina read data into multiple seqeunce alignments (MSAs) for phylogenetic analyses, including the compiling of allele sequence MSAs. This workflow can be applied to any Illumina dataset, independently of the underlying bait set and organism group.
+        ## **Documentation: [Click here](http://antonellilab.github.io/seqcap_processor/)**
         
-        Some functions in this pipeline are inspired by scripts from the [Phyluce pipeline](https://github.com/faircloth-lab/phyluce) by Braint Faircloth, which is aimed at the processing of Ultraconserved Elements (UCEs). To honour some of the ideas belonging to Brant Faircloth, and the generous sharing of all his code as open-source, we ask you to cite the Phyluce pipeline (Faircloth 2016) alongside with ours (Andermann et al. 2018), when using SECAPR.  
+        <br/>
+        <br/>
+        <br/>
+        
+        ***
+        
+        ## Installation & Setup
+        SECAPR is available as a conda package on the bioconda channel. This makes installation of the SECAPR pipeline with all dependencies very simple. Follow the instructions on this page to get the SECAPR pipeline set up and ready to use.
+        
+        <br/>
+        
+        ***
+        
+        ### 1. Set up conda
+        
+         Conda is a software and environment manager, that makes installation of new software and of required dependencies very simple and straightforward. If you don't already have conda installed on your computer, you can rather quickly and easily install the light-weight version **Miniconda**.
+        
+        Download the **Python3 version** of [Miniconda](https://docs.conda.io/en/latest/miniconda.html) for your operating system.
+        
+        **Windows** users can download the `exe` file and install it by double clicking on the file and following the instructions.
+        
+        If you are a **Mac** user, choose the `pkg` conda download file for installing conda using a graphic user interface. Alternatively you can download the `bash` file (same for **Linux**). In that case you need to open a command line window, navigate to the folder containing the miniconda download, and install it with `sh Miniconda3-*.sh`.
+        
+        Once installed you can use conda via a bash command line terminal. **Mac** and **Linux** users can simply use the default Terminal software. **Windows** users are recommended to use the **Anaconda Powershell Prompt**, which is automatically installed with Miniconda, instead of the regular Command Prompt.
+        
+        From your bash-command line terminal add the following channels to your conda installation manager. These channels are the locations where conda finds all required software dependencies.
+        
+        ```bash
+        conda config --add channels defaults;
+        conda config --add channels conda-forge;
+        conda config --add channels bioconda;    
+        ```
         
         
-        ## Workflow
+        ***
         
+        ### 2. Install the SECAPR environment
         
-        <img src="https://github.com/AntonelliLab/seqcap_processor/blob/master/images/secapr_workflow.png" width="600">
+        Besides enabling easy installation, conda also functions as an extremely light-weight **virtual environment** manager. This means you create a virtual environment on your system and install software within that environment without interferring with your main system. For example if you download a conda package that has a specific R version as dependency, you can download it in a virtual environment and it will not affect your current R version that you are using on computer. You can easily connect and disconnect from these virtual environments you create with conda, see below.
         
-        **SECAPR analytical workflow.** The flowchart shows the basic SECAPR functions, which are separated into two separate steps (colored boxes). Blue box (1. reference library from raw data): in this step the raw reads are cleaned and assembled into contigs (de novo assembly); Orange box (2. reference based assembly with custom reference library): the contigs from the previous step are used for reference-based assembly, enabling allele phasing and additional quality control options, e.g. concerning read-coverage. Black boxes show SECAPR commands and white boxes represent the input and output data of the respective function. Boxes marked in grey represent multiple sequence alignments (MSAs) generated with SECAPR, which can be used for phylogenetic inference. 
+        Since the SECAPR pipeline has many third-party dependencies, which may effect existing installations of those softwares on your computer, we strongly recommend to install SECAPR in a virtual conda environment. Here we will name this environment `secapr_env`, but you can give it any name you want.
         
+        This is super easy with conda. All you have to do to install SECAPR and all its dependencies in a virtual environment is to run the following command:
         
+        ```bash
+        conda create -n secapr_env secapr
+        ```
         
-        ## Please cite:
+        More information about installing SECAPR, including installation of previous versions and using docker containers, can be found by clicking on the badge below:
         
-        **Andermann T.**, Cano Á., Zizka A., Bacon C., Antonelli A. 2018. SECAPR—a bioinformatics pipeline for the rapid and user-friendly processing of targeted enriched Illumina sequences, from raw reads to alignments. PeerJ 6:e5175 https://doi.org/10.7717/peerj.5175
+        [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/secapr/README.html)
         
-        Faircloth B.C., PHYLUCE is a software package for the analysis of conserved genomic loci, Bioinformatics, Volume 32, Issue 5, 1 March 2016, Pages 786–788, https://doi.org/10.1093/bioinformatics/btv646
+        ***
         
+        ### 3. Activate the environment
+        To activate the newly created `secapr_env` environment, type:
+        
+        ```bash
+        conda activate secapr_env
+        ```
+        
+        When the environment is activated, all the necessary software dependencies will be available in the standarad path, e.g. when you type `samtools` the samtools version required for SECAPR will be executed. After you are done using SECAPR, you can deactivate the environment to switch back to your standard environment with this command:
+        
+        ```bash
+        conda deactivate
+        ```
+        
+        ***
+        
+        ### 4. Check active environment
+        Check if you are connected to the correct environment (there should eb a star in front of secapr_env in the output of this command):
+        
+        ```bash
+        conda info --envs
+        ```
+        
+        In case you are not connected remember to always connect to the `secapr_env` before using SECAPR, by typing:
+        
+        ```bash
+        conda activate secapr_env
+        ```
+        
+        To test if the SECAPR installation is working, run the basic help function:
+        
+        ```bash
+        secapr -h
+        ```
+        
+        You should see an output with all available SECAPR functions. You can check run the help command for individual functions by typing `secapr name_of_function -h`, e.g.:
+        
+        ```bash
+        secapr clean_reads -h
+        ```
+        
+        ***
+        
+        ### 5. Install SECAPR development version
+        
+        The development version of SECAPR is stored on this GitHub page and contains the newest updates, which might not yet be available through the conda version. However you need to install the SECAPR environment with conda first by following the steps above. Once the environment is installed, you can update SECAPR to the development version by following these steps:
+        
+        1. Connect to your SECAPR environment:
+        
+           ```bash
+           conda activate secapr_env
+           ```
+        
+        2. [Download](https://github.com/AntonelliLab/seqcap_processor/archive/master.zip) the latest SECAPR version from GitHub  
+        3. Unzip the downloaded file
+        4. Move the unzipped directory to a safe location on your computer, i.e. not on your Desktop or Download folder. This will be the path where SECAPR will be executed from in the future.
+        5. Enter the unzipped SECAPR directory from your command line, replace `/path/to` with the path where you storred the folder:
+        
+           ```bash
+            cd /path/to/seqcap_processor-master
+            ```
+        
+        6. Install SECAPR from the folder 
+        
+            ```bash
+            python setup.py install
+            ```
 Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta
 Classifier: Environment :: Console

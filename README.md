@@ -126,7 +126,12 @@ The development version of SECAPR is stored on this GitHub page and contains the
     cd /path/to/seqcap_processor-master
     ```
 
-6. Install SECAPR from the folder 
+6. Remove the installed conda SECAPR version:
+   ```bash
+   conda remove --force secapr
+   ```
+
+7. Install SECAPR from the folder 
 
     ```bash
     python setup.py install
