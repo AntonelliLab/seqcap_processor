@@ -157,11 +157,19 @@ def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_f
 
     if not read_cov_file:
         if not alignment_folder:
-            fig.savefig(os.path.join(outdir,'contig_yield_overview.png'),bbox_inches='tight', dpi = 500)
+            filename = 'contig_yield_overview.png'
         else:
-            fig.savefig(os.path.join(outdir,'contig_alignment_yield_overview.png'),bbox_inches='tight', dpi = 500)
+            filename = 'contig_alignment_yield_overview.png'
     else:
-        fig.savefig(os.path.join(outdir,'contig_alignment_read_cov_yield_overview.png'),bbox_inches='tight', dpi = 500)
+        filename = 'contig_alignment_read_cov_yield_overview.png'
+    
+    # try to print in high res, if too large, don't set quality requirement dpi
+    try:
+        fig.savefig(os.path.join(outdir,filename),bbox_inches='tight', dpi = 500)
+    except ValueError:
+        fig.savefig(os.path.join(outdir,filename),bbox_inches='tight')
+
+
 
 def main(args):
     target_contig_folder = args.extracted_contigs
