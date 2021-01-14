@@ -18,7 +18,7 @@ from collections import Counter
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import AlignIO
-from Bio.Alphabet import IUPAC, Gapped
+#from Bio.Alphabet import IUPAC, Gapped
 from Bio.Align import MultipleSeqAlignment
 
 
@@ -92,7 +92,7 @@ class GenericAlign(object):
 
     def _record_formatter(self, trim, name):
         """return a string formatted as a biopython sequence record"""
-        return SeqRecord(Seq(trim, Gapped(IUPAC.ambiguous_dna, "-?")),
+        return SeqRecord(Seq(trim),#, Gapped(IUPAC.ambiguous_dna, "-?")),
             id=name,
             name=name,
             description=name)
@@ -169,11 +169,11 @@ class GenericAlign(object):
         # alignments
         start, end = self.running_average(alignment, window_size, proportion, threshold)
         # create a new alignment object to hold our alignment
-        s1_trimmed = MultipleSeqAlignment([], Gapped(IUPAC.ambiguous_dna, "-?"))
+        s1_trimmed = MultipleSeqAlignment([]) #, Gapped(IUPAC.ambiguous_dna, "-?"))
         for sequence in alignment:
             # ensure correct sequence alphabet or we'll get a conflict when
             # we try to generate a consensus
-            sequence.seq.alphabet = IUPAC.IUPACAmbiguousDNA()
+            #sequence.seq.alphabet = IUPAC.IUPACAmbiguousDNA()
             if start >= 0 and end:
                 trim = sequence[start:end]
                 # ensure we don't just add a taxon with only gaps/missing
@@ -204,7 +204,7 @@ class GenericAlign(object):
         characters to start or end alignment block.
         """
         # create new alignment object to hold trimmed alignment
-        s2_trimmed = MultipleSeqAlignment([], Gapped(IUPAC.ambiguous_dna, "-?"))
+        s2_trimmed = MultipleSeqAlignment([])#, Gapped(IUPAC.ambiguous_dna, "-?"))
         # get consensus of alignment in array form
         consensus_array = numpy.array(list(self._alignment_consensus(s1_trimmed)))
         # iterate over each alignment sequence

@@ -17,7 +17,7 @@ import tempfile
 import subprocess
 
 from Bio import AlignIO
-from Bio.Alphabet import IUPAC, Gapped
+#from Bio.Alphabet import IUPAC, Gapped
 
 from secapr.generic_align import GenericAlign
 
@@ -44,8 +44,8 @@ class Align(GenericAlign):
                 )
             stderr = proc.communicate()
         #print(stderr)
-        self.alignment = AlignIO.read(open(aln, 'r'), "fasta", \
-                alphabet=Gapped(IUPAC.unambiguous_dna, "-"))
+        self.alignment = AlignIO.read(open(aln, 'r'), "fasta")
+                #alphabet=Gapped(IUPAC.unambiguous_dna, "-"))
         if clean:
             self._clean(aln)
             self._clean((self.input)[2])
