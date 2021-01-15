@@ -1,61 +1,18 @@
-# encoding: utf-8
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Align sequences and produce separate alignment file for each locus, containing the seqeunces of all taxa.
+Created on Thu Jan 14 22:04:36 2021
+
+@author: Tobias Andermann (tobiasandermann88@gmail.com)
 """
 
-
-import os
-import re
-import sys
-import copy
-import tempfile
+import os, glob, sys, shutil
+import subprocess
+import numpy as np
+from secapr.helpers import FullPaths, CreateDir, is_file
+from Bio import SeqIO, AlignIO
+from Bio.Align.Applications import MafftCommandline, MuscleCommandline
 import multiprocessing
-import logging
-import pickle
-from Bio import SeqIO
-from collections import defaultdict
-from secapr.helpers import FullPaths, CreateDir, is_dir, is_file, write_alignments_to_outdir
-
-'''
-Copyright (c) 2010-2012, Brant C. Faircloth All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-
-* Neither the name of the University of California, Los Angeles nor the names
-of its contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-________________________________________
-Modified by Tobias Andermann (tobias.andermann@bioenv.gu.se):
-Additions include:
-- Standardizing script for incomplete data 
-- More forgiving default options for non-UCE datasets
-- Format the sequence headers of the output alignment files to simply the sample name (no locus information in the header, only in the filename)
-- Updated to python3
-________________________________________
-'''
-
-log = logging.getLogger(__name__)
-
 
 def add_arguments(parser):
     parser.add_argument(
@@ -63,220 +20,214 @@ def add_arguments(parser):
         required=True,
         action=FullPaths,
         type=is_file,
-        help="""The fasta file containing individual sequences for several samples and loci"""
+        help='The fasta file containing individual sequences for several samples and loci'
     )
     parser.add_argument(
-        "--output",
+        "--outdir",
         required=True,
         action=CreateDir,
-        help="""The directory in which to store the resulting alignments."""
+        help='The directory in which to store the resulting alignments.'
     )
     parser.add_argument(
         "--aligner",
         choices=["muscle", "mafft"],
         default="mafft",
-        help="""The alignment engine to use."""
-    )
-    parser.add_argument(
-        "--output-format",
-        choices=["fasta", "fasta-2line", "nexus", "phylip", "clustal", "emboss", "stockholm"],
-        default="fasta",
-        help="""The output alignment format.""",
-    )
-    parser.add_argument(
-        "--no-trim",
-        action="store_true",
-        default=False,
-        help="""Align, but DO NOT trim alignments."""
-    )
-    parser.add_argument(
-        "--window",
-        type=int,
-        default=10,
-        help="""Sliding window size for trimming."""
-    )
-    parser.add_argument(
-        "--proportion",
-        type=float,
-        default=0.5,
-        help="""The proportion of taxa required to have sequence at alignment ends."""
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.5,
-        help="""The proportion of residues required across the window in """ +
-        """proportion of taxa."""
-    )
-    parser.add_argument(
-        "--max-divergence",
-        type=float,
-        default=0.40,
-        help="""The max proportion of sequence divergence allowed between any row """ +
-        """of the alignment and the alignment consensus."""
-    )
-    parser.add_argument(
-        "--min-length",
-        type=int,
-        default=80,
-        help="""The minimum length of alignments to keep."""
+        help='The alignment engine to use.'
     )
     parser.add_argument(
         "--exclude_ambiguous",
         action="store_true",
         default=False,
-        help="""Don't allow reads in alignments containing N-bases."""
+        help='Don\'t allow reads in alignments containing N-bases.'
     )
     parser.add_argument(
         "--gap_opening_penalty",
         type=float,
-        default=1,
-        help="""Set gap opening penalty for aligner (only for mafft, default=1.53)."""
+        default=3.0,
+        help='Set gap opening penalty for aligner.'
     )
     parser.add_argument(
         "--gap_extension_penalty",
         type=float,
-        default=0.0,
-        help="""Set gap extension penalty for aligner (only for mafft, default=0.0)."""
+        default=2.0,
+        help='Set gap extension penalty for aligner.'
+    )
+    parser.add_argument(
+        "--min_seqs_per_locus",
+        type=int,
+        default=3,
+        help='Minimum number of sequences required for building alignment.'
+    )
+    parser.add_argument(
+        "--no_trim",
+        action="store_true",
+        default=False,
+        help='Suppress trimming of alignments. By default secapr uses trimal to trim gappy positions from alignments.'
+    )
+    parser.add_argument(
+        "--trimal_setting",
+        choices=["manual", "gappyout", "strict", "strictplus"],
+        default="gappyout",
+        help='Use one of trimal automated scenarios. These will overwrite all other trimming flags (see below). See trimal tutorial for more info about settings.'
+    )
+    parser.add_argument(
+        "--window_size",
+        type=int,
+        default=5,
+        help='Sliding window size for trimming.'
+    )
+    parser.add_argument(
+        "--seq_proportion",
+        type=float,
+        default=0.7,
+        help='The proportion of sequences required. All alignment columns with fewer sequences will be deleted (0-1).'
+    )
+    parser.add_argument(
+        "--conserve_alignment_percentage",
+        type=int,
+        default=0,
+        help='This setting will ensure to conserve the specified percentage of the alignment when trimming (0-100).'
+    )
+    parser.add_argument(
+        "--min_length",
+        type=int,
+        default=0,
+        help='The minimum length of alignments to keep.'
     )
     parser.add_argument(
         "--cores",
         type=int,
         default=1,
-        help="""Process alignments in parallel using --cores for alignment. """ +
-        """This is the number of PHYSICAL CPUs."""
+        help='Process alignments in parallel using --cores for alignment. This is the number of PHYSICAL CPUs.'
     )
 
-
-def build_locus_dict(log, loci, locus, record, exclude_ambiguous):
-    if exclude_ambiguous:
-        if not "N" in record.seq:
-            loci[locus].append(record)
-        else:
-            log.warn("Skipping {} because it contains ambiguous bases".format(locus))
-    else:
-        loci[locus].append(record)
-    return loci
-
-
-def create_locus_specific_fasta(sequences):
-    fd, fasta_file = tempfile.mkstemp(suffix='.fasta')
-    #fd, fasta_file = tempfile.mkstemp()
-    handle = open(fasta_file,'w')
-    for seq in sequences:
-        seq.id = '_'.join(seq.id.split('_')[1:])
-        handle.write(format(seq,"fasta"))
-    return fasta_file
-
-
-def align(params):
-    locus, opts = params
-    name, sequences = locus
-    # get additional params from params tuple
-    window, threshold, notrim, proportion, divergence, min_len, opening_penalty, extension_penalty, align_class = opts
-    fasta = create_locus_specific_fasta(sequences)
-    aln = align_class([str(opening_penalty),str(extension_penalty),fasta])
-    aln.run_alignment()
-    if notrim:
-        aln.trim_alignment(
-                method="notrim"
-            )
-    else:
-        aln.trim_alignment(
-                method="running",
-                window_size=window,
-                proportion=proportion,
-                threshold=threshold,
-                max_divergence=divergence,
-                min_len=min_len
-            )
-    if aln.trimmed:
-        sys.stdout.write(".")
-    else:
-        sys.stdout.write("X")
+def align_seqs(pool_input):
+    counter,total,sequence_collection,aligner,gap_opening_penalty,gap_extension_penalty,no_trim,trimal_setting,window_size,seq_proportion,conserve_alignment_percentage,min_length,outdir = pool_input
+    filename = os.path.basename(sequence_collection).replace('sequence_collection_locus_','')
+    if aligner == 'mafft':
+        cline = MafftCommandline(input=sequence_collection,adjustdirection=True,maxiterate=1000,op=gap_opening_penalty,ep=gap_extension_penalty)
+    elif aligner == 'muscle':
+        cline = MuscleCommandline(input=sequence_collection,maxiters=1000,gapopen=gap_opening_penalty,gapextend=gap_extension_penalty)
+    stdout, stderr = cline()
+    alignment_out = os.path.join(outdir,filename)
+    sys.stdout.write('\rAligning sequence collections %i/%i '%(int(counter+1),total))
     sys.stdout.flush()
-    return (name, aln)
-
-
-def get_fasta_dict(log, args):
-    log.info("Building the locus dictionary")
-    if args.exclude_ambiguous:
-        log.info("Removing ALL sequences with ambiguous bases...")
-    else:
-        log.info("NOT removing sequences with ambiguous bases...")
-    loci = defaultdict(list)
-    with open(args.sequences, "rU") as infile:
-        for record in SeqIO.parse(infile, "fasta"):
-            locus = record.description.split("|")[1]
-            loci = build_locus_dict(log, loci, locus, record, args.exclude_ambiguous)
-    # workon a copy so we can iterate and delete
-    snapshot = copy.deepcopy(loci)
-    # iterate over loci to check for all species at a locus
-    for locus, data in snapshot.items():
-        if len(data) < 3:
-            del loci[locus]
-            log.warn("DROPPED locus {0}. Too few taxa (N < 3).".format(locus))
-    return loci
+    with open(alignment_out, "w") as handle:
+        handle.write(stdout)
+    
+    if not no_trim:
+        # trim alignments with trimal
+        if trimal_setting != 'manual':
+            cmd = [
+                "trimal",
+                "-in",
+                alignment_out,
+                "-out",
+                alignment_out,
+                '-%s'%trimal_setting
+                   ]
+        else:
+            cmd = [
+                "trimal",
+                "-in",
+                alignment_out,
+                "-out",
+                alignment_out,
+                '-w',
+                str(window_size),
+                '-gt',
+                str(seq_proportion),
+                '-cons',
+                str(conserve_alignment_percentage)
+                   ]                
+        # run trimal command
+        proc = subprocess.Popen(cmd,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE
+            )
+        stderr,stdout = proc.communicate()
+    if min_length:
+        align = AlignIO.read(alignment_out, "fasta")
+        al_length = len(align[0])
+        if al_length < min_length:
+            # delete file if smaller than minlength
+            os.remove(alignment_out)
+            #too_short_alignments.append(filename.replace('.fasta',''))
+            return(filename.replace('.fasta','')) # Return locus name in case alignment is too short
 
 
 def main(args):
-    if args.aligner == "muscle":
-        from secapr.muscle import Align as align_class
-    elif args.aligner == "mafft":
-        from secapr.mafft import Align as align_class
+    sequences = args.sequences
+    outdir = args.outdir
+    aligner = args.aligner
+    exclude_ambiguous = args.exclude_ambiguous
+    gap_opening_penalty = args.gap_opening_penalty
+    gap_extension_penalty = args.gap_extension_penalty
+    min_seqs_per_locus = args.min_seqs_per_locus    
+    no_trim = args.no_trim
+    trimal_setting = args.trimal_setting
+    window_size = args.window_size
+    seq_proportion = args.seq_proportion
+    conserve_alignment_percentage = args.conserve_alignment_percentage
+    min_length = args.min_length
+    cores = args.cores
     
-    # create the fasta dictionary
-    loci = get_fasta_dict(log, args)
-    log.info("Aligning with {}".format(str(args.aligner).upper()))
-    opts = [[args.window, args.threshold, args.no_trim, args.proportion, args.max_divergence, args.min_length, args.gap_opening_penalty, args.gap_extension_penalty, align_class] for _ in loci]
-    # combine loci and options
-    params = list(zip(list(loci.items()), opts))
-    log.info("Alignment begins. 'X' indicates dropped alignments (these are reported after alignment)")
-    # During alignment, drop into sys.stdout for progress indicator
-    # because logging in multiprocessing is more painful than what
-    # we really need.  Return to logging when alignment completes.
-    if args.cores > 1:
-        assert args.cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
-        pool = multiprocessing.Pool(args.cores)
-        alignments = pool.map(align, params)
-    else:
-        alignments = list(map(align, params))
+
+    
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    
+    # create locus dictionary
+    locus_dict = {}
+    for record in SeqIO.parse(sequences, "fasta"):
+        locus = record.description.split("|")[1]
+        locus_dict.setdefault(locus,[])
+        if 'N' in record.seq and exclude_ambiguous:
+            print('Found ambiguous bases in sequence %s. Dropping this sequence. Disable --exclude_ambiguous if you want to keeo these sequences.'%record.description)
+            pass
+        else:
+            locus_dict[locus].append(record)
+    
+    # check which loci have to be dropped due to too few loci
+    locus_names = list(locus_dict.keys())
+    sequences_per_locus = np.array([len(locus_dict[i]) for i in locus_names])
+    exclude_these_loci = list(np.array(locus_names)[sequences_per_locus<min_seqs_per_locus])
+    
+    # write sequence collections to file
+    tmp_dir = os.path.join(outdir,'tmp')
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+    for locus in locus_names:
+        if locus not in exclude_these_loci:            
+            SeqIO.write(locus_dict[locus], os.path.join(tmp_dir,'sequence_collection_locus_%s.fasta'%locus),'fasta')
+    
+    # align sequence collections
+    #too_short_alignments = []
+    seq_collections = glob.glob(tmp_dir+'/*.fasta')[:40] #XXXXXXXXXXXXXXXXXXX REMOVE [:20]
+    
+    
+    pool_input = [[i,len(seq_collections),seq_collection,aligner,gap_opening_penalty,gap_extension_penalty,no_trim,trimal_setting,window_size,seq_proportion,conserve_alignment_percentage,min_length,outdir] for i,seq_collection in enumerate(seq_collections)]
+    pool = multiprocessing.Pool(cores)
+    all_output = np.array(pool.map(align_seqs, pool_input))
+    pool.close()
+               
+    too_short_alignments = all_output[~(all_output == None)].astype(str) # get the loci if there are any
+    
+    shutil.rmtree(tmp_dir)
+    print('\n\nExcluded these loci due to too few taxa present (< %i):\n'%min_seqs_per_locus, sorted(exclude_these_loci))
+    if len(too_short_alignments) > 0:
+        print('\n\nExcluded these loci due to too short alignments (< %i):\n'%min_length,sorted(too_short_alignments))
+    
+    
 
 
-    #import pickle
-    #with open('/Users/tobias/Desktop/alignments.pickle', 'wb') as handle:
-    #    pickle.dump(alignments, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    #with open('/Users/tobias/Desktop/alignments.pickle', 'rb') as handle:
-    #    alignments = pickle.load(handle)
 
-    # kick the stdout down one line since we were using sys.stdout
-    print("")
-    # drop back into logging
-    log.info("Alignment ends")
-    # write the output files
-    for name, alignment in alignments:
-        if alignment.trimmed:
-            for t in alignment.trimmed:
-                locus_name = t.description.split('|')[-1]
-                rest_of_string = '|'.join(t.description.split('|')[:-1])
-                string_to_replace = '%s_'%str(locus_name)
-                new_string = t.id
-                # fix the fasta header, also removing the occasional _R_ resulting from reverse contigs
-                tmp = re.sub(string_to_replace, '', new_string,1)
-                t.id = re.sub('_R_','',tmp,1)
-                t.name = t.id
-                t.description = ''
-    write_alignments_to_outdir(log, args.output, alignments, args.output_format)
-    try:
-        #input_folder = '/'.join(args.sequences.split('/')[:-2])
-        pickle_path = os.path.join(args.output,'.secapr_files')
-        if not os.path.exists(pickle_path):
-            os.makedirs(pickle_path)
-        with open(os.path.join(pickle_path,'sequence_origin.pickle'), 'wb') as handle:
-            pickle.dump(args.sequences, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        # end
-        text = " Completed! "
-        log.info(text.center(65, "="))
-    except:
-        print('Could not pass origin of sequences to %s'%pickle_path)
-  
+
+
+
+
+
+
+
+
+

@@ -36,6 +36,7 @@ requirements:
     - emboss
     - bwa
     - samtools
+    - trimal
 
 test:
   imports:

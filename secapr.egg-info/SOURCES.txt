@@ -8,6 +8,7 @@ secapr/__main__.py
 secapr/_version.py
 secapr/add_missing_sequences.py
 secapr/align_sequences.py
+secapr/align_sequences_old.py
 secapr/assemble_reads.py
 secapr/automate_all.py
 secapr/clean_reads.py
