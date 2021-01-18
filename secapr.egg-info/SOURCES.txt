@@ -8,7 +8,6 @@ secapr/__main__.py
 secapr/_version.py
 secapr/add_missing_sequences.py
 secapr/align_sequences.py
-secapr/align_sequences_old.py
 secapr/assemble_reads.py
 secapr/automate_all.py
 secapr/clean_reads.py
@@ -16,14 +15,11 @@ secapr/concatenate_alignments.py
 secapr/create_consensus_from_alleles.py
 secapr/extract_alignments_from_phyluce_get_inf_sites_output.py
 secapr/find_target_contigs.py
-secapr/generic_align.py
 secapr/helpers.py
 secapr/join_exons.py
 secapr/locus_selection.py
-secapr/mafft.py
 secapr/merge_probes.py
 secapr/mpileup_fasta.py
-secapr/muscle.py
 secapr/paralogs_to_ref.py
 secapr/phase_alleles.py
 secapr/phase_alleles_provide_reference_fasta.py

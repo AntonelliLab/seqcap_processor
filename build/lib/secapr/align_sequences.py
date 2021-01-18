@@ -203,7 +203,7 @@ def main(args):
     
     # align sequence collections
     #too_short_alignments = []
-    seq_collections = glob.glob(tmp_dir+'/*.fasta')[:40] #XXXXXXXXXXXXXXXXXXX REMOVE [:20]
+    seq_collections = glob.glob(tmp_dir+'/*.fasta')
     
     
     pool_input = [[i,len(seq_collections),seq_collection,aligner,gap_opening_penalty,gap_extension_penalty,no_trim,trimal_setting,window_size,seq_proportion,conserve_alignment_percentage,min_length,outdir] for i,seq_collection in enumerate(seq_collections)]
