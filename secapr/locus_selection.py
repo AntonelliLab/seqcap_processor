@@ -220,7 +220,7 @@ def extract_best_loci(subfolder_file_dict,sample_bam_dict,output_folder,n,thresh
     # Create output file with read-depth overview of only the selected loci
     selection_out = selection.copy()
     #selection_out.remove('sum_per_locus')
-    selection_out.to_csv('%s/overview_selected_loci.txt' %output_folder,index=False,sep='\t')
+    selection_out.to_csv('%s/average_cov_per_locus.txt' %output_folder,index=False,sep='\t')
     target_loci = list(selection.locus.astype(str))
     # Now iterate through samples
     for sample in sample_subfolder_dict:
