@@ -1,3 +1,0 @@
-[console_scripts]
-secapr = secapr.__main__:main
-
