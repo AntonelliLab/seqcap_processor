@@ -3,8 +3,6 @@
 Plot overview of extracted sequences
 '''
 
-
-import logging
 import argparse
 from secapr.helpers import is_dir, is_file, FullPaths
 import os
@@ -16,8 +14,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
-#import pdb
-log = logging.getLogger(__name__)
 
 def add_arguments(parser):
     parser.add_argument(
@@ -104,7 +100,10 @@ def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_f
                 # sort by index again
         read_cov_data = temp_read_cov_data.sort_index()
         # turn df into matrix
-        data_3_read_cov = np.matrix(read_cov_data).T
+        if 'sum_per_locus' in read_cov_data.columns:
+            data_3_read_cov = (np.matrix(read_cov_data)[:,:-1]).T
+        else:
+            data_3_read_cov = np.matrix(read_cov_data).T
         # lets use the same labels as for the contig data
         data_3_y_labels = np.core.defchararray.replace(data_1_y_labels, 'contigs', 'coverage')
 
