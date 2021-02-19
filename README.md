@@ -60,7 +60,7 @@ conda create -n secapr_env secapr
 ```
 
 ### RECENT INSTALLATION ISSUES
-In case the above command results in an endless wait while conda is trying to solve the environment, something is not working the way it should with the conda environment creation (we are currenlty investigating what causes this issue for some users). Instead you can manually create the conda environment by running the commands from this [bash script](https://github.com/AntonelliLab/seqcap_processor/blob/master/recipe/install_secapr_env_manually.sh). You can either copy the command one by one into your command line terminal, or download the sh-script and execute it in the command line with `sh install_secapr_env_manually.sh`.
+In case the above command results in an endless wait while conda is trying to solve the environment, something is not working the way it should with the conda environment creation (we are currenlty investigating what causes this issue for some users). Instead you can manually create the conda environment by running the commands from [this bash script](https://github.com/AntonelliLab/seqcap_processor/blob/master/recipe/install_secapr_env_manually.sh). You can either copy the command one by one into your command line terminal, or download the sh-script and execute it in the command line with `sh install_secapr_env_manually.sh`.
 
 
 More information about installing SECAPR, including installation of previous versions and using docker containers, can be found by clicking on the badge below:
