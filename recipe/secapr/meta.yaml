@@ -9,22 +9,23 @@ source:
   sha256: bc69147dbc452acf56dc75452c5cadcdaeeeda1d0a3a81c5c3667e0018924031
 
 build:
-  noarch: generic
+  noarch: python
   number: 0
-  script: python -m pip install --no-deps --ignore-installed .
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv"
   entry_points:
     - secapr = secapr.__main__:main
 
 requirements:
   host:
-    - python 3.7
+    - python
     - pip
+    - setuptools
 
   run:
     - python
     - pandas
     - matplotlib-base
-    - biopython=1.76
+    - biopython
     - trimmomatic
     - fastqc
     - abyss
