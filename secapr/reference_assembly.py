@@ -15,6 +15,7 @@ import shutil
 import argparse
 import configparser
 import subprocess
+import numpy as np
 import pickle
 import pandas as pd
 from Bio import SeqIO
@@ -767,7 +768,7 @@ def main(args):
         sample_id = re.sub("_clean","",sample_folder)
         if args.reference_type == "sample-specific":
             reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
-        # Safe the smaple specific reference as a pickle file for downstream processing
+        # Safe the sample specific reference as a pickle file for downstream processing
         sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
         sample_out_list.append(sample_output_folder)
         if not os.path.exists(sample_output_folder):
@@ -775,9 +776,10 @@ def main(args):
         tmp_folder = "%s/tmp" %sample_output_folder
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder)
-        pickle_path = os.path.join(tmp_folder,'%s_reference.pickle' %sample_id)
-        with open(pickle_path, 'wb') as handle:
-            pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle_path = os.path.join(tmp_folder,'%s_reference.txt' %sample_id)
+        np.savetxt(pickle_path,np.array([reference]),fmt='%s')
+        # with open(pickle_path, 'wb') as handle:
+        #     pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
         # Loop through each sample-folder and find read-files
         forward = ""
         backward = ""
@@ -833,8 +835,9 @@ def main(args):
             sample = subfolder.split('/')[-1].split('_remapped')[0]
             reference = ''
             reference_pickle = reference_file_dict[sample]
-            with open(reference_pickle, 'rb') as handle:
-                reference = pickle.load(handle)
+            reference = np.loadtxt(reference_pickle)
+            # with open(reference_pickle, 'rb') as handle:
+            #     reference = pickle.load(handle)
             read_depth_file = subfolder_file_dict[subfolder]
             locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
         output_dict = {}

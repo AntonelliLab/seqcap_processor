@@ -299,7 +299,7 @@ def main(args):
                     reference_file_dict.setdefault(sample,args.reference)
                 else:
                     reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
-                    reference_file_dict.setdefault(sample,reference_pickle)        
+                    reference_file_dict.setdefault(sample,reference_pickle)
                 bam = sample_bam_dict[key][0]
                 sample_dir, read_depth_file = get_bam_read_cov(bam,output_folder)
                 subfolder_file_dict.setdefault(sample_dir,read_depth_file)
