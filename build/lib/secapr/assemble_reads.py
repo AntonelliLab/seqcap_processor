@@ -130,10 +130,9 @@ def assembly_trinity(forw,backw,output_folder,id_sample,cores,min_length,max_mem
     #    print ("Trinity failed, maybe due to limited stack-size. Try increase stacksize with command 'zsh | ulimit -s unlimited | sh' and run again.")
 
 def assembly_abyss(forw,backw,singlef,singleb,output_folder,id_sample,kmer,cores,args):
-    print("\nWARNING: Abyss is very memory heavy (dependend on the size of your read files and the chosen kmer value) "
-          "and it may throw an error or run painstakingly slow because it's running out of memory. "
-          "For average sized read files amounting to approx. 1 GB per sample (forward and backward reads) at kmer 35 "
-          "Abyss will require around 6GB of memory (keep that in mind when parallelizing on multiple cores).\n")
+    print("WARNING: Abyss is very memory heavy and depending on the size of your read files may throw an error because it's running out of memory. If running on a cluster, ask your system administrator how to allocate more memory to your abyss job.")
+    if cores > 1:
+        print('WARNING: You chose to run Abyss on more than 1 core. This can cause problems on some systems and will make the script crash. In that case try running Abyss on a sinlge core instead.')
     print(("De-novo assembly with abyss of sample %s:" %id_sample))
     try:
         kmer = int(kmer)
@@ -373,19 +372,15 @@ def process_subfolder(pool_args):
 def main(args):
     input_folder = args.input
     cores = args.cores
-    subfolder_list = [subfolder for subfolder, __, __ in os.walk(input_folder) if os.path.basename(subfolder) != os.path.basename(input_folder)]
     if cores > 1:
         print(("Running in parallel on %d cores" %cores))
-        pool = multiprocessing.Pool(cores)
-        pool_args = [[subfolder,args] for subfolder in subfolder_list]
-        contig_count_df_list = list(pool.map(partial(process_subfolder), pool_args))
-        pool.close()
-    else:
-        contig_count_df_list = [process_subfolder([subfolder,args]) for subfolder in subfolder_list]
 
-    #print(contig_count_df_list)
+    pool = multiprocessing.Pool(cores)
+    pool_args = [[subfolder,args] for subfolder, __, __ in os.walk(input_folder) if os.path.basename(subfolder) != os.path.basename(input_folder)]
+    contig_count_df_list = list(pool.map(partial(process_subfolder), pool_args))
+    pool.close()
+    print(contig_count_df_list)
     contig_count_df = pd.concat(contig_count_df_list)
-
 
     try:
         previous_stats_df = pd.read_csv(os.path.join(input_folder,'sample_stats.txt'),sep='\t')

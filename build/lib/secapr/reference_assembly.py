@@ -761,49 +761,51 @@ def main(args):
         os.system(manage_reference)
     elif args.reference_type == "alignment-consensus":
         reference = create_reference_fasta(reference_folder,alignments)
-    for subfolder in [ name for name in os.listdir(reads) if os.path.isdir(os.path.join(reads, name)) ]:
-        subfolder_path = os.path.join(reads,subfolder)
-        sample_folder = subfolder
-        sample_id = re.sub("_clean","",sample_folder)
-        if args.reference_type == "sample-specific":
-            reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
-        # Safe the smaple specific reference as a pickle file for downstream processing
-        sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
-        sample_out_list.append(sample_output_folder)
-        if not os.path.exists(sample_output_folder):
-            os.makedirs(sample_output_folder)
-        tmp_folder = "%s/tmp" %sample_output_folder
-        if not os.path.exists(tmp_folder):
-            os.makedirs(tmp_folder)
-        pickle_path = os.path.join(tmp_folder,'%s_reference.pickle' %sample_id)
-        with open(pickle_path, 'wb') as handle:
-            pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        # Loop through each sample-folder and find read-files
-        forward = ""
-        backward = ""
-        for fastq in os.listdir(subfolder_path):
-            if fastq.endswith('.fastq') or fastq.endswith('.fq'):
-                if sample_id in fastq and "READ1.fastq" in fastq:
-                    forward = os.path.join(subfolder_path,fastq)
-                elif sample_id in fastq and "READ2.fastq" in fastq:
-                    backward = os.path.join(subfolder_path,fastq)
-        if forward != "" and backward != "":
-            print(('\n'+"#" * 50))
-            print(("Processing sample %s" %sample_id))
-            sorted_bam = ""
-            log = os.path.join(sample_output_folder,'log')
-            if not os.path.exists(log):
-                os.makedirs(log)
-            if mapper == "bwa":
-                sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,args,log)
-            if not args.keep_duplicates:
-                sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)
-            name_stem = '%s_bam_consensus' %sample_id
-            bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
-            if not args.keep_duplicates:
-                dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
-                dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
-                bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
+    for subfolder in os.listdir(reads):
+        path = os.path.join(reads,subfolder)
+        if os.path.isdir(path):
+            subfolder_path = os.path.join(reads,subfolder)
+            sample_folder = subfolder
+            sample_id = re.sub("_clean","",sample_folder)
+            if args.reference_type == "sample-specific":
+                reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
+            # Safe the smaple specific reference as a pickle file for downstream processing
+            sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
+            sample_out_list.append(sample_output_folder)
+            if not os.path.exists(sample_output_folder):
+                os.makedirs(sample_output_folder)
+            tmp_folder = "%s/tmp" %sample_output_folder
+            if not os.path.exists(tmp_folder):
+                os.makedirs(tmp_folder)
+            pickle_path = os.path.join(tmp_folder,'%s_reference.pickle' %sample_id)
+            with open(pickle_path, 'wb') as handle:
+                pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            # Loop through each sample-folder and find read-files
+            forward = ""
+            backward = ""
+            for fastq in os.listdir(subfolder_path):
+                if fastq.endswith('.fastq') or fastq.endswith('.fq'):
+                    if sample_id in fastq and "READ1.fastq" in fastq:
+                        forward = os.path.join(subfolder_path,fastq)
+                    elif sample_id in fastq and "READ2.fastq" in fastq:
+                        backward = os.path.join(subfolder_path,fastq)
+            if forward != "" and backward != "":
+                print(('\n'+"#" * 50))
+                print(("Processing sample %s" %sample_id))
+                sorted_bam = ""
+                log = os.path.join(sample_output_folder,'log')
+                if not os.path.exists(log):
+                    os.makedirs(log)
+                if mapper == "bwa":
+                    sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,args,log)
+                if not args.keep_duplicates:
+                    sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)
+                name_stem = '%s_bam_consensus' %sample_id
+                bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
+                if not args.keep_duplicates:
+                    dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
+                    dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
+                    bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
     join_fastas(out_dir,sample_out_list)
     # create file with read-coverage overview
     print(('\n'+"#" * 50))

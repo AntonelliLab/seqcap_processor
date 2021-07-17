@@ -6,7 +6,7 @@ Created on Thu Jan 14 22:04:36 2021
 @author: Tobias Andermann (tobiasandermann88@gmail.com)
 """
 
-import os, glob, sys, shutil, re
+import os, glob, sys, shutil
 import subprocess
 import numpy as np
 from secapr.helpers import FullPaths, CreateDir, is_file
@@ -171,7 +171,9 @@ def main(args):
     conserve_alignment_percentage = args.conserve_alignment_percentage
     min_length = args.min_length
     cores = args.cores
+    
 
+    
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     
@@ -180,14 +182,6 @@ def main(args):
     for record in SeqIO.parse(sequences, "fasta"):
         locus = record.description.split("|")[1]
         locus_dict.setdefault(locus,[])
-
-        string_to_replace = '%s_' % str(locus)
-        new_string = record.id
-        # fix the fasta header, also removing the occasional _R_ resulting from reverse contigs
-        tmp = re.sub(string_to_replace, '', new_string, 1)
-        record.id = re.sub('_R_', '', tmp, 1)
-        record.name = record.id
-        record.description = ''
         if 'N' in record.seq and exclude_ambiguous:
             print('Found ambiguous bases in sequence %s. Dropping this sequence. Disable --exclude_ambiguous if you want to keeo these sequences.'%record.description)
             pass

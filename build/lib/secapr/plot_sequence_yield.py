@@ -119,7 +119,7 @@ def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_f
         norm = mpl.colors.Normalize(vmin=0, vmax=norm_value)
     switch = 'off'
 
-    fig, axes2d = plt.subplots(nrows=height, ncols=1,sharex=True, sharey=False,figsize=(width/40,height/2))
+    fig, axes2d = plt.subplots(nrows=height, ncols=1,sharex=True, sharey=True,figsize=(width/40,height/2))
     for i, ax in enumerate(axes2d):
         ax = plt.subplot(height, 1, i+1)
         ax.tick_params(left=False,bottom=False,labelleft=True)
@@ -135,9 +135,7 @@ def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_f
                 ax.imshow(combined_data[i], aspect='auto', cmap='GnBu', origin='lower') 
             else :
                 ax.imshow(combined_data[i], aspect='auto', cmap='hot_r',norm=norm, origin='lower')#,clim=(0.0, 10))
-        #print(ax.get_yticklabels())
-        ax.set_yticks([0])
-        ax.set_yticklabels([combined_y_labels[i]])
+        plt.yticks([0],[combined_y_labels[i]])
     ax.set_xlabel('Exon index')
 
     if read_cov_file:
@@ -149,18 +147,20 @@ def plot_contig_yield(contig_input_file,outdir,alignment_folder=False,read_cov_f
         # hide tick and tick label of the big axis
         plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
         plt.ylabel("Read coverage (# of reads)",labelpad=50)
-        filename = 'contig_alignment_read_cov_yield_overview.png'
 
     else:
         fig.add_subplot(111, frameon=False)
         # hide tick and tick label of the big axis
         plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
         plt.ylabel("Contig present (yes/no)",labelpad=50)
+
+    if not read_cov_file:
         if not alignment_folder:
             filename = 'contig_yield_overview.png'
         else:
             filename = 'contig_alignment_yield_overview.png'
-
+    else:
+        filename = 'contig_alignment_read_cov_yield_overview.png'
     
     # try to print in high res, if too large, don't set quality requirement dpi
     try:
