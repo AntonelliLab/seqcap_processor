@@ -821,7 +821,7 @@ def main(args):
                 sample = key.split('_remapped')[0]
                 path = os.path.join(out_dir,key)
                 path2 = os.path.join(path,'tmp')
-                reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
+                reference_pickle = os.path.join(path2,'%s_reference.txt' %sample)
                 reference_file_dict.setdefault(sample,reference_pickle)        
                 bam = sample_bam_dict[key][0]
                 total_read_count = get_bam_read_count(bam)

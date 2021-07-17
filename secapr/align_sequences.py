@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 14 22:04:36 2021
-
-@author: Tobias Andermann (tobiasandermann88@gmail.com)
+Create multiple sequence alignments from sequence collections
 """
 
 import os, glob, sys, shutil, re

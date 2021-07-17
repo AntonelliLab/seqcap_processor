@@ -1,17 +1,17 @@
-yes | conda create -n secapr_tmp python==3.7
-source activate secapr_tmp
-yes | conda install pandas
-yes | conda install matplotlib-base
-yes | conda install biopython
-yes | conda install trimmomatic
-yes | conda install fastqc
-yes | conda install abyss
-yes | conda install spades
-yes | conda install blast
-yes | conda install mafft
-yes | conda install muscle
-yes | conda install emboss
-yes | conda install bwa
-yes | conda install samtools==1.9
-yes | conda install trimal
-yes | conda install secapr
+conda create -y -n secapr_env python=3.9
+source activate secapr_env
+conda install -y pandas
+conda install -y matplotlib-base
+conda install -y biopython
+conda install -y trimmomatic
+conda install -y fastqc
+conda install -y abyss
+conda install -y spades
+conda install -y blast
+conda install -y mafft
+conda install -y muscle
+conda install -y emboss
+conda install -y bwa
+conda install -y samtools==1.9
+conda install -y trimal
+pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.1.1.tar.gz
