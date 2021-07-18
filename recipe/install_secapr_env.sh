@@ -1,13 +1,13 @@
 conda config --add channels defaults
 conda config --add channels conda-forge
 conda config --add channels bioconda  
-conda create -y -n secapr_env python=3.7
+conda create -y -n secapr_env python=3.8
 sleep 5
 source activate secapr_env
 sleep 5
 conda install -y pandas
 conda install -y matplotlib-base
-conda install -y biopython
+conda install -y biopython==1.76
 conda install -y trimmomatic
 conda install -y fastqc
 conda install -y abyss
@@ -19,4 +19,4 @@ conda install -y emboss
 conda install -y bwa
 conda install -y samtools==1.9
 conda install -y trimal
-pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.1.tar.gz
+pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.2.tar.gz
