@@ -14,7 +14,7 @@ import argparse
 import configparser
 import subprocess
 import subprocess
-import pickle
+import numpy as np
 from Bio import SeqIO
 from secapr.utils import CompletePath
 from secapr.reference_assembly import bam_consensus, join_fastas
@@ -45,7 +45,6 @@ def add_arguments(parser):
 	)
 	parser.add_argument(
 		'--reference',
-		required=True,
 		action=CompletePath,
 		default=None,
 		help='Provide the reference that was used for read-mapping. If you used the alignment-consensus method, provide the joined_fasta_library.fasta which is found in the reference_seqs folder within the reference-assembly output.'
@@ -165,15 +164,14 @@ def main(args):
 		if os.path.isdir(path):
 			subfolder_path = os.path.join(input_folder,subfolder)
 			if subfolder_path.endswith('_remapped') or subfolder_path.endswith('_locus_selection'):
-				sample = '_'.join(subfolder.split('_')[:-1])
+				sample = '_'.join(subfolder.split('_')[:-1]).replace('_locus','')
 				sample_output_folder = os.path.join(out_dir,'%s_phased' %sample)
 				if not os.path.exists(sample_output_folder):
 					os.makedirs(sample_output_folder)
 				sample_out_list.append(sample_output_folder)
 				tmp_folder = os.path.join(subfolder_path,'tmp')
-				reference_pickle = os.path.join(tmp_folder,'%s_reference.pickle' %sample)
-				#with open(reference_pickle, 'rb') as handle:
-				#	reference = pickle.load(handle)
+				reference_pickle = os.path.join(tmp_folder,'%s_reference.txt' %sample)
+				reference = str(np.loadtxt(reference_pickle, dtype=str))
 				for file in os.listdir(subfolder_path):
 					if file.endswith("sorted.bam"):
 						sorted_bam = file

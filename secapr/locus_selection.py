@@ -8,7 +8,7 @@ import re
 import subprocess
 import csv
 import pandas as pd
-import pickle
+import numpy as np
 from Bio import SeqIO
 from secapr.utils import CompletePath
 from secapr.helpers import CreateDir
@@ -298,7 +298,7 @@ def main(args):
                 if args.reference:
                     reference_file_dict.setdefault(sample,args.reference)
                 else:
-                    reference_pickle = os.path.join(path2,'%s_reference.pickle' %sample)
+                    reference_pickle = os.path.join(path2,'%s_reference.txt' %sample)
                     reference_file_dict.setdefault(sample,reference_pickle)
                 bam = sample_bam_dict[key][0]
                 sample_dir, read_depth_file = get_bam_read_cov(bam,output_folder)
@@ -313,14 +313,12 @@ def main(args):
             if args.reference:
                 reference = args.reference
             else:
-                with open(reference_pickle, 'rb') as handle:
-                    reference = pickle.load(handle)
+                reference = str(np.loadtxt(reference_pickle, dtype=str))
             # store reference as pickle in new subfolder
             tmp_folder = os.path.join(subfolder,'tmp')
             os.makedirs(tmp_folder)
-            reference_pickle_out = os.path.join(tmp_folder,'%s_reference.pickle'%sample)
-            with open(reference_pickle_out, 'wb') as handle:
-                pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            reference_pickle_out = os.path.join(tmp_folder,'%s_reference.txt'%sample)
+            np.savetxt(reference_pickle_out, np.array([reference]), fmt='%s')
             read_depth_file = subfolder_file_dict[subfolder]
             locus_dict_all_samples = summarize_read_depth_files(subfolder,read_depth_file,locus_list,locus_dict_all_samples,sample_id_list,reference)
         output_dict = {}
