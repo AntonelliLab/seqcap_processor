@@ -1,8 +1,10 @@
 conda config --add channels defaults
 conda config --add channels conda-forge
 conda config --add channels bioconda  
-conda create -y -n secapr_env python=3.9
+conda create -y -n secapr_env python=3.7
+sleep 5
 source activate secapr_env
+sleep 5
 conda install -y pandas
 conda install -y matplotlib-base
 conda install -y biopython
