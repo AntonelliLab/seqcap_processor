@@ -1,3 +1,6 @@
+conda config --add channels defaults
+conda config --add channels conda-forge
+conda config --add channels bioconda  
 conda create -y -n secapr_env python=3.9
 source activate secapr_env
 conda install -y pandas

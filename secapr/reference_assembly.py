@@ -835,7 +835,7 @@ def main(args):
             sample = subfolder.split('/')[-1].split('_remapped')[0]
             reference = ''
             reference_pickle = reference_file_dict[sample]
-            reference = np.loadtxt(reference_pickle)
+            reference = str(np.loadtxt(reference_pickle,dtype=str))
             # with open(reference_pickle, 'rb') as handle:
             #     reference = pickle.load(handle)
             read_depth_file = subfolder_file_dict[subfolder]
