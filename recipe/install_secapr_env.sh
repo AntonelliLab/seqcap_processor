@@ -19,4 +19,4 @@ conda install -y emboss
 conda install -y bwa
 conda install -y samtools==1.9
 conda install -y trimal
-pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.1.1.tar.gz
+pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.1.tar.gz
