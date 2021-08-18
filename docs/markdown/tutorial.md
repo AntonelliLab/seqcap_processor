@@ -303,7 +303,7 @@ ___
 
 ## Further steps
 
-Now you have produced different set of MSAs which you can use for phylogenetic inference. With these tools at hand you will be able to process almost any target capture dataset. You could now produce individual gene trees from the alignments and then estimate the most likely species tree, using summary coalescent methods. Alternatively you could also co-estimate gene trees and species trees using *BEAST. [Here](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AntonelliLab/seqcap_processor/master/docs/documentation/subdocs/phylogeny_msc.html) you can find a tutorial for running allele MSAs like the one we produced here in *BEAST.
+Now you have produced different set of MSAs which you can use for phylogenetic inference. With these tools at hand you will be able to process almost any target capture dataset. You could now produce individual gene trees from the alignments and then estimate the most likely species tree, using summary coalescent methods. Alternatively you could also co-estimate gene trees and species trees using *BEAST. [Here](https://htmlpreview.github.io/?https://github.com/AntonelliLab/seqcap_processor/blob/1bd840efe68fbe5e520f0166e1ba6524a78c4512/docs/documentation/subdocs/phylogeny_msc.html) you can find a tutorial for running allele MSAs like the one we produced here in *BEAST.
 
 
 
