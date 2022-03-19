@@ -32,6 +32,12 @@ def add_arguments(parser):
         help='The directory containing fastq files'
     )
     parser.add_argument(
+        '--cores',
+        type=int,
+        default=1,
+        help='Number of computational cores for parallelization of computation.'
+    )
+    parser.add_argument(
         '--output',
         required=True,
         action=CompletePath,
@@ -114,9 +120,9 @@ def plot_fastqc_results(fastqc_out_folder):
 def main(args):
     # Set working directory
     out_folder = args.output
+    cores = args.cores
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
-
     # Get list of all fastq-files
     input_folder = args.input
     matches = []
@@ -134,7 +140,7 @@ def main(args):
 
     # run FASTQC
     fastqc_cmd = [
-        'fastqc -o %s -f fastq $(cat %s)' %(out_folder,fastq_list_path)
+        'fastqc -t %i -o %s -f fastq $(cat %s)' %(cores,out_folder,fastq_list_path)
     ]
     with open(os.path.join(out_folder, "fastqc_screen_out.txt"), 'w') as log_err_file:
         p = subprocess.Popen(fastqc_cmd, stdout=log_err_file, stderr=log_err_file, shell=True)
