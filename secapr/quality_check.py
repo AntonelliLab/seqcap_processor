@@ -1,7 +1,7 @@
 # encoding: utf-8
 #author: Tobias Andermann, tobias.andermann@bioenv.gu.se
 """
-This script runs a fastqc test on all fastq samples in a user-provided folder and creates an overview plot,
+This script runs a fastqc test on all fastq samples in a user-provided folder and creates an overview plot
 """
 
 import matplotlib
