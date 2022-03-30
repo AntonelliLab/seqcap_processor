@@ -10,7 +10,6 @@ matplotlib.use('Agg')
 import os
 import sys
 import glob
-import fnmatch
 import shutil
 import configparser
 from .utils import CompletePath
@@ -54,7 +53,7 @@ def get_test_results(fastqc_log_content):
 def plot_fastqc_results(fastqc_out_folder):
     zip_files = []
     for root, dirnames, filenames in os.walk(fastqc_out_folder):
-        for filename in fnmatch.filter(filenames, '*.zip'):
+        for filename in [i for i in filenames if '.zip' in i]:
             zip_files.append(os.path.join(root, filename))
     sample_test_results_dict = {}
     for file in zip_files:
@@ -127,8 +126,8 @@ def main(args):
     input_folder = args.input
     matches = []
     for root, dirnames, filenames in os.walk(input_folder):
-        for filename in fnmatch.filter(filenames, '*.fastq'):
-            if not filename.endswith('-single.fastq'):
+        for filename in [i for i in filenames if '.fastq' in i]:
+            if not '-single.fastq' in filename:
                 matches.append(os.path.join(root, filename))
     if len(matches) == 0:
         print('No files with the ending .fastq found in input folder. Please check path and ensure that all readfiles are unzipped and have the filending ".fastq"')

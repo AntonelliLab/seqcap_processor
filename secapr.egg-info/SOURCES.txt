@@ -12,6 +12,7 @@ secapr/align_sequences.py
 secapr/assemble_reads.py
 secapr/automate_all.py
 secapr/clean_reads.py
+secapr/clean_reads_old.py
 secapr/concatenate_alignments.py
 secapr/create_consensus_from_alleles.py
 secapr/extract_alignments_from_phyluce_get_inf_sites_output.py

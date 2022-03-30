@@ -317,13 +317,13 @@ def process_subfolder(pool_args):
         single_f = ""
         single_b = ""
         for element in fastq:
-            if sample_id in element and element.endswith("READ1.fastq"):
+            if sample_id in element and "READ1.fastq" in element:
                 forward = "%s/%s" % (subfolder, element)
-            if sample_id in element and element.endswith("READ2.fastq"):
+            if sample_id in element and "READ2.fastq" in element:
                 backward = "%s/%s" % (subfolder, element)
-            if sample_id in element and element.endswith("READ1-single.fastq"):
+            if sample_id in element and "READ1-single.fastq" in element:
                 single_f = "%s/%s" % (subfolder, element)
-            if sample_id in element and element.endswith("READ2-single.fastq"):
+            if sample_id in element and "READ2-single.fastq" in element:
                 single_b = "%s/%s" % (subfolder, element)
         if forward != "" and backward != "":
             print(('#' * 50))

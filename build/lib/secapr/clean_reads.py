@@ -9,8 +9,8 @@ import sys
 import glob
 import csv
 import shutil
-import configparser
 import subprocess
+import numpy as np
 import pandas as pd
 from secapr.helpers import FullPaths
 
@@ -21,126 +21,107 @@ def add_arguments(parser):
         required=True,
         action=FullPaths,
         default=None,
-        help='The directory containing the unzipped .fastq or .fq files (raw read files)'
+        help='The directory containing the .fastq or .fq files (raw read files). Files can be zipped or unzipped.'
     )
     parser.add_argument(
-        '--config',
+        '--sample_annotation_file',
         required=True,
-        help='A configuration file containing the adapter information and the sample names'
+        action=FullPaths,
+        default=None,
+        help='A simple comma-delimited text file containing the sample names in the first column and the name-stem of the corresponding fastq files in the second column (file should not have any column headers).'
     )
     parser.add_argument(
         '--output',
         required=True,
         action=FullPaths,
         default=None,
-        help='The output directory where results will be saved'
+        help='The output directory where the cleaned reads will be stored.'
     )
     parser.add_argument(
         '--read_min',
         type=int,
-        default=200000,
-        help='Set the minimum read count threshold. Any read file containing fewer reads than this minimum threshold will not be processed further. Default: %(default)s'
+        default=400000,
+        help='Set the minimum read count threshold. Any sample with fewer reads than this minimum threshold will not be processed further. Default: %(default)s'
     )
     parser.add_argument(
-        '--index',
-        type=str,
-        choices=("single", "double"),
-        default="single",
-        help="Specify if single- or double-indexed adapters were used for the library preparation (essential information in order to interpret the control-file correctly).",
-    )
-    parser.add_argument(
-        '--seedMismatches',
+        '--qualified_quality_phred',
         type=int,
-        default=2,
-        help='Specifies the maximum mismatch count which will still allow a full match to be performed. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--palindromeClipThreshold',
-        type=int,
-        default=30,
-        help='Specifies how accurate the match between the two "adapter ligated" reads must be for PE palindrome read alignment. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--simpleClipThreshold',
-        type=int,
-        default=10,
+        default=20,
         help='Specifies how accurate the match between any adapter etc. sequence must be against a read. For more information see trimmoatic tutorial. Default: %(default)s'
     )
     parser.add_argument(
-        '--windowSize',
-        type=int,
-        default=4,
-        help='Specifies the number of bases to average across. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--requiredQuality',
-        type=int,
-        default=15,
-        help='Specifies the average quality required. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--leadingQuality',
-        type=int,
-        default=20,
-        help='Specifies the minimum quality required to keep a base at the beginning of the read. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--trailingQuality',
-        type=int,
-        default=20,
-        help='Specifies the minimum quality required to keep a base at the end of a read. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--cropToLength',
-        type=int,
-        default=250,
-        help='The number of bases to keep, from the start of the read. Everything exceeding this length will be removed from the end of the read. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--headCrop',
-        type=int,
-        default=0,
-        help='The number of bases to remove from the start of the read. For more information see trimmoatic tutorial. Default: %(default)s'
-    )
-    parser.add_argument(
-        '--minLength',
+        '--unqualified_percent_limit',
         type=int,
         default=40,
-        help='Specifies the minimum length of reads to be kept. For more information see trimmoatic tutorial. Default: %(default)s'
+        help='Set the maximum percent of low-quality nucleotides allowed. Any read with a higher percentage of unqualified (low quality) nucleotides will be discarded. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--cut_window_size',
+        type=int,
+        default=5,
+        help='Set the size of the moving window (in nucleotides) for quality trimming. The window will start moving from the end toward the beginning of the read, applying the quality threshold set with the --cut_mean_quality flag. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--cut_mean_quality',
+        type=int,
+        default=20,
+        help='Set quality threshold for moving window. If the mean quality across the window drops below this threshold, the nucleotides within the window are removed (cut), as well as all trailing nucleotides. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--trim_front',
+        type=int,
+        default=0,
+        help='Remove this number of nucleotides from the beginning of each read. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--trim_tail',
+        type=int,
+        default=0,
+        help='Remove this number of nucleotides from the end of each read. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--required_read_length',
+        type=int,
+        default=0,
+        help='Set this value to only allow reads to pass which are equal to or longer than this threshold. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--disable_complexity_filter',
+        action='store_true',
+        default=False,
+        help='Use this flag if you want to disable the removal of low-complexity reads, e.g. AAAAAAACCCCCCCCAAAAAAAAAAAAAAAAAAGGGGG (activated by default).'
+    )
+    parser.add_argument(
+        '--complexity_threshold',
+        type=int,
+        default=10,
+        help='Reads below this complexity threshold will be removed (consult fastp manual for more explanation). Default: %(default)s'
+    )
+    parser.add_argument(
+        '--disable_poly_g_trimming',
+        action='store_true',
+        default=False,
+        help='Use this flag if you want to disable trimming of G repeats at the end of the read. Poly-G read ends are common when working with very short fragments. (activated by default).'
+    )
+    parser.add_argument(
+        '--poly_g_min_len',
+        type=int,
+        default=7,
+        help='Specifies the length of the nucleotide repeat region at end of read to be trimmed. Default: %(default)s'
+    )
+    parser.add_argument(
+        '--disable_poly_x_trimming',
+        action='store_true',
+        default=False,
+        help='Use this flag if you want to disable trimming of nucleotide repeats of any kind at the end of the read, e.g. poly-A tails (activated by default).'
+    )
+    parser.add_argument(
+        '--poly_x_min_len',
+        type=int,
+        default=7,
+        help='Specifies the length of the nucleotide repeat region at end of read to be trimmed. Default: %(default)s'
     )
 
-def find_barcode(direction,sample_id,barcodes):
-    for element in barcodes:
-        tag1, tag2 = element[0].split("-")
-        if direction == tag1 and sample_id == tag2:
-            return element
-        else:
-            pass
-
-def make_adapter_fasta(sample,sampledir,barcodes,conf,adapt_index):
-    adapters = os.path.join(sampledir,"%s_adapters.fasta" %sample)
-    try:
-        i7_barcode = find_barcode("i7",sample,barcodes)[1]
-        i7 = conf.get('adapters', 'i7')
-        i7 = i7.replace("*", i7_barcode)
-        i5 = conf.get('adapters', 'i5')
-        if adapt_index == "single":
-            try:
-                i5_barcode = find_barcode("i5",sample,barcodes)[1]
-            except:
-                i5_barcode = None
-                pass
-            if not i5_barcode is None:
-                print ("Reads are not single-indexed. Use '--index double' in your command.")
-                sys.exit()
-        if adapt_index == "double":
-            i5_barcode = find_barcode("i5",sample,barcodes)[1]
-            i5 = i5.replace("*", i5_barcode)
-        with open(adapters, 'w') as outf:
-            outf.write(">i5\n%s\n>i7\n%s\n" %(i5,i7))
-        return adapters
-    except TypeError:
-        return None
 
 def longest_common_substring(s1, s2):
     m = [[0] * (1 + len(s2)) for i in range(1 + len(s1))]
@@ -156,220 +137,172 @@ def longest_common_substring(s1, s2):
                 m[x][y] = 0
     return s1[x_longest - longest: x_longest]
 
-def rchop(thestring, ending):
-  if thestring.endswith(ending):
-    return thestring[:-len(ending)]
-  return thestring
-
 def read_count(input):
     # Use bash command to count the read number
     number_reads = subprocess.getstatusoutput("gzip -cd %s | wc -l | awk '{ print $1/4 }' " %input)[1]
     num = int(number_reads)
     return num
 
-def get_read_count_from_stats_file(stats_file):
-    F = open(stats_file,'r') 
-    for line in F:
-        if line.startswith('Input'):
-            reads_before = line.split(' ')[3]
-            reads_after = line.split(' ')[6]
-    return(reads_before,reads_after)
-
-def find_fastq_pairs(name_pattern,work_dir):
-    # Create a sorted (by name) list of only fastq/fq files in the input directory
-    included_extenstions = ['fastq','fq','fastq.gz','fq.gz']
-    file_list = [fn for fn in sorted(os.listdir(work_dir)) if any([fn.endswith(ext) for ext in included_extenstions])]
-    # Recover the longest substring of the filename that matches an element of the sample ID list from the control file
-    id_of_file = []
-    for fastq in file_list:
-        matches = []
-        for name in name_pattern:
-            matches.append(longest_common_substring(fastq,name))
-        # Give the longest match
-        sample_id = max(matches, key=len)
-        id_of_file.append(sample_id)
-    # Create a dictionary with the file names as keys and the corresponding sample IDs as values
-    file_info = dict(list(zip(file_list, id_of_file)))
-    # Reverse the dictionary
-    rev_file_info = {}
-    for key, value in list(file_info.items()):
-        rev_file_info.setdefault(value, set()).add(key)
-    # Check if the pattern defined as key represents a full element from the name_pattern list
-    for key, value in list(rev_file_info.items()):
-        if key not in name_pattern:
-            print(("Sample", key, "not found in control file. Skipped."))
-            rev_file_info.pop(key, None)
-        else:
-            pass
-
-    return rev_file_info
-
-def quality_trim(r1,r2,sample_id,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length,stats_dict):
+def quality_trim(read1_path,read2_path,sample_id,out_dir,args,pair_index=0):
+    # Get all user settings
+    qualified_quality_phred = args.qualified_quality_phred
+    unqualified_percent_limit = args.unqualified_percent_limit
+    cut_window_size = args.cut_window_size
+    cut_mean_quality = args.cut_mean_quality
+    trim_front = args.trim_front
+    trim_tail = args.trim_tail
+    required_read_length = args.required_read_length
+    disable_complexity_filter = args.disable_complexity_filter
+    complexity_threshold = args.complexity_threshold
+    disable_poly_g_trimming = args.disable_poly_g_trimming
+    poly_g_min_len = args.poly_g_min_len
+    disable_poly_x_trimming = args.disable_poly_x_trimming
+    poly_x_min_len = args.poly_x_min_len
+    #merge_overlapping_reads = args.merge_overlapping_reads
+    #! allow for manual addition of adapters
+    # Start processing
     print(('#' * 50))
     print(("Processing %s...\n" %sample_id))
     # Forward and backward read file paths
-    R1 = "/".join((work_dir, r1))
-    R2 = "/".join((work_dir, r2))
     # Names of output files
-    output = []
-    output_sample_dir = "%s/%s_clean" %(out_dir,sample_id)
+    output_sample_dir = os.path.join(out_dir,sample_id)
     if not os.path.exists(output_sample_dir):
         os.makedirs(output_sample_dir)
-    for read in ["READ1", "READ1-single", "READ2", "READ2-single"]:
-        output.append(os.path.join(output_sample_dir, "%s_clean-%s.fastq.gz" %(sample_id,read)))
-    # Adapters to trim
-    adapter_fasta = make_adapter_fasta(sample_id,output_sample_dir,barcodes,conf,adapt_index)
-    # Command for trimmomatic
-    if not adapter_fasta == None:
-        stats_file = os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)
-        command1 = [
-            "trimmomatic",
-            "PE",
-            "-phred33",
-            R1,
-            R2,
-            output[0],
-            output[1],
-            output[2],
-            output[3],
-            "ILLUMINACLIP:%s:%d:%d:%d" %(adapter_fasta,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold),
-            "SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
-            "LEADING:%d" %leading,
-            "TRAILING:%d" %trailing,
-            "CROP:%d" %tail_crop,
-            "HEADCROP:%d" %head_crop,
-            "MINLEN:%d" %min_length
-        ]
-        with open(stats_file, 'w') as log_err_file:
-            try:
-                p1 = subprocess.Popen(command1, stderr=log_err_file)
-                p1.communicate()
-                before_reads, after_reads = get_read_count_from_stats_file(stats_file)
-                stats_dict.setdefault(sample_id,[before_reads,after_reads])
-                print(("%s successfully cleaned and trimmed. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)) ))
-                print(("#" * 50))
-            except:
-                print ("Trimmomatic was interrupted or did not start properly. You may have entered impossible values in the trimmomatic settings or trimmomatic cannot be found in the environment. Rerun again with different values for the trimmomatic flags. If that doesn't solve the problem, reinstall the secapr environment, to ensure trimmomatic being installed in the correct path.")
-                sys.exit()
+    outpath_r1 = os.path.join(output_sample_dir, '%s_%i_clean-READ1.fastq.gz'%(sample_id,pair_index))
+    outpath_r2 = os.path.join(output_sample_dir, '%s_%i_clean-READ2.fastq.gz'%(sample_id,pair_index))
+    # Command for fastp trimming and cleaning
+    command1 = [
+        "fastp",
+        "--in1",
+        read1_path,
+        "--in2",
+        read2_path,
+        "--out1",
+        outpath_r1,
+        "--out2",
+        outpath_r2,
+        "-h",
+        os.path.join(output_sample_dir,'%s_%i_fastp.html'%(sample_id,pair_index)),
+        "-j",
+        os.path.join(output_sample_dir,'%s_%i_fastp.json'%(sample_id,pair_index)),
+        "--qualified_quality_phred",
+        qualified_quality_phred,
+        "--unqualified_percent_limit",
+        unqualified_percent_limit,
+        "--cut_by_quality3",
+        "--cut_window_size",
+        cut_window_size,
+        "--cut_mean_quality",
+        cut_mean_quality,
+        "--trim_front1",
+        trim_front,
+        "--trim_tail1",
+        trim_tail
+    ]
+    if required_read_length == 0:
+        command1.append("--disable_length_filtering")
     else:
-        print(("***********No barcodes for %s stored in config-file. Only quality trimming (no adapter trimming) will be performed***********" %sample_id))
-        with open(stats_file, 'w') as log_err_file:
-            command2 = [
-                "trimmomatic",
-                "PE",
-                "-phred33",
-                R1,
-                R2,
-                output[0],
-                output[1],
-                output[2],
-                output[3],
-                "SLIDINGWINDOW:%d:%d" %(window_size,required_quality),
-                "LEADING:%d" %leading,
-                "TRAILING:%d" %trailing,
-                "CROP:%d" %tail_crop,
-                "HEADCROP:%d" %head_crop,
-                "MINLEN:%d" %min_length
-            ]
-            p2 = subprocess.Popen(command2, stderr=log_err_file)
-            p2.communicate()
-            before_reads, after_reads = get_read_count_from_stats_file(stats_file)
-            stats_dict.setdefault(sample_id,[before_reads,after_reads])
-            print(("%s successfully cleaned. Stats are printed into %s" %(sample_id, os.path.join(output_sample_dir, "%s_stats.txt" %sample_id)) ))
-            print(("#" * 50))
-    stats_df=pd.DataFrame.from_dict(stats_dict, orient='index').reset_index()
-    stats_df.columns = ['sample', 'fastq_read_pairs_raw','fastq_read_pairs_cleaned']
-    print(stats_df)
-    return(stats_df)
+        command1 += ["--length_required", required_read_length]
+    if not disable_complexity_filter:
+        command1.append("--low_complexity_filter")
+        command1 += ["--complexity_threshold", complexity_threshold]
+    if not disable_poly_g_trimming:
+        command1.append("--trim_poly_g")
+        command1 += ["--poly_g_min_len", poly_g_min_len]
+    if not disable_poly_x_trimming:
+        command1.append("--trim_poly_x")
+        command1 += ["--poly_x_min_len",poly_x_min_len]
+    command1 = list(np.array(command1).astype(str))
+    stats_file = os.path.join(output_sample_dir,'fastp_out.txt')
+    with open(stats_file, 'w') as log_err_file:
+        p1 = subprocess.Popen(command1, stderr=log_err_file)
+        p1.communicate()
+        print("%s successfully cleaned and trimmed. Stats are printed into %s" %(sample_id, stats_file))
+        print("#" * 50)
+    return(output_sample_dir)
 
 
 def main(args):
     # Set working directory
     work_dir = args.input
     out_dir = args.output
-    # Get all trimmomatic settings
-    seed_mismatches = args.seedMismatches
-    palindrome_clip_threshold = args.palindromeClipThreshold
-    simple_clip_threshold = args.simpleClipThreshold
-    window_size = args.windowSize
-    required_quality = args.requiredQuality
-    leading = args.leadingQuality
-    trailing = args.trailingQuality
-    tail_crop = args.cropToLength
-    head_crop = args.headCrop
-    min_length = args.minLength
-    # Return the user-set or default read-threshold
+    # Print the user-set read-threshold
     read_threshold = args.read_min
-    print(("\n\n[Info:] Files with a read-count of less than %d are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold))
-    adapt_index = args.index
-    # Set conf as variable
-    conf = configparser.ConfigParser()
-    # Read the config argument and define input as string
-    conf.optionxform = str
-    conf.read(args.config)
-    # Call a config element
-    #import ipdb; ipdb.set_trace()
-    adapters = conf.items('adapters')
-    barcodes = conf.items('barcodes')
-    names = conf.items('names')
-    # Read the sample name information from the config file
-    names_id = []
-    for element in names:
-        names_id.append(element[0])
-    delimiter = []
-    for element in names:
-        delimiter.append(element[1])
-    if len(set(delimiter)) > 1:
-        quit('Multiple delimiters defined in [names] section of config file. Please choose consistent delimiter in filenames and config file!')
-    # Add delimiter after the sample-name
-    name_pattern = []
-    for i in range(len(names_id)):
-        name_pattern.append("%s%s" %(names_id[i],delimiter[i]))
-    # Create the output directory
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    # Find samples for which both reads exist
-    read_pairs = find_fastq_pairs(name_pattern, work_dir)
-    if len(read_pairs) ==0:
-        sys.exit('***SECAPR-ERROR: No FASTQ files were found. Check if correct path is provided for --input flag')
-    # For each pair execute the quality_trim command (trimmomatic)
-    #read_count_file = open("%s/read_count_overview.txt" %out_dir, "w")
-    #countlog=csv.writer(read_count_file, delimiter='\t')
-    #countlog.writerow(["file","readcount"])
-    stats_dict = {}
-    for key, values in list(read_pairs.items()):
-        if len(values) > 1:
-            list_values = list(values)
-            clean_list = []
-            for i in range(len(list_values)):
-                fq_path = "/".join((work_dir, list_values[i]))
-                readcount = read_count(fq_path)
-                #countlog.writerow([list_values[i],readcount])
-                if readcount >= read_threshold:
-                    clean_list.append(list_values[i])
-                else:
-                    print(('***The file %s does not contain enough reads.***' %str(list_values[i])))
-                    pass
-            if len(clean_list) > 1:
-                r1 = ""
-                r2 = ""
-                for fq in clean_list:
-                    pattern_r1 = ["%sR1"%str(delimiter[0]),"%sREAD1"%str(delimiter[0]),"%sRead1"%str(delimiter[0]),"%sread1"%str(delimiter[0])]
-                    pattern_r2 = ["%sR2"%str(delimiter[0]),"%sREAD2"%str(delimiter[0]),"%sRead2"%str(delimiter[0]),"%sread2"%str(delimiter[0])]
-                    if any(pat in fq for pat in pattern_r1):
-                        r1 = fq
-                    elif any(pat in fq for pat in pattern_r2):
-                        r2 = fq
-                    else:
-                        print(('#' * 50))
-                        print(("No matching read designation (R1 or R2) found for %s" %fq))
-                        print(('#' * 50))
-                # Remove the delimiter after the sample name in case it is part of the key
-                if key.endswith(delimiter[0]):
-                    clean_key = rchop(key,delimiter[0])
-                    stats_df = quality_trim(r1,r2,clean_key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length,stats_dict)
-                else:
-                    stats_df = quality_trim(r1,r2,key,work_dir,out_dir,barcodes,conf,adapt_index,seed_mismatches,palindrome_clip_threshold,simple_clip_threshold,window_size,required_quality,leading,trailing,tail_crop,head_crop,min_length,stats_dict)
+    print(("\n\n[Info:] Samples with a total read-count of less than %d (forward + reverse reads) are not being processed. If required you can set a different threshold, using the --read_min flag.\n" %read_threshold))
+
+    # Read txt-file with new sample names
+    name_info_file = args.sample_annotation_file
+    name_info = pd.read_csv(name_info_file,header=None)
+    name_info_dict = dict(name_info.values)
+    # flip keys and values in dict for easier lookup of file names
+    name_info_dict = {name_info_dict[k]:k for k in name_info_dict}
+
+    # Get all fastq files belonging to each name (can be multiple runs)
+    included_extenstions = ['fastq','fq','fastq.gz','fq.gz']
+    file_list = [fn for fn in sorted(os.listdir(work_dir)) if any([fn.endswith(ext) for ext in included_extenstions])]
+    if len(file_list) == 0:
+        sys.exit('SECAPR-ERROR: No FASTQ files were found. Check if correct path is provided for --input flag')
+    sample_list = [[name_info_dict[name_stem],i] for name_stem in name_info_dict.keys() for i in file_list if i.startswith(name_stem)]
+    sample_filename_dict = {}
+    for sample_id,filename in sample_list:
+        sample_filename_dict.setdefault(sample_id,[])
+        sample_filename_dict[sample_id].append(filename)
+    final_sample_filename_dict = {}
+    for sample_id,filenamelist in sample_filename_dict.items():
+        if len(filenamelist)>2: # if more than two files per sample, make sure to identify the pairs correctly
+            shared_stems = []
+            for i in filenamelist:
+                longest_common_substrings = [longest_common_substring(i,j) for j in filenamelist]
+                longest_common_substrings_length = np.array([len(i) for i in longest_common_substrings])
+                best_match = np.sort(longest_common_substrings_length)[-2] # pick the second longest, because longest is match with itself
+                shared_file_stem = longest_common_substrings[np.where(longest_common_substrings_length==best_match)[0][0]]
+                shared_stems.append(shared_file_stem)
+            paired_filename_list = []
+            for namestem in np.unique(shared_stems):
+                paired_filename_list.append([os.path.join(work_dir,i) for i in filenamelist if i.startswith(namestem)])
+        else:
+            paired_filename_list = [os.path.join(work_dir,i) for i in filenamelist]
+        final_sample_filename_dict.setdefault(sample_id,paired_filename_list)
+
+    # Count total number of reads of a sample
+    final_sample_list = []
+    raw_read_counts = []
+    for sample_id, fastq_files in final_sample_filename_dict.items():
+        print("%s: Counting all reads (forward + reverse) belonging to this sample..."%sample_id)
+        fastq_files = list(np.array(fastq_files).flatten())
+        raw_total_read_count = sum([read_count(i) for i in fastq_files])
+        print(raw_total_read_count)
+        if raw_total_read_count >= read_threshold:
+            final_sample_list.append(sample_id)
+            raw_read_counts.append(raw_total_read_count)
+        else:
+            print('***Not enough reads found for sample %s. Excluding this sample from further processing. Adjust the --read_min flag to set lower minimum read count threshold.***' %sample_id )
+            pass
+
+    # Clean and trim with fastp
+    #! Allow manual input of adapter sequences
+    #! Allow merging of reads
+    clean_reads_outdirs = {}
+    for sample_id in final_sample_list:
+        read_files = final_sample_filename_dict[sample_id]
+        if len(np.array(read_files).flatten()) == 2:
+            sample_outdir = quality_trim(read_files[0],read_files[1],sample_id,out_dir,args,pair_index=0)
+        else:
+            for i,read_pair in enumerate(read_files):
+                sample_outdir = quality_trim(read_pair[0], read_pair[1], sample_id, out_dir, args, pair_index=i)
+        clean_reads_outdirs.setdefault(sample_id,sample_outdir)
+
+    # Count all remaining clean reads per sample
+    clean_read_counts = []
+    for sample_id in final_sample_list:
+        sample_outdir = clean_reads_outdirs[sample_id]
+        print("%s: Counting remaining clean reads (forward + reverse) belonging to this sample..."%sample_id)
+        print(sample_outdir)
+        fastq_files = glob.glob(os.path.join(sample_outdir,"*.fastq.gz"))
+        cleaned_total_read_count = sum([read_count(i) for i in fastq_files])
+        print(cleaned_total_read_count)
+        clean_read_counts.append(cleaned_total_read_count)
+
+    stats_df = pd.DataFrame(np.vstack([final_sample_list,raw_read_counts,clean_read_counts]).T,columns = ['sample_id','raw_reads_total','cleaned_reads_total'])
     stats_df.to_csv(os.path.join(out_dir,'sample_stats.txt'),sep = '\t',index=False)
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
