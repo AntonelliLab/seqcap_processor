@@ -170,6 +170,7 @@ def quality_trim(read1_path,read2_path,sample_id,out_dir,args,pair_index=0):
         os.makedirs(output_sample_dir)
     outpath_r1 = os.path.join(output_sample_dir, '%s_%i_clean-READ1.fastq.gz'%(sample_id,pair_index))
     outpath_r2 = os.path.join(output_sample_dir, '%s_%i_clean-READ2.fastq.gz'%(sample_id,pair_index))
+    outpath_unpaired = os.path.join(output_sample_dir, '%s_%i_clean-unpaired.fastq.gz' % (sample_id, pair_index))
     # Command for fastp trimming and cleaning
     command1 = [
         "fastp",
@@ -181,6 +182,10 @@ def quality_trim(read1_path,read2_path,sample_id,out_dir,args,pair_index=0):
         outpath_r1,
         "--out2",
         outpath_r2,
+        "--unpaired1",
+        outpath_unpaired,
+        "--unpaired2",
+        outpath_unpaired,
         "-h",
         os.path.join(output_sample_dir,'%s_%i_fastp.html'%(sample_id,pair_index)),
         "-j",
@@ -189,7 +194,7 @@ def quality_trim(read1_path,read2_path,sample_id,out_dir,args,pair_index=0):
         qualified_quality_phred,
         "--unqualified_percent_limit",
         unqualified_percent_limit,
-        "--cut_by_quality3",
+        "--cut_tail",
         "--cut_window_size",
         cut_window_size,
         "--cut_mean_quality",
@@ -213,7 +218,7 @@ def quality_trim(read1_path,read2_path,sample_id,out_dir,args,pair_index=0):
         command1.append("--trim_poly_x")
         command1 += ["--poly_x_min_len",poly_x_min_len]
     command1 = list(np.array(command1).astype(str))
-    stats_file = os.path.join(output_sample_dir,'fastp_out.txt')
+    stats_file = os.path.join(output_sample_dir,'fastp_out_%i.txt'%pair_index)
     with open(stats_file, 'w') as log_err_file:
         p1 = subprocess.Popen(command1, stderr=log_err_file)
         p1.communicate()

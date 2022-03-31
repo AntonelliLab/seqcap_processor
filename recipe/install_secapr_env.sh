@@ -11,17 +11,15 @@ conda install -y python=3.8
 conda install -y pandas
 conda install -y matplotlib-base
 conda install -y biopython
-conda install -y trimmomatic
 conda install -y fastqc
-conda install -y abyss
-conda install -y spades
+conda install fastp=0.23
+conda install spades=3.15.2
 conda install -y blast
 conda install -y mafft
 conda install -y muscle
 conda install -y emboss
 conda install -y bwa
-conda install -y samtools==1.9
-conda install -y -c bioconda/label/cf201901 fastp 
+conda install -y samtools==1.3.1
 conda install -y trimal
 conda install -y secapr
 #pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.3.tar.gz
