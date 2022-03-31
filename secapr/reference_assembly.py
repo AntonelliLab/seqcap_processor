@@ -190,47 +190,90 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
     return reference
 
 
-def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args, log):
+def mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder, args):
+    log = os.path.join(sample_output_folder, 'log')
+    if not os.path.exists(log):
+        os.makedirs(log)
     #Indexing
     command1 = ["bwa","index",reference]
     #print(command1)
     bwa_out = os.path.join(log, "bwa_screen_out.txt")
-    try:
-        with open(bwa_out, 'w') as logfile:
-            sp1 = subprocess.Popen(command1, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
-            sp1.wait()
-    except:
-        print(("Running bwa (%s) caused an error." %bwa))
-        sys.exit()
-
+    with open(bwa_out, 'w') as logfile:
+        sp1 = subprocess.Popen(command1, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
+        sp1.wait()
     #Mapping
-    command2 = ["bwa","mem","-t",str(args.cores),"-k",str(args.k),"-w",str(args.w),"-d",str(args.d),"-r",str(args.r),"-c",str(args.c),"-A",str(args.a),"-B",str(args.b),"-O",str(args.o),"-E",str(args.e),"-L",str(args.l),"-U",str(args.u),"-M",reference,forward,backward]
-    """
-    Copied from bwa manual (http://bio-bwa.sourceforge.net/bwa.shtml#3):
-        -k INT Minimum seed length. Matches shorter than INT will be missed. The alignment speed is usually insensitive to this value unless it significantly deviates 20. [19]
-        -w INT Band width. Essentially, gaps longer than INT will not be found. Note that the maximum gap length is also affected by the scoring matrix and the hit length, not solely determined by this option. [100]
-        -d INT Off-diagonal X-dropoff (Z-dropoff). Stop extension when the difference between the best and the current extension score is above |i-j|*A+INT, where i and j are the current positions of the query and reference, respectively, and A is the matching score. Z-dropoff is similar to BLAST’s X-dropoff except that it doesn’t penalize gaps in one of the sequences in the alignment. Z-dropoff not only avoids unnecessary extension, but also reduces poor alignments inside a long good alignment. [100]
-        -r FLOAT Trigger re-seeding for a MEM longer than minSeedLen*FLOAT. This is a key heuristic parameter for tuning the performance. Larger value yields fewer seeds, which leads to faster alignment speed but lower accuracy. [1.5]
-        -c INT Discard a MEM if it has more than INT occurence in the genome. This is an insensitive parameter. [10000] 
-        -A INT Matching score. [1]
-        -B INT Mismatch penalty. The sequence error rate is approximately: {.75 * exp[-log(4) * B/A]}. [4] 
-        -O INT Gap open penalty. [6]
-        -E INT Gap extension penalty. A gap of length k costs O + k*E (i.e. -O is for opening a zero-length gap). [1] 
-        -L INT Clipping penalty. When performing SW extension, BWA-MEM keeps track of the best score reaching the end of query. If this score is larger than the best SW score minus the clipping penalty, clipping will not be applied. Note that in this case, the SAM AS tag reports the best SW score; clipping penalty is not deducted. [5]
-        -U INT Penalty for an unpaired read pair. BWA-MEM scores an unpaired read pair as scoreRead1+scoreRead2-INT and scores a paired as scoreRead1+scoreRead2-insertPenalty. It compares these two scores to determine whether we should force pairing. [9] 
-        -M Mark shorter split hits as secondary (for Picard compatibility). 
-    """
-    sam_name = os.path.join(sample_output_folder,'%s.sam'%sample_id)
-    print ("Mapping...")
-    #print(command2)
-    with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
-        sp2 = subprocess.Popen(command2, stderr = err, stdout=out)
-        sp2.wait()
+    read1_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ1.fastq.gz')))
+    read2_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ2.fastq.gz')))
+    samfiles = []
+    for i, forward in enumerate(read1_files):
+        backward = read2_files[i]
+        command2 = ["bwa",
+                    "mem",
+                    "-t",
+                    str(args.cores),
+                    "-k",
+                    str(args.k),
+                    "-w",
+                    str(args.w),
+                    "-d",
+                    str(args.d),
+                    "-r",
+                    str(args.r),
+                    "-c",
+                    str(args.c),
+                    "-A",
+                    str(args.a),
+                    "-B",
+                    str(args.b),
+                    "-O",
+                    str(args.o),
+                    "-E",
+                    str(args.e),
+                    "-L",
+                    str(args.l),
+                    "-U",
+                    str(args.u),
+                    "-M",
+                    reference,
+                    forward,
+                    backward]
+        """
+        Copied from bwa manual (http://bio-bwa.sourceforge.net/bwa.shtml#3):
+            -k INT Minimum seed length. Matches shorter than INT will be missed. The alignment speed is usually insensitive to this value unless it significantly deviates 20. [19]
+            -w INT Band width. Essentially, gaps longer than INT will not be found. Note that the maximum gap length is also affected by the scoring matrix and the hit length, not solely determined by this option. [100]
+            -d INT Off-diagonal X-dropoff (Z-dropoff). Stop extension when the difference between the best and the current extension score is above |i-j|*A+INT, where i and j are the current positions of the query and reference, respectively, and A is the matching score. Z-dropoff is similar to BLAST’s X-dropoff except that it doesn’t penalize gaps in one of the sequences in the alignment. Z-dropoff not only avoids unnecessary extension, but also reduces poor alignments inside a long good alignment. [100]
+            -r FLOAT Trigger re-seeding for a MEM longer than minSeedLen*FLOAT. This is a key heuristic parameter for tuning the performance. Larger value yields fewer seeds, which leads to faster alignment speed but lower accuracy. [1.5]
+            -c INT Discard a MEM if it has more than INT occurence in the genome. This is an insensitive parameter. [10000] 
+            -A INT Matching score. [1]
+            -B INT Mismatch penalty. The sequence error rate is approximately: {.75 * exp[-log(4) * B/A]}. [4] 
+            -O INT Gap open penalty. [6]
+            -E INT Gap extension penalty. A gap of length k costs O + k*E (i.e. -O is for opening a zero-length gap). [1] 
+            -L INT Clipping penalty. When performing SW extension, BWA-MEM keeps track of the best score reaching the end of query. If this score is larger than the best SW score minus the clipping penalty, clipping will not be applied. Note that in this case, the SAM AS tag reports the best SW score; clipping penalty is not deducted. [5]
+            -U INT Penalty for an unpaired read pair. BWA-MEM scores an unpaired read pair as scoreRead1+scoreRead2-INT and scores a paired as scoreRead1+scoreRead2-insertPenalty. It compares these two scores to determine whether we should force pairing. [9] 
+            -M Mark shorter split hits as secondary (for Picard compatibility). 
+        """
+        sam_name = os.path.join(sample_output_folder, '%s_%i.sam' %(sample_id,i))
+        print("Mapping...")
+        # print(command2)
+        with open(sam_name, 'w') as out, open(bwa_out, 'a') as err:
+            sp2 = subprocess.Popen(command2, stderr=err, stdout=out)
+            sp2.wait()
+        samfiles.append(sam_name)
+    if len(samfiles) > 1:
+        # merge SAM files in case there were multiple fastq files per sample
+        final_sam_name = os.path.join(sample_output_folder, '%s.sam' %sample_id)
+        command_merge = ['samtools',
+                         'merge',
+                         final_sam_name]
+        command_merge += samfiles
+        sp3 = subprocess.Popen(command_merge, stderr=subprocess.PIPE)
+    else:
+        final_sam_name = samfiles[0]
 
     #Converting to bam-format with samtools
     print ("Converting to bam...")
     raw_bam = os.path.join(sample_output_folder,"%s_raw.bam" %sample_id)
-    command3 = ["samtools","view","-b","-o",raw_bam,"-S",sam_name]
+    command3 = ["samtools","view","-b","-o",raw_bam,"-S",final_sam_name]
     #print(command3)
     sp3 = subprocess.Popen(command3,stderr=subprocess.PIPE)
     sp3.wait()
@@ -246,9 +289,9 @@ def mapping_bwa(forward,backward,reference,sample_id,sample_output_folder, args,
     #print(command5)
     sp5 = subprocess.Popen(command5)
     sp5.wait()
-    
+
     #Remove some big and unnecessary intermediate files
-    os.remove(sam_name)
+    [os.remove(sam_name) for sam_name in samfiles]
     os.remove(raw_bam)
 
     return sorted_bam
@@ -283,7 +326,6 @@ def mapping_clc(forward,backward,reference,sample_id,sample_output_folder):
 
 
 def clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log):
-	
     samtools_out = "%s/%s_no_dupls_sorted.bam" %(sample_output_folder,sample_id)
     dupl_log = "%s/%s_dupls.log" %(log,sample_id)
     run_samtools_rmdup = [
@@ -779,34 +821,19 @@ def main(args):
             os.makedirs(tmp_folder)
         pickle_path = os.path.join(tmp_folder,'%s_reference.txt' %sample_id)
         np.savetxt(pickle_path,np.array([reference]),fmt='%s')
-        # with open(pickle_path, 'wb') as handle:
-        #     pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        sorted_bam = mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder,args)
+
+        if not args.keep_duplicates:
+            sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)
+        name_stem = '%s_bam_consensus' %sample_id
+        bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
+        if not args.keep_duplicates:
+            dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
+            dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
+            bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
 
 
-        # Loop through each sample-folder and find read-files
-        read1_files = sorted(glob.glob(os.path.join(subfolder_path,'_clean-READ1.fastq.gz')))
-        read2_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ2.fastq.gz')))
-        for i,forward in enumerate(read1_files):
-            backward = read2_files[i]
-
-
-            # samtools merge joined.sam tpella5.sam tpella9.sam
-
-
-            sorted_bam = ""
-            log = os.path.join(sample_output_folder,'log')
-            if not os.path.exists(log):
-                os.makedirs(log)
-            if mapper == "bwa":
-                sorted_bam = mapping_bwa(forward,backward,reference,sample_id,sample_output_folder,args,log)
-            if not args.keep_duplicates:
-                sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)
-            name_stem = '%s_bam_consensus' %sample_id
-            bam_consensus_file = bam_consensus(reference,sorted_bam,name_stem,sample_output_folder,min_cov)
-            if not args.keep_duplicates:
-                dupl_output_folder = ('/').join(dupl_bam.split('/')[:-1])
-                dupl_name_stem = '%s_with_duplicates_bam_consensus' %sample_id
-                bam_consensus_with_duplicates = bam_consensus(reference,dupl_bam,dupl_name_stem,dupl_output_folder,min_cov)
     join_fastas(out_dir,sample_out_list)
     # create file with read-coverage overview
     print(('\n'+"#" * 50))

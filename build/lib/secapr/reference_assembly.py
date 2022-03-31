@@ -764,8 +764,9 @@ def main(args):
         reference = create_reference_fasta(reference_folder,alignments)
     for subfolder in [ name for name in os.listdir(reads) if os.path.isdir(os.path.join(reads, name)) ]:
         subfolder_path = os.path.join(reads,subfolder)
-        sample_folder = subfolder
-        sample_id = re.sub("_clean","",sample_folder)
+        sample_id = subfolder
+        print(('\n' + "#" * 50))
+        print(("Processing sample %s" % sample_id))
         if args.reference_type == "sample-specific":
             reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
         # Safe the sample specific reference as a pickle file for downstream processing
@@ -780,18 +781,18 @@ def main(args):
         np.savetxt(pickle_path,np.array([reference]),fmt='%s')
         # with open(pickle_path, 'wb') as handle:
         #     pickle.dump(reference, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
         # Loop through each sample-folder and find read-files
-        forward = ""
-        backward = ""
-        for fastq in os.listdir(subfolder_path):
-            if fastq.endswith('.fastq') or fastq.endswith('.fq'):
-                if sample_id in fastq and "READ1.fastq" in fastq:
-                    forward = os.path.join(subfolder_path,fastq)
-                elif sample_id in fastq and "READ2.fastq" in fastq:
-                    backward = os.path.join(subfolder_path,fastq)
-        if forward != "" and backward != "":
-            print(('\n'+"#" * 50))
-            print(("Processing sample %s" %sample_id))
+        read1_files = sorted(glob.glob(os.path.join(subfolder_path,'_clean-READ1.fastq.gz')))
+        read2_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ2.fastq.gz')))
+        for i,forward in enumerate(read1_files):
+            backward = read2_files[i]
+
+
+            # samtools merge joined.sam tpella5.sam tpella9.sam
+
+
             sorted_bam = ""
             log = os.path.join(sample_output_folder,'log')
             if not os.path.exists(log):
@@ -886,7 +887,7 @@ def main(args):
             new_df = stats_df.copy()
             new_df['reads_on_target'] = [0]*len(new_df)
             for key in list(total_read_count_dict.keys()):
-                index_row = new_df[new_df['sample'] == int(key)].index 
+                index_row = new_df[new_df['sample_id'] == int(key)].index
                 new_df.iloc[index_row,-1] = int(total_read_count_dict[key])
             new_df.to_csv(os.path.join(args.output,'sample_stats.txt'),sep='\t',index=False)
         except:

@@ -119,7 +119,7 @@ def get_stats_spades(contig_file,sample_id,sample_contig_count_dict):
     #contig_count = contig_count_pre.split(' ')[0].replace('>','')
     sample_contig_count_dict.setdefault(sample_id,contig_count)
     stats_df=pd.DataFrame.from_dict(sample_contig_count_dict, orient='index').reset_index()
-    stats_df.columns = ['sample', 'total_contig_count']
+    stats_df.columns = ['sample_id', 'total_contig_count']
     print(('#'*50))
     print(stats_df)
     return(stats_df,contig_file)
