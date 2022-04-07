@@ -258,9 +258,10 @@ def main(args):
             shared_stems = []
             for i in filenamelist:
                 longest_common_substrings = [longest_common_substring(i,j) for j in filenamelist]
-                longest_common_substrings_length = np.array([len(i) for i in longest_common_substrings])
-                best_match = np.sort(longest_common_substrings_length)[-2] # pick the second longest, because longest is match with itself
-                shared_file_stem = longest_common_substrings[np.where(longest_common_substrings_length==best_match)[0][0]]
+                selected_longest_common_substrings = [i for i in longest_common_substrings if not any([i.endswith(ext) for ext in included_extenstions])]
+                longest_common_substrings_length = np.array([len(i) for i in selected_longest_common_substrings])
+                best_match = np.sort(longest_common_substrings_length)[-1] # pick the longest, because the match with itself is already filtered out in previous step
+                shared_file_stem = selected_longest_common_substrings[np.where(longest_common_substrings_length==best_match)[0][0]]
                 shared_stems.append(shared_file_stem)
             paired_filename_list = []
             for namestem in np.unique(shared_stems):

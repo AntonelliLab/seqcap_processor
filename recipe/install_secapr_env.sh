@@ -22,4 +22,4 @@ conda install -y bwa
 conda install -y samtools==1.3.1
 conda install -y trimal
 conda install -y secapr
-#pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.3.tar.gz
+#pip install https://github.com/AntonelliLab/seqcap_processor/archive/refs/tags/v2.2.5.tar.gz
