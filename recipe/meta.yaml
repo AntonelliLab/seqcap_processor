@@ -1,4 +1,4 @@
-{% set version = "2.1.0" %}
+{% set version = "2.2.6" %}
 
 package:
   name: secapr
@@ -6,7 +6,7 @@ package:
 
 source:
   url: https://github.com/AntonelliLab/seqcap_processor/archive/v{{ version }}.tar.gz
-  sha256: bc69147dbc452acf56dc75452c5cadcdaeeeda1d0a3a81c5c3667e0018924031
+  sha256: 63a67d6bc5d139b2910e562dc7969e7c8374c01720af5319a0f7a9d06c5983c0
 
 build:
   noarch: generic
@@ -17,24 +17,24 @@ build:
 
 requirements:
   host:
-    - python 3.7
+    - python
     - pip
 
   run:
-    - python
+    - python=3.8
     - pandas
     - matplotlib-base
-    - biopython=1.76
+    - biopython
     - trimmomatic
     - fastqc
-    - abyss
-    - spades
+    - fastp=0.23
+    - spades=3.15.2
     - blast
     - mafft
     - muscle
     - emboss
     - bwa
-    - samtools=1.9
+    - samtools==1.3.1
     - trimal
 
 test:
