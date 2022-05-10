@@ -202,8 +202,8 @@ def mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder, args):
         sp1 = subprocess.Popen(command1, shell=False, stderr = subprocess.STDOUT, stdout=logfile)
         sp1.wait()
     #Mapping
-    read1_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ1.fastq.gz')))
-    read2_files = sorted(glob.glob(os.path.join(subfolder_path, '_clean-READ2.fastq.gz')))
+    read1_files = sorted(glob.glob(os.path.join(subfolder_path, '*_clean-READ1.fastq.gz')))
+    read2_files = sorted(glob.glob(os.path.join(subfolder_path, '*_clean-READ2.fastq.gz')))
     samfiles = []
     for i, forward in enumerate(read1_files):
         backward = read2_files[i]
