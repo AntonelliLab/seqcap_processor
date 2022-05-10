@@ -1,8 +1,0 @@
-.DS_Store
-*~
-*pyc
-venv/
-/data
-/personal_docs
-/.ipynb_checkpoints
-/tests
