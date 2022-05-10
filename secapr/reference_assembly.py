@@ -190,8 +190,7 @@ def create_sample_reference_fasta(reference_folder,sample_id,alignments):
     return reference
 
 
-def mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder, args):
-    log = os.path.join(sample_output_folder, 'log')
+def mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder, args, log):
     if not os.path.exists(log):
         os.makedirs(log)
     #Indexing
@@ -267,6 +266,7 @@ def mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder, args):
                          final_sam_name]
         command_merge += samfiles
         sp3 = subprocess.Popen(command_merge, stderr=subprocess.PIPE)
+        sp3.wait()
     else:
         final_sam_name = samfiles[0]
 
@@ -813,6 +813,7 @@ def main(args):
             reference = create_sample_reference_fasta(reference_folder,sample_id,alignments)
         # Safe the sample specific reference as a pickle file for downstream processing
         sample_output_folder = "%s/%s_remapped" %(out_dir,sample_id)
+        log = os.path.join(sample_output_folder, 'log')
         sample_out_list.append(sample_output_folder)
         if not os.path.exists(sample_output_folder):
             os.makedirs(sample_output_folder)
@@ -822,7 +823,7 @@ def main(args):
         pickle_path = os.path.join(tmp_folder,'%s_reference.txt' %sample_id)
         np.savetxt(pickle_path,np.array([reference]),fmt='%s')
 
-        sorted_bam = mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder,args)
+        sorted_bam = mapping_bwa(subfolder_path,reference,sample_id,sample_output_folder,args,log)
 
         if not args.keep_duplicates:
             sorted_bam, dupl_bam = clean_with_samtools(sample_output_folder,sample_id,sorted_bam,log)

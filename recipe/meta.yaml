@@ -29,7 +29,6 @@ requirements:
     - fastqc
     - fastp=0.23
     - spades=3.15.2
-    - cons
     - blast
     - mafft
     - muscle

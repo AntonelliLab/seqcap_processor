@@ -14,7 +14,6 @@ conda install -y biopython
 conda install -y fastqc
 conda install -y fastp=0.23
 conda install -y spades=3.15.2
-conda install -y cons
 conda install -y blast
 conda install -y mafft
 conda install -y muscle
