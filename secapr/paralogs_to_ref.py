@@ -94,6 +94,7 @@ def main(args):
     ref_index_info = os.path.join(root_dir,'reference_fasta_header_info.txt')
 
     subdirs = list(os.walk(root_dir))[0][1]
+    subdirs = [subdir for subdir in subdirs if not subdir.startswith('.')]
     for sample in subdirs:
         print('\nProcessing sample %s'%sample)
         # get the paths for the sample
@@ -104,7 +105,7 @@ def main(args):
         # read the data
         ref_index_df = pd.read_csv(ref_index_info,sep='\t',header=None)
         keys = ref_index_df[0].values
-        values = ref_index_df[1].values
+        values = [val.split()[0] for val in ref_index_df[1].values]
         id_ref_dict = dict(list(zip(keys,values)))
         ref_seqs = list(SeqIO.parse(ref_file, "fasta"))
         contig_seqs = list(SeqIO.parse(contig_file, "fasta"))
