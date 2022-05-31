@@ -94,6 +94,7 @@ def main(args):
     ref_index_info = os.path.join(root_dir,'reference_fasta_header_info.txt')
 
     subdirs = list(os.walk(root_dir))[0][1]
+    subdirs = [subdir for subdir in subdirs if not subdir.startswith('.')]
     for sample in subdirs:
         print('\nProcessing sample %s'%sample)
         # get the paths for the sample
