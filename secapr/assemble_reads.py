@@ -76,18 +76,28 @@ def assembly_spades(sorted_fastq_files,n_library_numbers,output_folder,id_sample
         kmer,
         "--only-assembler"
     ]
-    for i in np.arange(n_library_numbers):
+    if len(sorted_fastq_files) < 3:
         command += [
         "--pe-1",
-        i+1,
-        sorted_fastq_files[i*3],
+        1,
+        sorted_fastq_files[0],
         "--pe-2",
-        i+1,
-        sorted_fastq_files[i*3+1],
-        "--pe-s",
-        i+1,
-        sorted_fastq_files[i*3+2],
+        1,
+        sorted_fastq_files[1],
         ]
+    else:
+        for i in np.arange(n_library_numbers):
+            command += [
+            "--pe-1",
+            i+1,
+            sorted_fastq_files[i*3],
+            "--pe-2",
+            i+1,
+            sorted_fastq_files[i*3+1],
+            "--pe-s",
+            i+1,
+            sorted_fastq_files[i*3+2],
+            ]
     command += ["-o", output_folder]
     if args.cores > 1:
         command+=["--threads", args.cores]
@@ -155,6 +165,8 @@ def process_subfolder(pool_args):
     fastq_files = glob.glob(os.path.join(subfolder,'*.fastq.gz'))
     sorted_fastq_files = ['']*len(fastq_files)
     n_library_numbers = int(len(fastq_files) / 3)
+    if n_library_numbers == 0:      # if there are fewer than three *.fastq.gz files
+        n_library_numbers = 1
     for element in fastq_files:
         for i in np.arange(n_library_numbers):
             if element.endswith("_%i_clean-READ1.fastq.gz"%i):
