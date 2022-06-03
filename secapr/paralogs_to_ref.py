@@ -110,7 +110,11 @@ def main(args):
         ref_seqs = list(SeqIO.parse(ref_file, "fasta"))
         contig_seqs = list(SeqIO.parse(contig_file, "fasta"))
         contig_orientation_df = pd.read_csv(contig_orientation,sep='\t')
-        para_data = genfromtxt(para_info, delimiter='\t')
+        #para_data = genfromtxt(para_info, delimiter='\t')
+        para_data = []
+        with open(para_info, 'r') as para_file:
+            for line in para_file:
+                para_data.append(line.strip().split('\t'))
         print('%i paralogous loci found.'%len(para_data))
         sample_out_dir = os.path.join(outdir,sample)
         if not os.path.exists(sample_out_dir):
@@ -125,11 +129,12 @@ def main(args):
             reference_id = id_ref_dict[reference]
             ref_seq = [ref for ref in ref_seqs if reference_id==ref.id][0]
             records.append(ref_seq)
-            contig_list_tmp = i[1:]
-            contig_list = np.unique(contig_list_tmp[~np.isnan(contig_list_tmp)].astype(int).astype(str))
+            #contig_list_tmp = i[1:]
+            #contig_list = np.unique(contig_list_tmp[~np.isnan(contig_list_tmp)].astype(int).astype(str))
+            contig_list = i[1:]
             for contig_id in contig_list:
                 contig_seq = [contig for contig in contig_seqs if contig_id == contig.id][0]
-                orientation = contig_orientation_df[contig_orientation_df.contig_id == int(contig_id)].orientation.values[0]
+                orientation = contig_orientation_df[contig_orientation_df.contig_id == contig_id].orientation.values[0]
                 if orientation == 'plus':
                     pass
                 else:
