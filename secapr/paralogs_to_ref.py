@@ -69,7 +69,7 @@ def fix_line_wrap(alignment_file):
         line = line.strip()
         if line.startswith(">"):
             id = line
-            final[id] = " "
+            final[id] = ""
         else:
             final[id] += line    
     file_out = open(alignment_file, "w")    
