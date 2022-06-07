@@ -105,11 +105,7 @@ def main(args):
         # read the data
         ref_index_df = pd.read_csv(ref_index_info,sep='\t',header=None)
         keys = ref_index_df[0].values
-<<<<<<< HEAD
-        values = [val.split()[0] for val in ref_index_df[1].values]
-=======
         values = [str(val).split()[0] for val in ref_index_df[1].values]
->>>>>>> dccfb62... Now corrected for numpy.int64 values
         id_ref_dict = dict(list(zip(keys,values)))
         ref_seqs = list(SeqIO.parse(ref_file, "fasta"))
         contig_seqs = list(SeqIO.parse(contig_file, "fasta"))
