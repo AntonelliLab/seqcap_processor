@@ -61,8 +61,14 @@ def add_arguments(parser):
         default=1,
         help='For parallel processing you can set the number of cores you want to run the assembly on.'
     )
+    parser.add_argument(
+        '--instances',
+        type=int,
+        default=1,
+        help='How many parallel assemblies to run at a time. This will multiply the cores and max_memory arguments (for each SPAdes run). For example, max_memory=4, cores=2 and instances=4 will use 8 threads and 16 GB.'
+    )
 
-def assembly_spades(sorted_fastq_files,n_library_numbers,output_folder,id_sample,kmer,cores,max_memory,args):
+def assembly_spades(sorted_fastq_files,n_library_numbers,output_folder,id_sample,kmer,args):
     print("De-novo assembly with spades of sample %s:" %id_sample)
     command = [
         "spades.py",
@@ -160,7 +166,7 @@ def process_subfolder(pool_args):
     print(('#' * 50))
     print(("Processing sample %s" % sample_id))
     start = time.time()
-    assembly_spades(sorted_fastq_files, n_library_numbers, sample_output_folder, sample_id, kmer, 1, max_memory, args)
+    assembly_spades(sorted_fastq_files, n_library_numbers, sample_output_folder, sample_id, kmer, args)
     contig_file = os.path.join(sample_output_folder, 'contigs.fasta')
     new_contig_file = '%s/../../%s.fa' % (sample_output_folder, sample_id)
     mv_contig = "cp %s %s" % (contig_file, new_contig_file)
@@ -177,11 +183,11 @@ def main(args):
     out_dir = os.path.join(out_folder,'stats')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    cores = args.cores
+    instances = args.instances
     subfolder_list = [subfolder for subfolder, __, __ in os.walk(input_folder) if os.path.basename(subfolder) != os.path.basename(input_folder)]
-    if cores > 1:
-        print(("Running in parallel on %d cores" %cores))
-        pool = multiprocessing.Pool(cores)
+    if instances > 1:
+        print(("Running assemblies in parallel as %d instances" %instances))
+        pool = multiprocessing.Pool(instances)
         pool_args = [[subfolder,args] for subfolder in subfolder_list]
         contig_count_df_list = list(pool.map(partial(process_subfolder), pool_args))
         pool.close()
