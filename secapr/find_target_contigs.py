@@ -233,6 +233,8 @@ def remove_duplicate_names_from_contig_file(contig_file):
     with open(contig_file,'r') as handle:
         contigs_file_content = SeqIO.parse(handle,'fasta')
         contigs_file_content_list = list(contigs_file_content)
+        if len(contigs_file_content_list) == 0:        # no contigs found
+            return(0)
         contig_info = [(i.id,len(i.seq)) for i in contigs_file_content_list]
         headers, lengths = zip(*contig_info)
         headers = np.array(headers)
