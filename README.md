@@ -62,7 +62,23 @@ conda create -n secapr_env secapr
 ### RECENT INSTALLATION ISSUES
 In case the above command results in an endless wait while conda is trying to solve the environment, something is not working the way it should with the conda environment creation (we are currenlty investigating what causes this issue for some users).
 
-Instead you can install the SECAPR environment directly from the GitHub repo. For this, first download the file containing the installation instructions with `wget` and execute it with `sh`.
+Instead you can install the SECAPR environment directly from the GitHub repo. For this, first create the secapr environment manually and connect to it:
+
+```bash
+conda create -y -n secapr_env
+conda activate secapr_env
+# in case the previous command didn't work, use the one below instead
+source activate secapr_env
+```
+
+In case you have a newer Apple computer with an Apple chip (M1 or M2), run the following line while connected ot your `secapr_env` environment. This will make sure that all packages are compatible.
+
+```bash
+# only run the command below if you have an Apple computer with an Apple chip!!
+conda config --env --set subdir osx-64
+```
+
+Now download the file containing the installation instructions with `wget` and execute it with `sh`.
 
 If you don't have `wget` installed on your computer you can install it with `conda install wget`.
 
